@@ -68,11 +68,13 @@
 
             <!-- Ingrédients -->
             <div id="ingredients-content" class="tab-content">
-                <div class="flex justify-between items-center mb-4">
+                <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
                     <h2 class="text-2xl font-semibold">Gestion des Ingrédients</h2>
-                    <button id="add-ingredient-btn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-transform transform hover:scale-105">
-                        <i class="fas fa-plus mr-2"></i>Ajouter
-                    </button>
+                    <div class="flex gap-2">
+                        <button id="import-ingredients-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer CSV</button>
+                        <button id="export-ingredients-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter CSV</button>
+                        <button id="add-ingredient-btn" class="btn-primary"><i class="fas fa-plus mr-2"></i>Ajouter</button>
+                    </div>
                 </div>
                 <div class="bg-white p-6 rounded-2xl shadow-lg">
                     <table id="ingredients-table" class="min-w-full divide-y divide-gray-200">
@@ -93,11 +95,13 @@
 
             <!-- Produits -->
             <div id="products-content" class="tab-content">
-                 <div class="flex justify-between items-center mb-4">
+                 <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
                     <h2 class="text-2xl font-semibold">Gestion des Produits</h2>
-                    <button id="add-product-btn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-transform transform hover:scale-105">
-                       <i class="fas fa-plus mr-2"></i>Créer un Produit
-                    </button>
+                    <div class="flex gap-2">
+                        <button id="import-products-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer CSV</button>
+                        <button id="export-products-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter CSV</button>
+                        <button id="add-product-btn" class="btn-primary"><i class="fas fa-plus mr-2"></i>Créer un Produit</button>
+                    </div>
                 </div>
                 <div id="products-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                      <div id="products-placeholder" class="text-center col-span-full py-10 text-gray-500">
@@ -137,7 +141,13 @@
 
                  <!-- Section Historique des Commandes -->
                  <div class="mt-12">
-                     <h2 class="text-2xl font-semibold mb-4">Historique des Commandes</h2>
+                     <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
+                        <h2 class="text-2xl font-semibold">Historique des Commandes</h2>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button id="import-orders-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer</button>
+                            <button id="export-orders-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter</button>
+                        </div>
+                    </div>
                      <div id="order-history-list" class="space-y-4">
                          <div id="order-history-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
                             <i class="fas fa-history fa-2x text-gray-400 mb-2"></i>
@@ -150,7 +160,6 @@
     </div>
 
     <!-- Modals -->
-    <!-- Modal Ingrédient -->
     <div id="ingredient-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
             <h3 id="ingredient-modal-title" class="text-xl font-semibold mb-4">Ajouter un ingrédient</h3>
@@ -178,7 +187,6 @@
         </div>
     </div>
     
-    <!-- Modal Produit -->
     <div id="product-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl">
             <h3 id="product-modal-title" class="text-xl font-semibold mb-4">Créer un Produit</h3>
@@ -202,7 +210,6 @@
                         <option value="Dessert">Dessert</option>
                     </select>
                 </div>
-
                 <div id="recipe-section" class="mt-6">
                     <h4 class="text-lg font-medium text-gray-800 mb-2">Recette</h4>
                     <div id="recipe-ingredients-list" class="space-y-2 mb-3"></div>
@@ -218,13 +225,11 @@
                         <button type="button" id="add-recipe-ingredient-btn" class="btn-secondary h-10">Ajouter</button>
                     </div>
                 </div>
-
                 <div id="linked-ingredient-section" class="mt-6 hidden">
                      <h4 class="text-lg font-medium text-gray-800 mb-2">Article en Stock</h4>
                      <label class="block text-sm font-medium text-gray-700">Lier ce produit à un article de l'inventaire</label>
                      <select id="linked-ingredient-select" class="mt-1 w-full input-style"></select>
                 </div>
-
                 <div class="mt-6 flex justify-end space-x-3">
                     <button type="button" class="btn-secondary" id="cancel-product">Annuler</button>
                     <button type="submit" class="btn-primary">Sauvegarder Produit</button>
@@ -233,32 +238,39 @@
         </div>
     </div>
 
-    <!-- Notification Toast -->
+    <!-- Modal Import CSV -->
+    <div id="import-modal" class="modal fixed z-20 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+            <h3 id="import-modal-title" class="text-xl font-semibold mb-4">Importer un fichier CSV</h3>
+            <div id="import-instructions" class="text-sm text-gray-600 bg-gray-100 p-3 rounded-lg mb-4"></div>
+            <div>
+                <label for="csv-file-input" class="block text-sm font-medium text-gray-700">Choisir un fichier .csv</label>
+                <input type="file" id="csv-file-input" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" class="btn-secondary" id="cancel-import">Annuler</button>
+                <button type="button" class="btn-primary" id="process-import-btn" disabled>Lancer l'importation</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toast" class="hidden fixed bottom-5 right-5 bg-gray-900 text-white py-2 px-5 rounded-lg shadow-lg transition-opacity duration-300">
         <p id="toast-message"></p>
     </div>
 
     <!-- CSS pour les éléments communs -->
     <style>
-        .tab-link {
-            @apply whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors;
-        }
-        .input-style {
-            @apply p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500;
-        }
-        .btn-primary {
-            @apply bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-all;
-        }
-        .btn-secondary {
-             @apply bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-all;
-        }
+        .tab-link { @apply whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors; }
+        .input-style { @apply p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500; }
+        .btn-primary { @apply bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-all; }
+        .btn-secondary { @apply bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-all; }
     </style>
 
     <script type="module">
         // --- IMPORTS FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, serverTimestamp, writeBatch, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- CONFIGURATION ---
         const firebaseConfigFromUser = {
@@ -269,7 +281,6 @@
             messagingSenderId: "126450282941",
             appId: "1:126450282941:web:10e5255e6ee7c75fa8e2d4"
         };
-
 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
@@ -286,8 +297,10 @@
         // --- ETAT GLOBAL ---
         let allIngredients = [];
         let allProducts = [];
+        let orderHistory = [];
         let currentRecipe = [];
         let currentOrder = [];
+        let importType = '';
 
         // --- SEUILS ---
         const LOW_STOCK_THRESHOLD = 10;
@@ -309,10 +322,6 @@
             }
         });
 
-        // --- DOM ELEMENTS ---
-        const tabs = document.querySelectorAll('.tab-link');
-        const tabContents = document.querySelectorAll('.tab-content');
-        
         // --- FONCTIONS UTILITAIRES ---
         const showToast = (message) => {
             const toast = document.getElementById('toast');
@@ -320,16 +329,15 @@
             toast.classList.remove('hidden');
             setTimeout(() => toast.classList.add('hidden'), 3000);
         };
-
         const openModal = (id) => document.getElementById(id).classList.add('flex');
         const closeModal = (id) => document.getElementById(id).classList.remove('flex');
 
         // --- LOGIQUE DE NAVIGATION ---
-        tabs.forEach(tab => {
+        document.querySelectorAll('.tab-link').forEach(tab => {
             tab.addEventListener('click', () => {
-                tabs.forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
-                tabContents.forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 document.getElementById(`${tab.dataset.tab}-content`).classList.add('active');
             });
         });
@@ -342,16 +350,14 @@
             renderDashboard();
             populateIngredientSelects();
         });
-
         const listenToProducts = () => onSnapshot(productsCol, snapshot => {
             allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             allProducts.sort((a,b) => a.name.localeCompare(b.name));
             renderProducts();
             populateProductSelects();
         });
-
         const listenToOrders = () => onSnapshot(ordersCol, snapshot => {
-            let orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             orderHistory.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
             renderOrderHistory(orderHistory);
         });
@@ -500,7 +506,8 @@
             } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); }
         });
         document.getElementById('ingredients-list').addEventListener('click', async e => {
-            const target = e.target;
+            const target = e.target.closest('[data-id]');
+            if (!target) return;
             const id = target.dataset.id;
             if (target.classList.contains('delete-ingredient-btn')) {
                 if(confirm('Voulez-vous vraiment supprimer cet ingrédient ?')) {
@@ -687,6 +694,7 @@
             const batch = writeBatch(db);
             let success = true;
             let totalPrice = 0;
+            const temporaryStockDeductions = new Map();
 
             for (const orderItem of currentOrder) {
                 const product = allProducts.find(p => p.id === orderItem.id);
@@ -696,26 +704,24 @@
 
                 if (product.type === 'Pizza') {
                     for (const recipeItem of product.recipe) {
-                        const ingredient = allIngredients.find(i => i.id === recipeItem.id);
+                        const currentDeduction = temporaryStockDeductions.get(recipeItem.id) || 0;
                         const quantityToDeduct = recipeItem.quantity * orderItem.quantity;
-                        if (!ingredient || ingredient.quantity < quantityToDeduct) {
-                            showToast(`Stock insuffisant pour: ${ingredient ? ingredient.name : recipeItem.name}`);
-                            success = false; break;
-                        }
-                        const newQuantity = ingredient.quantity - quantityToDeduct;
-                        batch.update(doc(ingredientsCol, ingredient.id), { quantity: newQuantity });
+                        temporaryStockDeductions.set(recipeItem.id, currentDeduction + quantityToDeduct);
                     }
                 } else { // Boisson or Dessert
-                    const ingredient = allIngredients.find(i => i.id === product.linkedIngredientId);
+                    const currentDeduction = temporaryStockDeductions.get(product.linkedIngredientId) || 0;
                     const quantityToDeduct = orderItem.quantity;
-                     if (!ingredient || ingredient.quantity < quantityToDeduct) {
-                        showToast(`Stock insuffisant pour: ${ingredient ? ingredient.name : product.name}`);
-                        success = false; break;
-                    }
-                    const newQuantity = ingredient.quantity - quantityToDeduct;
-                    batch.update(doc(ingredientsCol, ingredient.id), { quantity: newQuantity });
+                    temporaryStockDeductions.set(product.linkedIngredientId, currentDeduction + quantityToDeduct);
                 }
-                if (!success) break;
+            }
+
+            for (const [ingredientId, quantityToDeduct] of temporaryStockDeductions.entries()) {
+                 const ingredient = allIngredients.find(i => i.id === ingredientId);
+                 if (!ingredient || ingredient.quantity < quantityToDeduct) {
+                    showToast(`Stock insuffisant pour: ${ingredient ? ingredient.name : 'un ingrédient inconnu'}`);
+                    success = false; break;
+                 }
+                 batch.update(doc(ingredientsCol, ingredient.id), { quantity: increment(-quantityToDeduct) });
             }
             
             if (success) {
@@ -734,13 +740,259 @@
             const deleteBtn = e.target.closest('.delete-order-btn');
             if (deleteBtn) {
                 const orderId = deleteBtn.dataset.id;
-                if (confirm("Voulez-vous vraiment supprimer cette commande de l'historique ?\n\nAttention : Le stock ne sera PAS restauré.")) {
+                const orderToDelete = orderHistory.find(o => o.id === orderId);
+                if (!orderToDelete) return;
+                
+                if (confirm("Voulez-vous vraiment supprimer cette commande ?\n\nLe stock utilisé sera automatiquement restauré.")) {
+                    const batch = writeBatch(db);
+                    
+                    for (const orderItem of orderToDelete.items) {
+                        const product = allProducts.find(p => p.id === orderItem.id);
+                        if (!product) continue;
+                        
+                        if (product.type === 'Pizza') {
+                            for (const recipeItem of product.recipe) {
+                                const quantityToRestore = recipeItem.quantity * orderItem.quantity;
+                                batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(quantityToRestore) });
+                            }
+                        } else {
+                            const quantityToRestore = orderItem.quantity;
+                            batch.update(doc(ingredientsCol, product.linkedIngredientId), { quantity: increment(quantityToRestore) });
+                        }
+                    }
+
+                    batch.delete(doc(ordersCol, orderId));
+
                     try {
-                        await deleteDoc(doc(ordersCol, orderId));
-                        showToast("Commande supprimée de l'historique.");
-                    } catch (error) { console.error("Error deleting order:", error); showToast("Erreur lors de la suppression."); }
+                        await batch.commit();
+                        showToast("Commande supprimée et stock restauré.");
+                    } catch (error) { console.error("Error restoring stock:", error); showToast("Erreur lors de la suppression."); }
                 }
             }
+        });
+
+        // --- LOGIQUE CSV ---
+        const CSV_INSTRUCTIONS = {
+            ingredients: `
+                <p>Le fichier doit avoir 3 colonnes : <strong>nom,quantite,unite</strong></p>
+                <p>La première ligne doit être l'en-tête.</p>
+                <p class="mt-2">Exemple :</p>
+                <pre class="bg-gray-200 p-2 rounded text-xs">nom,quantite,unite
+Tomates,10,kg
+Fromage Mozzarella,5.5,kg</pre>`,
+            products: `
+                <p>Le fichier doit avoir 4 colonnes : <strong>nom,prix,type,details</strong></p>
+                <ul>
+                    <li>- <strong>type</strong>: Pizza, Boisson, ou Dessert.</li>
+                    <li>- <strong>details</strong> (pour une Pizza): liste d'ingrédients séparés par ";". Format: <strong>NomIngredient:quantite:unite</strong></li>
+                     <li>- <strong>details</strong> (Boisson/Dessert): le <strong>nom exact</strong> de l'ingrédient en stock.</li>
+                </ul>
+                <p class="mt-2">Exemple :</p>
+                <pre class="bg-gray-200 p-2 rounded text-xs">nom,prix,type,details
+Margherita,8.5,Pizza,"Pâte à pizza:1:pièce;Sauce Tomate:0.15:kg;Fromage Mozzarella:0.1:kg"
+Coca-Cola,2.5,Boisson,Canette de Coca-Cola</pre>`,
+            orders: `
+                <p>Le fichier doit avoir 2 colonnes : <strong>produits,quantites</strong></p>
+                <p>Chaque ligne représente une commande. Séparez les produits et quantités par des ";".</p>
+                <p class="mt-2">Exemple pour une commande de 2 Margherita et 1 Coca :</p>
+                <pre class="bg-gray-200 p-2 rounded text-xs">produits,quantites
+"Margherita;Coca-Cola","2;1"
+Regina,1</pre>`
+        };
+
+        document.getElementById('import-ingredients-btn').addEventListener('click', () => {
+            importType = 'ingredients';
+            document.getElementById('import-modal-title').textContent = 'Importer des Ingrédients';
+            document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.ingredients;
+            openModal('import-modal');
+        });
+
+        document.getElementById('import-products-btn').addEventListener('click', () => {
+            importType = 'products';
+            document.getElementById('import-modal-title').textContent = 'Importer des Produits';
+            document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.products;
+            openModal('import-modal');
+        });
+
+        document.getElementById('import-orders-btn').addEventListener('click', () => {
+            importType = 'orders';
+            document.getElementById('import-modal-title').textContent = 'Importer des Commandes';
+            document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.orders;
+            openModal('import-modal');
+        });
+
+
+        document.getElementById('cancel-import').addEventListener('click', () => closeModal('import-modal'));
+        document.getElementById('csv-file-input').addEventListener('change', () => {
+             document.getElementById('process-import-btn').disabled = !document.getElementById('csv-file-input').files.length;
+        });
+
+        document.getElementById('process-import-btn').addEventListener('click', async () => {
+            const file = document.getElementById('csv-file-input').files[0];
+            if (!file) return showToast("Veuillez choisir un fichier.");
+            
+            document.getElementById('process-import-btn').disabled = true;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const csv = event.target.result;
+                const lines = csv.split('\n').filter(line => line.trim() !== '');
+                lines.shift(); // Remove header row
+
+                try {
+                    if (importType === 'ingredients') await importIngredients(lines);
+                    else if (importType === 'products') await importProducts(lines);
+                    else if (importType === 'orders') await importOrders(lines);
+                    showToast('Importation terminée avec succès !');
+                } catch (error) {
+                    console.error("Import error:", error);
+                    showToast(`Erreur d'importation: ${error.message}`);
+                } finally {
+                    closeModal('import-modal');
+                    document.getElementById('csv-file-input').value = '';
+                    document.getElementById('process-import-btn').disabled = false;
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        async function importIngredients(lines) {
+            const batch = writeBatch(db);
+            lines.forEach(line => {
+                const [name, quantity, unit] = line.trim().split(',');
+                if (name && quantity && unit) {
+                    const newIngredientRef = doc(ingredientsCol);
+                    batch.set(newIngredientRef, {
+                        name: name.trim(),
+                        quantity: parseFloat(quantity),
+                        unit: unit.trim(),
+                        createdAt: serverTimestamp()
+                    });
+                }
+            });
+            await batch.commit();
+        }
+
+        async function importProducts(lines) {
+            const batch = writeBatch(db);
+            lines.forEach(line => {
+                const values = line.trim().split(',');
+                const name = values[0];
+                const price = values[1];
+                const type = values[2];
+                const details = values.slice(3).join(','); // Handle potential commas in details
+                
+                 if (!name || !price || !type || !details) return;
+
+                const data = {
+                    name: name.trim(),
+                    price: parseFloat(price),
+                    type: type.trim(),
+                    createdAt: serverTimestamp()
+                };
+
+                if (data.type === 'Pizza') {
+                    data.recipe = details.trim().replace(/"/g, '').split(';').map(part => {
+                        const [ingName, ingQty, ingUnit] = part.split(':');
+                        const ingredient = allIngredients.find(i => i.name.toLowerCase() === ingName.toLowerCase());
+                        if (!ingredient) throw new Error(`Ingrédient non trouvé: ${ingName}`);
+                        return { id: ingredient.id, name: ingredient.name, quantity: parseFloat(ingQty), unit: ingUnit };
+                    });
+                } else {
+                    const linkedIngredient = allIngredients.find(i => i.name.toLowerCase() === details.trim().toLowerCase());
+                    if (!linkedIngredient) throw new Error(`Article en stock non trouvé: ${details}`);
+                    data.linkedIngredientId = linkedIngredient.id;
+                }
+                batch.set(doc(productsCol), data);
+            });
+            await batch.commit();
+        }
+
+        async function importOrders(lines) {
+            const batch = writeBatch(db);
+            for(const line of lines) {
+                const values = line.trim().split(',');
+                const productNamesRaw = values[0];
+                const quantitiesRaw = values[1];
+
+                if(!productNamesRaw || !quantitiesRaw) continue;
+
+                const productNames = productNamesRaw.replace(/"/g, '').split(';');
+                const quantities = quantitiesRaw.replace(/"/g, '').split(';');
+                
+                let orderItems = [];
+                let totalPrice = 0;
+
+                for (let i = 0; i < productNames.length; i++) {
+                    const name = productNames[i];
+                    const quantity = parseInt(quantities[i]);
+                    const product = allProducts.find(p => p.name.toLowerCase() === name.toLowerCase());
+
+                    if (!product) throw new Error(`Produit non trouvé : ${name}`);
+
+                    orderItems.push({ id: product.id, name: product.name, quantity: quantity, price: product.price });
+                    totalPrice += product.price * quantity;
+                    
+                    if (product.type === 'Pizza') {
+                        for (const recipeItem of product.recipe) {
+                             batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(-(recipeItem.quantity * quantity)) });
+                        }
+                    } else {
+                        batch.update(doc(ingredientsCol, product.linkedIngredientId), { quantity: increment(-quantity) });
+                    }
+                }
+                batch.set(doc(ordersCol), { items: orderItems, totalPrice, createdAt: serverTimestamp() });
+            }
+            await batch.commit();
+        }
+
+
+        const downloadCSV = (content, filename) => {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        };
+
+        document.getElementById('export-ingredients-btn').addEventListener('click', () => {
+            let csvContent = "nom,quantite,unite\n";
+            allIngredients.forEach(ing => {
+                csvContent += `${ing.name},${ing.quantity},${ing.unit}\n`;
+            });
+            downloadCSV(csvContent, 'ingredients.csv');
+        });
+
+        document.getElementById('export-products-btn').addEventListener('click', () => {
+            let csvContent = "nom,prix,type,details\n";
+            allProducts.forEach(prod => {
+                let details = '';
+                if (prod.type === 'Pizza') {
+                    details = `"${prod.recipe.map(r => `${r.name}:${r.quantity}:${r.unit}`).join(';')}"`;
+                } else {
+                    const linked = allIngredients.find(i => i.id === prod.linkedIngredientId);
+                    details = linked ? linked.name : 'NON LIÉ';
+                }
+                csvContent += `${prod.name},${prod.price},${prod.type},${details}\n`;
+            });
+            downloadCSV(csvContent, 'produits.csv');
+        });
+
+        document.getElementById('export-orders-btn').addEventListener('click', () => {
+            let csvContent = "date,produits,quantites,prix_total\n";
+            orderHistory.forEach(order => {
+                const date = order.createdAt ? new Date(order.createdAt.seconds * 1000).toISOString() : '';
+                const products = order.items.map(i => i.name).join(';');
+                const quantities = order.items.map(i => i.quantity).join(';');
+                csvContent += `${date},"${products}","${quantities}",${order.totalPrice.toFixed(2)}\n`;
+            });
+            downloadCSV(csvContent, 'historique_commandes.csv');
         });
     </script>
 </body>
