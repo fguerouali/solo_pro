@@ -391,7 +391,7 @@
         const renderDashboard = () => {
             const container = document.getElementById('low-stock-alerts');
             const placeholder = document.getElementById('low-stock-placeholder');
-            container.innerHTML = ''; // Clear previous alerts
+            container.innerHTML = '';
             const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD);
             if(lowStockItems.length === 0){
                 container.appendChild(placeholder);
@@ -511,7 +511,15 @@
         document.getElementById('ingredients-list').addEventListener('click', async e => { const target = e.target.closest('[data-id]'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-ingredient-btn')) { if(confirm('Voulez-vous vraiment supprimer cet ingrédient ?')) { await deleteDoc(doc(ingredientsCol, id)); showToast('Ingrédient supprimé.'); } } else if (target.classList.contains('edit-ingredient-btn')) { const docSnap = await getDoc(doc(ingredientsCol, id)); const data = docSnap.data(); document.getElementById('ingredient-modal-title').textContent = 'Modifier un ingrédient'; document.getElementById('ingredient-id').value = docSnap.id; document.getElementById('ingredient-name').value = data.name; document.getElementById('ingredient-quantity').value = data.quantity; document.getElementById('ingredient-unit').value = data.unit; openModal('ingredient-modal'); } });
 
         // --- LOGIQUE PRODUITS ---
-        const populateIngredientSelects = () => { const recipeSelect = document.getElementById('recipe-ingredient-select'); const linkedSelect = document.getElementById('linked-ingredient-select'); const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join(''); recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`; linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`; };
+        const populateIngredientSelects = () => { 
+            const recipeSelect = document.getElementById('recipe-ingredient-select'); 
+            const linkedSelect = document.getElementById('linked-ingredient-select'); 
+            const poSelect = document.getElementById('po-ingredient-select');
+            const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join(''); 
+            recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`; 
+            linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`;
+            poSelect.innerHTML = `<option value="">Choisir...</option>${options}`;
+        };
         const populateProductSelects = () => { const select = document.getElementById('order-product-select'); select.innerHTML = ''; allProducts.forEach(product => select.innerHTML += `<option value="${product.id}">${product.name}</option>`); }
         document.getElementById('add-product-btn').addEventListener('click', () => { document.getElementById('product-modal-title').textContent = 'Créer un Produit'; document.getElementById('product-form').reset(); document.getElementById('product-id').value = ''; document.getElementById('product-type').dispatchEvent(new Event('change')); currentRecipe = []; renderCurrentRecipe(); openModal('product-modal'); });
         document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal'));
