@@ -235,24 +235,13 @@
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- CONFIGURATION ---
-        // =================================================================================
-        // IMPORTANT : Pour que l'application fonctionne sur Render (ou en ligne),
-        // vous devez coller ici la configuration de VOTRE propre projet Firebase.
-        //
-        // Suivez ces étapes :
-        // 1. Allez sur https://firebase.google.com/ et créez un projet.
-        // 2. Dans votre projet, créez une application web (icône </>).
-        // 3. Firebase vous donnera un objet "firebaseConfig". Copiez-le et collez-le ici.
-        // 4. N'oubliez pas d'activer "Authentication" (avec le mode "Anonyme")
-        //    et "Firestore Database" (en mode production) dans votre projet Firebase.
-        // =================================================================================
         const firebaseConfigFromUser = {
-          apiKey: "AIzaSyCzUX90zSN2zG9O97g7TNyTmTSNte9OT-E",
-          authDomain: "solopro-6521a.firebaseapp.com",
-          projectId: "solopro-6521a",
-          storageBucket: "solopro-6521a.firebasestorage.app",
-          messagingSenderId: "126450282941",
-          appId: "1:126450282941:web:10e5255e6ee7c75fa8e2d4"            
+            apiKey: "AIzaSyCzUX90zSN2zG9O97g7TNyTmTSNte9OT-E",
+            authDomain: "solopro-6521a.firebaseapp.com",
+            projectId: "solopro-6521a",
+            storageBucket: "solopro-6521a.appspot.com",
+            messagingSenderId: "126450282941",
+            appId: "1:126450282941:web:10e5255e6ee7c75fa8e2d4"
         };
 
 
@@ -316,15 +305,6 @@
                 document.getElementById(`${tab.dataset.tab}-content`).classList.add('active');
             });
         });
-        
-        // --- LOGIQUE INGREDIENTS ---
-        // TODO: Ajoutez la logique pour les ingrédients ici
-        
-        // --- LOGIQUE PIZZAS & RECETTES ---
-        // TODO: Ajoutez la logique pour les pizzas ici
-        
-        // --- LOGIQUE COMMANDES ---
-        // TODO: Ajoutez la logique pour les commandes ici
 
         // --- LISTENERS FIREBASE ---
         const listenToIngredients = () => onSnapshot(ingredientsCol, snapshot => {
@@ -355,13 +335,13 @@
             } else {
                  placeholder.style.display = 'none';
                  lowStockItems.forEach(item => {
-                    const alertDiv = document.createElement('div');
-                    alertDiv.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow';
-                    alertDiv.innerHTML = `
-                        <p class="font-bold">${item.name}</p>
-                        <p>Stock restant: ${item.quantity} ${item.unit}</p>`;
-                    container.appendChild(alertDiv);
-                });
+                     const alertDiv = document.createElement('div');
+                     alertDiv.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow';
+                     alertDiv.innerHTML = `
+                         <p class="font-bold">${item.name}</p>
+                         <p>Stock restant: ${item.quantity} ${item.unit}</p>`;
+                     container.appendChild(alertDiv);
+                 });
             }
         };
 
@@ -370,7 +350,8 @@
             const placeholder = document.getElementById('ingredients-placeholder');
             list.innerHTML = '';
             if(allIngredients.length === 0) {
-                placeholder.style.display = 'block';
+                placeholder.style.display = 'table-row-group';
+                list.innerHTML = `<tr><td colspan="3">${placeholder.innerHTML}</td></tr>`
                 return;
             }
             placeholder.style.display = 'none';
@@ -397,6 +378,7 @@
             const placeholder = document.getElementById('pizzas-placeholder');
             container.innerHTML = '';
             if(allPizzas.length === 0) {
+                 container.appendChild(placeholder);
                  placeholder.style.display = 'block';
                  return;
             }
@@ -568,15 +550,16 @@
         });
 
         document.getElementById('pizzas-list').addEventListener('click', async e => {
-             const id = e.target.dataset.id;
+             const id = e.target.closest('[data-id]')?.dataset.id;
              if(!id) return;
-
-            if (e.target.classList.contains('delete-pizza-btn')) {
+            
+             const target = e.target;
+             if (target.classList.contains('delete-pizza-btn') || target.closest('.delete-pizza-btn')) {
                 if(confirm('Voulez-vous vraiment supprimer cette pizza ?')) {
                     await deleteDoc(doc(pizzasCol, id));
                     showToast('Pizza supprimée.');
                 }
-            } else if (e.target.classList.contains('edit-pizza-btn')) {
+            } else if (target.classList.contains('edit-pizza-btn') || target.closest('.edit-pizza-btn')) {
                 const pizza = allPizzas.find(p => p.id === id);
                 document.getElementById('pizza-modal-title').textContent = 'Modifier une Pizza';
                 document.getElementById('pizza-id').value = id;
@@ -676,7 +659,7 @@
                     renderCurrentOrder();
                 } catch (error) {
                     console.error("Batch commit failed: ", error);
-                    showToast(\Erreur: ${error.message}`);
+                    showToast(`Erreur: ${error.message}`);
                 }
             }
         });
@@ -684,7 +667,4 @@
     </script>
 </body>
 </html>
-
-
-
 
