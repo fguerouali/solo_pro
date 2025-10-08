@@ -43,8 +43,8 @@
                     <button class="tab-link" data-tab="ingredients">
                         <i class="fas fa-box mr-2"></i>Ingrédients
                     </button>
-                    <button class="tab-link" data-tab="pizzas">
-                        <i class="fas fa-utensils mr-2"></i>Pizzas & Recettes
+                    <button class="tab-link" data-tab="products">
+                        <i class="fas fa-utensils mr-2"></i>Produits
                     </button>
                     <button class="tab-link" data-tab="orders">
                         <i class="fas fa-receipt mr-2"></i>Commandes
@@ -91,18 +91,17 @@
                 </div>
             </div>
 
-            <!-- Pizzas & Recettes -->
-            <div id="pizzas-content" class="tab-content">
+            <!-- Produits -->
+            <div id="products-content" class="tab-content">
                  <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-semibold">Gestion des Pizzas & Recettes</h2>
-                    <button id="add-pizza-btn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-transform transform hover:scale-105">
-                       <i class="fas fa-plus mr-2"></i>Créer une Pizza
+                    <h2 class="text-2xl font-semibold">Gestion des Produits</h2>
+                    <button id="add-product-btn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-transform transform hover:scale-105">
+                       <i class="fas fa-plus mr-2"></i>Créer un Produit
                     </button>
                 </div>
-                <div id="pizzas-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- Les cartes de pizza seront insérées ici -->
-                     <div id="pizzas-placeholder" class="text-center col-span-full py-10 text-gray-500">
-                        <p>Aucune pizza créée. Créez votre première pizza !</p>
+                <div id="products-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                     <div id="products-placeholder" class="text-center col-span-full py-10 text-gray-500">
+                        <p>Aucun produit créé. Créez votre premier produit !</p>
                     </div>
                 </div>
             </div>
@@ -112,15 +111,15 @@
                  <h2 class="text-2xl font-semibold mb-4">Nouvelle Commande</h2>
                  <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
                      <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-lg">
-                         <h3 class="text-lg font-medium mb-4">Ajouter des pizzas à la commande</h3>
+                         <h3 class="text-lg font-medium mb-4">Ajouter des produits à la commande</h3>
                          <form id="add-to-order-form" class="flex items-end gap-4">
                              <div class="flex-grow">
-                                <label for="order-pizza-select" class="block text-sm font-medium text-gray-700">Pizza</label>
-                                <select id="order-pizza-select" class="mt-1 block w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></select>
+                                <label for="order-product-select" class="block text-sm font-medium text-gray-700">Produit</label>
+                                <select id="order-product-select" class="mt-1 block w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></select>
                              </div>
                              <div>
-                                <label for="order-pizza-quantity" class="block text-sm font-medium text-gray-700">Quantité</label>
-                                <input type="number" id="order-pizza-quantity" value="1" min="1" class="mt-1 block w-24 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <label for="order-product-quantity" class="block text-sm font-medium text-gray-700">Quantité</label>
+                                <input type="number" id="order-product-quantity" value="1" min="1" class="mt-1 block w-24 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                              </div>
                              <button type="submit" class="bg-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-900 h-10">Ajouter</button>
                          </form>
@@ -144,7 +143,6 @@
                             <i class="fas fa-history fa-2x text-gray-400 mb-2"></i>
                             <p>Aucune commande dans l'historique.</p>
                         </div>
-                        <!-- L'historique des commandes sera inséré ici -->
                      </div>
                  </div>
             </div>
@@ -180,23 +178,32 @@
         </div>
     </div>
     
-    <!-- Modal Pizza -->
-    <div id="pizza-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
+    <!-- Modal Produit -->
+    <div id="product-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl">
-            <h3 id="pizza-modal-title" class="text-xl font-semibold mb-4">Créer une Pizza</h3>
-            <form id="pizza-form">
-                 <input type="hidden" id="pizza-id">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="pizza-name" class="block text-sm font-medium text-gray-700">Nom de la Pizza</label>
-                        <input type="text" id="pizza-name" required class="mt-1 w-full input-style">
+            <h3 id="product-modal-title" class="text-xl font-semibold mb-4">Créer un Produit</h3>
+            <form id="product-form">
+                 <input type="hidden" id="product-id">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-2">
+                        <label for="product-name" class="block text-sm font-medium text-gray-700">Nom du Produit</label>
+                        <input type="text" id="product-name" required class="mt-1 w-full input-style">
                     </div>
                     <div>
-                        <label for="pizza-price" class="block text-sm font-medium text-gray-700">Prix (€)</label>
-                        <input type="number" id="pizza-price" min="0" step="0.01" required class="mt-1 w-full input-style">
+                        <label for="product-price" class="block text-sm font-medium text-gray-700">Prix (€)</label>
+                        <input type="number" id="product-price" min="0" step="0.01" required class="mt-1 w-full input-style">
                     </div>
                 </div>
-                <div class="mt-6">
+                 <div class="mt-4">
+                    <label for="product-type" class="block text-sm font-medium text-gray-700">Type de produit</label>
+                    <select id="product-type" class="mt-1 w-full input-style">
+                        <option value="Pizza">Pizza</option>
+                        <option value="Boisson">Boisson</option>
+                        <option value="Dessert">Dessert</option>
+                    </select>
+                </div>
+
+                <div id="recipe-section" class="mt-6">
                     <h4 class="text-lg font-medium text-gray-800 mb-2">Recette</h4>
                     <div id="recipe-ingredients-list" class="space-y-2 mb-3"></div>
                     <div class="flex items-end gap-3">
@@ -211,9 +218,16 @@
                         <button type="button" id="add-recipe-ingredient-btn" class="btn-secondary h-10">Ajouter</button>
                     </div>
                 </div>
+
+                <div id="linked-ingredient-section" class="mt-6 hidden">
+                     <h4 class="text-lg font-medium text-gray-800 mb-2">Article en Stock</h4>
+                     <label class="block text-sm font-medium text-gray-700">Lier ce produit à un article de l'inventaire</label>
+                     <select id="linked-ingredient-select" class="mt-1 w-full input-style"></select>
+                </div>
+
                 <div class="mt-6 flex justify-end space-x-3">
-                    <button type="button" class="btn-secondary" id="cancel-pizza">Annuler</button>
-                    <button type="submit" class="btn-primary">Sauvegarder Pizza</button>
+                    <button type="button" class="btn-secondary" id="cancel-product">Annuler</button>
+                    <button type="submit" class="btn-primary">Sauvegarder Produit</button>
                 </div>
             </form>
         </div>
@@ -267,11 +281,11 @@
         const db = getFirestore(app);
 
         // --- COLLECTIONS REFS ---
-        let ingredientsCol, pizzasCol, ordersCol;
+        let ingredientsCol, productsCol, ordersCol;
 
         // --- ETAT GLOBAL ---
         let allIngredients = [];
-        let allPizzas = [];
+        let allProducts = [];
         let currentRecipe = [];
         let currentOrder = [];
 
@@ -282,10 +296,10 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 ingredientsCol = collection(db, `artifacts/${appId}/public/data/ingredients`);
-                pizzasCol = collection(db, `artifacts/${appId}/public/data/pizzas`);
+                productsCol = collection(db, `artifacts/${appId}/public/data/products`);
                 ordersCol = collection(db, `artifacts/${appId}/public/data/orders`);
                 listenToIngredients();
-                listenToPizzas();
+                listenToProducts();
                 listenToOrders();
             } else {
                 try {
@@ -329,16 +343,15 @@
             populateIngredientSelects();
         });
 
-        const listenToPizzas = () => onSnapshot(pizzasCol, snapshot => {
-            allPizzas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            allPizzas.sort((a,b) => a.name.localeCompare(b.name));
-            renderPizzas();
-            populatePizzaSelects();
+        const listenToProducts = () => onSnapshot(productsCol, snapshot => {
+            allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            allProducts.sort((a,b) => a.name.localeCompare(b.name));
+            renderProducts();
+            populateProductSelects();
         });
 
         const listenToOrders = () => onSnapshot(ordersCol, snapshot => {
             let orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Sort by date, newest first. Ensure createdAt exists.
             orderHistory.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
             renderOrderHistory(orderHistory);
         });
@@ -347,10 +360,8 @@
         const renderDashboard = () => {
             const container = document.getElementById('low-stock-alerts');
             const placeholder = document.getElementById('low-stock-placeholder');
-            
             container.querySelectorAll('div:not(#low-stock-placeholder)').forEach(div => div.remove());
             const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD);
-            
             if(lowStockItems.length === 0){
                 placeholder.style.display = 'block';
             } else {
@@ -358,9 +369,7 @@
                  lowStockItems.forEach(item => {
                      const alertDiv = document.createElement('div');
                      alertDiv.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow';
-                     alertDiv.innerHTML = `
-                         <p class="font-bold">${item.name}</p>
-                         <p>Stock restant: ${item.quantity} ${item.unit}</p>`;
+                     alertDiv.innerHTML = `<p class="font-bold">${item.name}</p><p>Stock restant: ${item.quantity} ${item.unit}</p>`;
                      container.appendChild(alertDiv);
                  });
             }
@@ -370,7 +379,6 @@
             const list = document.getElementById('ingredients-list');
             const placeholder = document.getElementById('ingredients-placeholder');
             const table = document.getElementById('ingredients-table');
-
             list.innerHTML = '';
             if(allIngredients.length === 0) {
                 table.style.display = 'none';
@@ -384,10 +392,7 @@
                     row.className = isLow ? 'low-stock' : '';
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> 
-                            <span class="text-gray-500">${ing.unit}</span>
-                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap"><span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> <span class="text-gray-500">${ing.unit}</span></td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button data-id="${ing.id}" class="edit-ingredient-btn text-indigo-600 hover:text-indigo-900 mr-4">Modifier</button>
                             <button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button>
@@ -397,31 +402,45 @@
             }
         };
 
-        const renderPizzas = () => {
-            const container = document.getElementById('pizzas-list');
-            const placeholder = document.getElementById('pizzas-placeholder');
-
-            container.querySelectorAll('div:not(#pizzas-placeholder)').forEach(div => div.remove());
-            if(allPizzas.length === 0) {
+        const renderProducts = () => {
+            const container = document.getElementById('products-list');
+            const placeholder = document.getElementById('products-placeholder');
+            container.querySelectorAll('div:not(#products-placeholder)').forEach(div => div.remove());
+            if(allProducts.length === 0) {
                  placeholder.style.display = 'block';
             } else {
                 placeholder.style.display = 'none';
-                allPizzas.forEach(pizza => {
+                allProducts.forEach(product => {
                     const card = document.createElement('div');
                     card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden';
-                    let recipeHtml = pizza.recipe.map(r => `<li>${r.quantity} ${r.unit} ${r.name}</li>`).join('');
+                    const typeIcon = {
+                        Pizza: '<i class="fas fa-pizza-slice"></i>',
+                        Boisson: '<i class="fas fa-wine-bottle"></i>',
+                        Dessert: '<i class="fas fa-ice-cream"></i>'
+                    };
+                    let contentHtml = '';
+                    if (product.type === 'Pizza') {
+                        let recipeHtml = product.recipe.map(r => `<li>${r.quantity} ${r.unit} ${r.name}</li>`).join('');
+                        contentHtml = `<div class="mt-4"><h4 class="font-semibold text-sm text-gray-600">Recette:</h4><ul class="list-disc list-inside text-gray-500 text-sm">${recipeHtml}</ul></div>`;
+                    } else {
+                        const linkedIngredient = allIngredients.find(i => i.id === product.linkedIngredientId);
+                        contentHtml = `<div class="mt-4"><h4 class="font-semibold text-sm text-gray-600">Article en stock:</h4><p class="text-gray-500 text-sm">${linkedIngredient ? linkedIngredient.name : 'Non lié'}</p></div>`;
+                    }
+
                     card.innerHTML = `
                         <div class="p-6">
-                            <h3 class="text-xl font-bold text-gray-900">${pizza.name}</h3>
-                            <p class="text-indigo-600 font-semibold text-lg">${pizza.price} €</p>
-                            <div class="mt-4">
-                                <h4 class="font-semibold text-sm text-gray-600">Recette:</h4>
-                                <ul class="list-disc list-inside text-gray-500 text-sm">${recipeHtml}</ul>
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-900">${product.name}</h3>
+                                    <p class="text-indigo-600 font-semibold text-lg">${product.price} €</p>
+                                </div>
+                                <span class="text-gray-400 text-xl">${typeIcon[product.type]}</span>
                             </div>
+                            ${contentHtml}
                         </div>
                         <div class="bg-gray-50 px-6 py-3 flex justify-end gap-3">
-                            <button data-id="${pizza.id}" class="edit-pizza-btn text-indigo-600 hover:text-indigo-900 font-medium">Modifier</button>
-                            <button data-id="${pizza.id}" class="delete-pizza-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button>
+                            <button data-id="${product.id}" class="edit-product-btn text-indigo-600 hover:text-indigo-900 font-medium">Modifier</button>
+                            <button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button>
                         </div>`;
                     container.appendChild(card);
                 });
@@ -431,9 +450,7 @@
         const renderOrderHistory = (history) => {
             const container = document.getElementById('order-history-list');
             const placeholder = document.getElementById('order-history-placeholder');
-            
             container.querySelectorAll('div:not(#order-history-placeholder)').forEach(div => div.remove());
-
             if (history.length === 0) {
                 placeholder.style.display = 'block';
             } else {
@@ -444,12 +461,16 @@
                     const date = order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue';
                     const itemsHtml = order.items.map(item => `<li>${item.quantity} x ${item.name}</li>`).join('');
                     card.innerHTML = `
-                        <div class="flex justify-between items-center">
-                            <p class="font-bold text-gray-700">Commande du ${date}</p>
-                            <p class="font-bold text-lg text-indigo-600">${order.totalPrice.toFixed(2)} €</p>
-                        </div>
-                        <ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul>
-                    `;
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-bold text-gray-700">Commande du ${date}</p>
+                                <ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul>
+                            </div>
+                            <div class="flex items-center gap-4 text-right">
+                                <p class="font-bold text-lg text-indigo-600">${order.totalPrice.toFixed(2)} €</p>
+                                <button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>`;
                     container.appendChild(card);
                 });
             }
@@ -462,9 +483,7 @@
             document.getElementById('ingredient-id').value = '';
             openModal('ingredient-modal');
         });
-        
         document.getElementById('cancel-ingredient').addEventListener('click', () => closeModal('ingredient-modal'));
-        
         document.getElementById('ingredient-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('ingredient-id').value;
@@ -474,25 +493,22 @@
                 unit: document.getElementById('ingredient-unit').value
             };
             try {
-                if (id) {
-                    await updateDoc(doc(ingredientsCol, id), data);
-                    showToast('Ingrédient mis à jour !');
-                } else {
-                    await addDoc(ingredientsCol, {...data, createdAt: serverTimestamp()});
-                    showToast('Ingrédient ajouté !');
-                }
+                if (id) await updateDoc(doc(ingredientsCol, id), data);
+                else await addDoc(ingredientsCol, {...data, createdAt: serverTimestamp()});
+                showToast(id ? 'Ingrédient mis à jour !' : 'Ingrédient ajouté !');
                 closeModal('ingredient-modal');
             } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); }
         });
-        
         document.getElementById('ingredients-list').addEventListener('click', async e => {
-            if (e.target.classList.contains('delete-ingredient-btn')) {
+            const target = e.target;
+            const id = target.dataset.id;
+            if (target.classList.contains('delete-ingredient-btn')) {
                 if(confirm('Voulez-vous vraiment supprimer cet ingrédient ?')) {
-                    await deleteDoc(doc(ingredientsCol, e.target.dataset.id));
+                    await deleteDoc(doc(ingredientsCol, id));
                     showToast('Ingrédient supprimé.');
                 }
-            } else if (e.target.classList.contains('edit-ingredient-btn')) {
-                const docSnap = await getDoc(doc(ingredientsCol, e.target.dataset.id));
+            } else if (target.classList.contains('edit-ingredient-btn')) {
+                const docSnap = await getDoc(doc(ingredientsCol, id));
                 const data = docSnap.data();
                 document.getElementById('ingredient-modal-title').textContent = 'Modifier un ingrédient';
                 document.getElementById('ingredient-id').value = docSnap.id;
@@ -503,51 +519,46 @@
             }
         });
 
-        // --- LOGIQUE PIZZAS ---
+        // --- LOGIQUE PRODUITS ---
         const populateIngredientSelects = () => {
-            const select = document.getElementById('recipe-ingredient-select');
-            select.innerHTML = '<option value="">Choisir...</option>';
-            allIngredients.forEach(ing => {
-                select.innerHTML += `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`;
-            });
+            const recipeSelect = document.getElementById('recipe-ingredient-select');
+            const linkedSelect = document.getElementById('linked-ingredient-select');
+            const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join('');
+            recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`;
+            linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`;
         };
 
-        const populatePizzaSelects = () => {
-            const select = document.getElementById('order-pizza-select');
+        const populateProductSelects = () => {
+            const select = document.getElementById('order-product-select');
             select.innerHTML = '';
-            allPizzas.forEach(pizza => {
-                select.innerHTML += `<option value="${pizza.id}">${pizza.name}</option>`;
-            });
+            allProducts.forEach(product => select.innerHTML += `<option value="${product.id}">${product.name}</option>`);
         }
         
-        document.getElementById('add-pizza-btn').addEventListener('click', () => {
-            document.getElementById('pizza-modal-title').textContent = 'Créer une Pizza';
-            document.getElementById('pizza-form').reset();
-            document.getElementById('pizza-id').value = '';
+        document.getElementById('add-product-btn').addEventListener('click', () => {
+            document.getElementById('product-modal-title').textContent = 'Créer un Produit';
+            document.getElementById('product-form').reset();
+            document.getElementById('product-id').value = '';
+            document.getElementById('product-type').dispatchEvent(new Event('change'));
             currentRecipe = [];
             renderCurrentRecipe();
-            openModal('pizza-modal');
+            openModal('product-modal');
         });
 
-        document.getElementById('cancel-pizza').addEventListener('click', () => closeModal('pizza-modal'));
+        document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal'));
+
+        document.getElementById('product-type').addEventListener('change', (e) => {
+            const isPizza = e.target.value === 'Pizza';
+            document.getElementById('recipe-section').style.display = isPizza ? 'block' : 'none';
+            document.getElementById('linked-ingredient-section').style.display = isPizza ? 'none' : 'block';
+        });
 
         document.getElementById('add-recipe-ingredient-btn').addEventListener('click', () => {
             const select = document.getElementById('recipe-ingredient-select');
             const ingredientId = select.value;
             const quantity = parseFloat(document.getElementById('recipe-quantity').value);
-
-            if (!ingredientId || isNaN(quantity) || quantity <= 0) {
-                showToast("Veuillez sélectionner un ingrédient et une quantité valide.");
-                return;
-            }
-
+            if (!ingredientId || isNaN(quantity) || quantity <= 0) return showToast("Veuillez sélectionner un ingrédient et une quantité valide.");
             const ingredient = allIngredients.find(ing => ing.id === ingredientId);
-            currentRecipe.push({
-                id: ingredient.id,
-                name: ingredient.name,
-                quantity: quantity,
-                unit: ingredient.unit
-            });
+            currentRecipe.push({ id: ingredient.id, name: ingredient.name, quantity: quantity, unit: ingredient.unit });
             renderCurrentRecipe();
             document.getElementById('recipe-quantity').value = '';
             select.value = '';
@@ -559,11 +570,7 @@
             currentRecipe.forEach((item, index) => {
                 const li = document.createElement('div');
                 li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded';
-                li.innerHTML = `
-                    <span>${item.quantity} ${item.unit} de ${item.name}</span>
-                    <button type="button" data-index="${index}" class="remove-recipe-item text-red-500 hover:text-red-700">
-                        <i class="fas fa-times-circle"></i>
-                    </button>`;
+                li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name}</span><button type="button" data-index="${index}" class="remove-recipe-item text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`;
                 list.appendChild(li);
             });
         };
@@ -576,66 +583,73 @@
             }
         });
 
-        document.getElementById('pizza-form').addEventListener('submit', async e => {
+        document.getElementById('product-form').addEventListener('submit', async e => {
             e.preventDefault();
-            const id = document.getElementById('pizza-id').value;
+            const id = document.getElementById('product-id').value;
+            const type = document.getElementById('product-type').value;
             const data = {
-                name: document.getElementById('pizza-name').value,
-                price: parseFloat(document.getElementById('pizza-price').value),
-                recipe: currentRecipe
+                name: document.getElementById('product-name').value,
+                price: parseFloat(document.getElementById('product-price').value),
+                type: type
             };
-            if (data.recipe.length === 0) {
-                showToast("La recette ne peut pas être vide.");
-                return;
+
+            if (type === 'Pizza') {
+                if (currentRecipe.length === 0) return showToast("La recette ne peut pas être vide pour une pizza.");
+                data.recipe = currentRecipe;
+            } else {
+                const linkedId = document.getElementById('linked-ingredient-select').value;
+                if (!linkedId) return showToast("Veuillez lier ce produit à un article en stock.");
+                data.linkedIngredientId = linkedId;
             }
+
             try {
-                if (id) {
-                    await updateDoc(doc(pizzasCol, id), data);
-                    showToast('Pizza mise à jour !');
-                } else {
-                    await addDoc(pizzasCol, {...data, createdAt: serverTimestamp()});
-                    showToast('Pizza créée !');
-                }
-                closeModal('pizza-modal');
+                if (id) await updateDoc(doc(productsCol, id), data);
+                else await addDoc(productsCol, {...data, createdAt: serverTimestamp()});
+                showToast(id ? 'Produit mis à jour !' : 'Produit créé !');
+                closeModal('product-modal');
             } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); }
         });
 
-        document.getElementById('pizzas-list').addEventListener('click', async e => {
+        document.getElementById('products-list').addEventListener('click', async e => {
              const id = e.target.closest('[data-id]')?.dataset.id;
              if(!id) return;
             
              const target = e.target;
-             if (target.classList.contains('delete-pizza-btn') || target.closest('.delete-pizza-btn')) {
-                if(confirm('Voulez-vous vraiment supprimer cette pizza ?')) {
-                    await deleteDoc(doc(pizzasCol, id));
-                    showToast('Pizza supprimée.');
+             if (target.closest('.delete-product-btn')) {
+                if(confirm('Voulez-vous vraiment supprimer ce produit ?')) {
+                    await deleteDoc(doc(productsCol, id));
+                    showToast('Produit supprimé.');
                 }
-            } else if (target.classList.contains('edit-pizza-btn') || target.closest('.edit-pizza-btn')) {
-                const pizza = allPizzas.find(p => p.id === id);
-                document.getElementById('pizza-modal-title').textContent = 'Modifier une Pizza';
-                document.getElementById('pizza-id').value = id;
-                document.getElementById('pizza-name').value = pizza.name;
-                document.getElementById('pizza-price').value = pizza.price;
-                currentRecipe = [...pizza.recipe];
-                renderCurrentRecipe();
-                openModal('pizza-modal');
+            } else if (target.closest('.edit-product-btn')) {
+                const product = allProducts.find(p => p.id === id);
+                document.getElementById('product-modal-title').textContent = 'Modifier un Produit';
+                document.getElementById('product-id').value = id;
+                document.getElementById('product-name').value = product.name;
+                document.getElementById('product-price').value = product.price;
+                document.getElementById('product-type').value = product.type;
+                document.getElementById('product-type').dispatchEvent(new Event('change'));
+
+                if (product.type === 'Pizza') {
+                    currentRecipe = [...product.recipe];
+                    renderCurrentRecipe();
+                } else {
+                    document.getElementById('linked-ingredient-select').value = product.linkedIngredientId;
+                }
+                openModal('product-modal');
             }
         });
 
         // --- LOGIQUE COMMANDES ---
         document.getElementById('add-to-order-form').addEventListener('submit', e => {
             e.preventDefault();
-            const pizzaId = document.getElementById('order-pizza-select').value;
-            const quantity = parseInt(document.getElementById('order-pizza-quantity').value);
-            const pizza = allPizzas.find(p => p.id === pizzaId);
-            if (!pizza || isNaN(quantity) || quantity <= 0) return;
+            const productId = document.getElementById('order-product-select').value;
+            const quantity = parseInt(document.getElementById('order-product-quantity').value);
+            const product = allProducts.find(p => p.id === productId);
+            if (!product || isNaN(quantity) || quantity <= 0) return;
 
-            const existingItem = currentOrder.find(item => item.id === pizzaId);
-            if(existingItem) {
-                existingItem.quantity += quantity;
-            } else {
-                currentOrder.push({ id: pizza.id, name: pizza.name, quantity: quantity, price: pizza.price });
-            }
+            const existingItem = currentOrder.find(item => item.id === productId);
+            if(existingItem) existingItem.quantity += quantity;
+            else currentOrder.push({ id: product.id, name: product.name, quantity: quantity, price: product.price });
             renderCurrentOrder();
         });
 
@@ -643,9 +657,7 @@
             const list = document.getElementById('current-order-list');
             const placeholder = document.getElementById('order-placeholder');
             const processBtn = document.getElementById('process-order-btn');
-            
             list.querySelectorAll('li:not(#order-placeholder)').forEach(li => li.remove());
-
             if(currentOrder.length === 0){
                 placeholder.style.display = 'block';
                 processBtn.disabled = true;
@@ -654,9 +666,7 @@
                 currentOrder.forEach((item, index) => {
                     const li = document.createElement('li');
                     li.className = 'flex justify-between items-center';
-                    li.innerHTML = `
-                        <span>${item.quantity} x ${item.name}</span>
-                        <button data-index="${index}" class="remove-order-item text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>`;
+                    li.innerHTML = `<span>${item.quantity} x ${item.name}</span><button data-index="${index}" class="remove-order-item text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>`;
                     list.appendChild(li);
                 });
                 processBtn.disabled = false;
@@ -679,57 +689,59 @@
             let totalPrice = 0;
 
             for (const orderItem of currentOrder) {
-                const pizza = allPizzas.find(p => p.id === orderItem.id);
-                if (!pizza) {
-                    showToast(`Pizza introuvable.`);
-                    success = false;
-                    break;
-                }
+                const product = allProducts.find(p => p.id === orderItem.id);
+                if (!product) { success = false; break; }
                 
-                totalPrice += pizza.price * orderItem.quantity;
+                totalPrice += product.price * orderItem.quantity;
 
-                for (const recipeItem of pizza.recipe) {
-                    const ingredient = allIngredients.find(i => i.id === recipeItem.id);
-                    if (!ingredient) {
-                        showToast(`Erreur: Ingrédient '${recipeItem.name}' introuvable.`);
-                        success = false;
-                        break;
+                if (product.type === 'Pizza') {
+                    for (const recipeItem of product.recipe) {
+                        const ingredient = allIngredients.find(i => i.id === recipeItem.id);
+                        const quantityToDeduct = recipeItem.quantity * orderItem.quantity;
+                        if (!ingredient || ingredient.quantity < quantityToDeduct) {
+                            showToast(`Stock insuffisant pour: ${ingredient ? ingredient.name : recipeItem.name}`);
+                            success = false; break;
+                        }
+                        const newQuantity = ingredient.quantity - quantityToDeduct;
+                        batch.update(doc(ingredientsCol, ingredient.id), { quantity: newQuantity });
                     }
-
-                    const quantityToDeduct = recipeItem.quantity * orderItem.quantity;
-                    if (ingredient.quantity < quantityToDeduct) {
-                         showToast(`Stock insuffisant pour: ${ingredient.name}`);
-                         success = false;
-                         break;
+                } else { // Boisson or Dessert
+                    const ingredient = allIngredients.find(i => i.id === product.linkedIngredientId);
+                    const quantityToDeduct = orderItem.quantity;
+                     if (!ingredient || ingredient.quantity < quantityToDeduct) {
+                        showToast(`Stock insuffisant pour: ${ingredient ? ingredient.name : product.name}`);
+                        success = false; break;
                     }
-
                     const newQuantity = ingredient.quantity - quantityToDeduct;
-                    const ingredientRef = doc(ingredientsCol, ingredient.id);
-                    batch.update(ingredientRef, { quantity: newQuantity });
+                    batch.update(doc(ingredientsCol, ingredient.id), { quantity: newQuantity });
                 }
                 if (!success) break;
             }
             
             if (success) {
                 const newOrderRef = doc(ordersCol);
-                batch.set(newOrderRef, {
-                    items: currentOrder,
-                    totalPrice: totalPrice,
-                    createdAt: serverTimestamp()
-                });
-
+                batch.set(newOrderRef, { items: currentOrder, totalPrice: totalPrice, createdAt: serverTimestamp() });
                 try {
                     await batch.commit();
                     showToast('Commande validée, stock mis à jour !');
                     currentOrder = [];
                     renderCurrentOrder();
-                } catch (error) {
-                    console.error("Batch commit failed: ", error);
-                    showToast(`Erreur: ${error.message}`);
-                }
+                } catch (error) { console.error("Batch commit failed: ", error); showToast(`Erreur: ${error.message}`); }
             }
         });
 
+        document.getElementById('order-history-list').addEventListener('click', async e => {
+            const deleteBtn = e.target.closest('.delete-order-btn');
+            if (deleteBtn) {
+                const orderId = deleteBtn.dataset.id;
+                if (confirm("Voulez-vous vraiment supprimer cette commande de l'historique ?\n\nAttention : Le stock ne sera PAS restauré.")) {
+                    try {
+                        await deleteDoc(doc(ordersCol, orderId));
+                        showToast("Commande supprimée de l'historique.");
+                    } catch (error) { console.error("Error deleting order:", error); showToast("Erreur lors de la suppression."); }
+                }
+            }
+        });
     </script>
 </body>
 </html>
