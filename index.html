@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion Pizzeria Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-link.active { border-color: #4f46e5; color: #4f46e5; background-color: #eef2ff; }
+        .low-stock { background-color: #fee2e2 !important; }
+        .low-stock-text { color: #b91c1c; font-weight: 600; }
+        .modal { display: none; }
+        .modal.flex { display: flex; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+        <!-- En-tête -->
+        <header class="mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-3">
+                <i class="fas fa-pizza-slice text-indigo-600"></i> Gestion Pizzeria Pro
+            </h1>
+            <p class="text-gray-600 mt-1">Votre outil tout-en-un pour gérer stocks, recettes et commandes.</p>
+        </header>
+
+        <!-- Barre de navigation par onglets -->
+        <div class="mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+                    <button class="tab-link active" data-tab="dashboard">
+                        <i class="fas fa-chart-line mr-2"></i>Tableau de Bord
+                    </button>
+                    <button class="tab-link" data-tab="ingredients">
+                        <i class="fas fa-box mr-2"></i>Ingrédients
+                    </button>
+                    <button class="tab-link" data-tab="pizzas">
+                        <i class="fas fa-utensils mr-2"></i>Pizzas & Recettes
+                    </button>
+                    <button class="tab-link" data-tab="orders">
+                        <i class="fas fa-receipt mr-2"></i>Commandes
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Contenu des onglets -->
+        <main>
+            <!-- Tableau de Bord -->
+            <div id="dashboard-content" class="tab-content active">
+                <h2 class="text-2xl font-semibold mb-4">Alertes de Stock</h2>
+                <div id="low-stock-alerts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <!-- Les alertes seront insérées ici -->
+                    <div id="low-stock-placeholder" class="text-center col-span-full py-10 text-gray-500">
+                        <i class="fas fa-check-circle fa-2x text-green-500 mb-2"></i><p>Aucune alerte de stock bas pour le moment.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ingrédients -->
+            <div id="ingredients-content" class="tab-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold">Gestion des Ingrédients</h2>
+                    <button id="add-ingredient-btn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-transform transform hover:scale-105">
+                        <i class="fas fa-plus mr-2"></i>Ajouter
+                    </button>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ingrédient</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité en stock</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ingredients-list" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                     <div id="ingredients-placeholder" class="text-center py-10 text-gray-500">
+                        <p>Aucun ingrédient. Ajoutez-en un pour commencer !</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pizzas & Recettes -->
+            <div id="pizzas-content" class="tab-content">
+                 <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold">Gestion des Pizzas & Recettes</h2>
+                    <button id="add-pizza-btn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-transform transform hover:scale-105">
+                       <i class="fas fa-plus mr-2"></i>Créer une Pizza
+                    </button>
+                </div>
+                <div id="pizzas-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Les cartes de pizza seront insérées ici -->
+                     <div id="pizzas-placeholder" class="text-center col-span-full py-10 text-gray-500">
+                        <p>Aucune pizza créée. Créez votre première pizza !</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Commandes -->
+            <div id="orders-content" class="tab-content">
+                 <h2 class="text-2xl font-semibold mb-4">Nouvelle Commande</h2>
+                 <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                     <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-lg">
+                         <h3 class="text-lg font-medium mb-4">Ajouter des pizzas à la commande</h3>
+                         <form id="add-to-order-form" class="flex items-end gap-4">
+                             <div class="flex-grow">
+                                <label for="order-pizza-select" class="block text-sm font-medium text-gray-700">Pizza</label>
+                                <select id="order-pizza-select" class="mt-1 block w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></select>
+                             </div>
+                             <div>
+                                <label for="order-pizza-quantity" class="block text-sm font-medium text-gray-700">Quantité</label>
+                                <input type="number" id="order-pizza-quantity" value="1" min="1" class="mt-1 block w-24 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                             </div>
+                             <button type="submit" class="bg-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-900 h-10">Ajouter</button>
+                         </form>
+                     </div>
+                     <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg">
+                         <h3 class="text-lg font-medium mb-4">Détail Commande</h3>
+                         <ul id="current-order-list" class="space-y-2 mb-4">
+                            <li id="order-placeholder" class="text-gray-500">La commande est vide.</li>
+                         </ul>
+                         <button id="process-order-btn" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                             Valider & Déduire du Stock
+                         </button>
+                     </div>
+                 </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Modal Ingrédient -->
+    <div id="ingredient-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <h3 id="ingredient-modal-title" class="text-xl font-semibold mb-4">Ajouter un ingrédient</h3>
+            <form id="ingredient-form">
+                <input type="hidden" id="ingredient-id">
+                <div class="space-y-4">
+                    <div>
+                        <label for="ingredient-name" class="block text-sm font-medium text-gray-700">Nom</label>
+                        <input type="text" id="ingredient-name" required class="mt-1 w-full input-style">
+                    </div>
+                    <div>
+                        <label for="ingredient-quantity" class="block text-sm font-medium text-gray-700">Quantité</label>
+                        <input type="number" id="ingredient-quantity" min="0" step="any" required class="mt-1 w-full input-style">
+                    </div>
+                    <div>
+                        <label for="ingredient-unit" class="block text-sm font-medium text-gray-700">Unité (kg, L, pièces...)</label>
+                        <input type="text" id="ingredient-unit" required class="mt-1 w-full input-style">
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" class="btn-secondary" id="cancel-ingredient">Annuler</button>
+                    <button type="submit" class="btn-primary">Sauvegarder</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal Pizza -->
+    <div id="pizza-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl">
+            <h3 id="pizza-modal-title" class="text-xl font-semibold mb-4">Créer une Pizza</h3>
+            <form id="pizza-form">
+                 <input type="hidden" id="pizza-id">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="pizza-name" class="block text-sm font-medium text-gray-700">Nom de la Pizza</label>
+                        <input type="text" id="pizza-name" required class="mt-1 w-full input-style">
+                    </div>
+                    <div>
+                        <label for="pizza-price" class="block text-sm font-medium text-gray-700">Prix (€)</label>
+                        <input type="number" id="pizza-price" min="0" step="0.01" required class="mt-1 w-full input-style">
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <h4 class="text-lg font-medium text-gray-800 mb-2">Recette</h4>
+                    <div id="recipe-ingredients-list" class="space-y-2 mb-3"></div>
+                    <div class="flex items-end gap-3">
+                        <div class="flex-grow">
+                            <label class="block text-sm font-medium text-gray-700">Ingrédient</label>
+                            <select id="recipe-ingredient-select" class="mt-1 w-full input-style"></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Quantité</label>
+                            <input type="number" id="recipe-quantity" min="0" step="any" class="mt-1 w-28 input-style">
+                        </div>
+                        <button type="button" id="add-recipe-ingredient-btn" class="btn-secondary h-10">Ajouter</button>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" class="btn-secondary" id="cancel-pizza">Annuler</button>
+                    <button type="submit" class="btn-primary">Sauvegarder Pizza</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="hidden fixed bottom-5 right-5 bg-gray-900 text-white py-2 px-5 rounded-lg shadow-lg transition-opacity duration-300">
+        <p id="toast-message"></p>
+    </div>
+
+    <!-- CSS pour les éléments communs -->
+    <style>
+        .tab-link {
+            @apply whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors;
+        }
+        .input-style {
+            @apply p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500;
+        }
+        .btn-primary {
+            @apply bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-all;
+        }
+        .btn-secondary {
+             @apply bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-all;
+        }
+    </style>
+
+    <script type="module">
+        // --- IMPORTS FIREBASE ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIGURATION ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID" };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
+
+        // --- INITIALISATION FIREBASE ---
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- COLLECTIONS REFS ---
+        let ingredientsCol, pizzasCol;
+
+        // --- ETAT GLOBAL ---
+        let allIngredients = [];
+        let allPizzas = [];
+        let currentRecipe = [];
+        let currentOrder = [];
+
+        // --- SEUILS ---
+        const LOW_STOCK_THRESHOLD = 10;
+        
+        // --- AUTHENTIFICATION ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                ingredientsCol = collection(db, `artifacts/${appId}/public/data/ingredients`);
+                pizzasCol = collection(db, `artifacts/${appId}/public/data/pizzas`);
+                listenToIngredients();
+                listenToPizzas();
+            } else {
+                try {
+                    if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+                    else await signInAnonymously(auth);
+                } catch (error) { console.error("Auth failed:", error); }
+            }
+        });
+
+        // --- DOM ELEMENTS ---
+        const tabs = document.querySelectorAll('.tab-link');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        // --- FONCTIONS UTILITAIRES ---
+        const showToast = (message) => {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        };
+
+        const openModal = (id) => document.getElementById(id).classList.add('flex');
+        const closeModal = (id) => document.getElementById(id).classList.remove('flex');
+
+        // --- LOGIQUE DE NAVIGATION ---
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                tabContents.forEach(c => c.classList.remove('active'));
+                document.getElementById(`${tab.dataset.tab}-content`).classList.add('active');
+            });
+        });
+        
+        // --- LOGIQUE INGREDIENTS ---
+        // TODO: Ajoutez la logique pour les ingrédients ici
+        
+        // --- LOGIQUE PIZZAS & RECETTES ---
+        // TODO: Ajoutez la logique pour les pizzas ici
+        
+        // --- LOGIQUE COMMANDES ---
+        // TODO: Ajoutez la logique pour les commandes ici
+
+        // --- LISTENERS FIREBASE ---
+        const listenToIngredients = () => onSnapshot(ingredientsCol, snapshot => {
+            allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            allIngredients.sort((a,b) => a.name.localeCompare(b.name));
+            renderIngredients();
+            renderDashboard();
+            populateIngredientSelects();
+        });
+
+        const listenToPizzas = () => onSnapshot(pizzasCol, snapshot => {
+            allPizzas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            allPizzas.sort((a,b) => a.name.localeCompare(b.name));
+            renderPizzas();
+            populatePizzaSelects();
+        });
+        
+        // --- FONCTIONS DE RENDU ---
+        const renderDashboard = () => {
+            const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD);
+            const container = document.getElementById('low-stock-alerts');
+            const placeholder = document.getElementById('low-stock-placeholder');
+            container.innerHTML = '';
+            
+            if(lowStockItems.length === 0){
+                container.appendChild(placeholder);
+                placeholder.style.display = 'block';
+            } else {
+                 placeholder.style.display = 'none';
+                 lowStockItems.forEach(item => {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow';
+                    alertDiv.innerHTML = `
+                        <p class="font-bold">${item.name}</p>
+                        <p>Stock restant: ${item.quantity} ${item.unit}</p>`;
+                    container.appendChild(alertDiv);
+                });
+            }
+        };
+
+        const renderIngredients = () => {
+            const list = document.getElementById('ingredients-list');
+            const placeholder = document.getElementById('ingredients-placeholder');
+            list.innerHTML = '';
+            if(allIngredients.length === 0) {
+                placeholder.style.display = 'block';
+                return;
+            }
+            placeholder.style.display = 'none';
+            allIngredients.forEach(ing => {
+                const isLow = ing.quantity < LOW_STOCK_THRESHOLD;
+                const row = document.createElement('tr');
+                row.className = isLow ? 'low-stock' : '';
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> 
+                        <span class="text-gray-500">${ing.unit}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button data-id="${ing.id}" class="edit-ingredient-btn text-indigo-600 hover:text-indigo-900 mr-4">Modifier</button>
+                        <button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button>
+                    </td>`;
+                list.appendChild(row);
+            });
+        };
+
+        const renderPizzas = () => {
+            const container = document.getElementById('pizzas-list');
+            const placeholder = document.getElementById('pizzas-placeholder');
+            container.innerHTML = '';
+            if(allPizzas.length === 0) {
+                 placeholder.style.display = 'block';
+                 return;
+            }
+            placeholder.style.display = 'none';
+            allPizzas.forEach(pizza => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden';
+                let recipeHtml = pizza.recipe.map(r => `<li>${r.quantity} ${r.unit} ${r.name}</li>`).join('');
+                card.innerHTML = `
+                    <div class="p-6">
+                        <h3 class="text-xl font-bold text-gray-900">${pizza.name}</h3>
+                        <p class="text-indigo-600 font-semibold text-lg">${pizza.price} €</p>
+                        <div class="mt-4">
+                            <h4 class="font-semibold text-sm text-gray-600">Recette:</h4>
+                            <ul class="list-disc list-inside text-gray-500 text-sm">${recipeHtml}</ul>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-3 flex justify-end gap-3">
+                        <button data-id="${pizza.id}" class="edit-pizza-btn text-indigo-600 hover:text-indigo-900 font-medium">Modifier</button>
+                        <button data-id="${pizza.id}" class="delete-pizza-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button>
+                    </div>`;
+                container.appendChild(card);
+            });
+        };
+        
+        // --- LOGIQUE INGREDIENTS ---
+        document.getElementById('add-ingredient-btn').addEventListener('click', () => {
+            document.getElementById('ingredient-modal-title').textContent = 'Ajouter un ingrédient';
+            document.getElementById('ingredient-form').reset();
+            document.getElementById('ingredient-id').value = '';
+            openModal('ingredient-modal');
+        });
+        
+        document.getElementById('cancel-ingredient').addEventListener('click', () => closeModal('ingredient-modal'));
+        
+        document.getElementById('ingredient-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('ingredient-id').value;
+            const data = {
+                name: document.getElementById('ingredient-name').value,
+                quantity: parseFloat(document.getElementById('ingredient-quantity').value),
+                unit: document.getElementById('ingredient-unit').value
+            };
+            try {
+                if (id) {
+                    await updateDoc(doc(ingredientsCol, id), data);
+                    showToast('Ingrédient mis à jour !');
+                } else {
+                    await addDoc(ingredientsCol, {...data, createdAt: serverTimestamp()});
+                    showToast('Ingrédient ajouté !');
+                }
+                closeModal('ingredient-modal');
+            } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); }
+        });
+        
+        document.getElementById('ingredients-list').addEventListener('click', async e => {
+            if (e.target.classList.contains('delete-ingredient-btn')) {
+                if(confirm('Voulez-vous vraiment supprimer cet ingrédient ?')) {
+                    await deleteDoc(doc(ingredientsCol, e.target.dataset.id));
+                    showToast('Ingrédient supprimé.');
+                }
+            } else if (e.target.classList.contains('edit-ingredient-btn')) {
+                const docSnap = await getDoc(doc(ingredientsCol, e.target.dataset.id));
+                const data = docSnap.data();
+                document.getElementById('ingredient-modal-title').textContent = 'Modifier un ingrédient';
+                document.getElementById('ingredient-id').value = docSnap.id;
+                document.getElementById('ingredient-name').value = data.name;
+                document.getElementById('ingredient-quantity').value = data.quantity;
+                document.getElementById('ingredient-unit').value = data.unit;
+                openModal('ingredient-modal');
+            }
+        });
+
+        // --- LOGIQUE PIZZAS ---
+        const populateIngredientSelects = () => {
+            const select = document.getElementById('recipe-ingredient-select');
+            select.innerHTML = '<option value="">Choisir...</option>';
+            allIngredients.forEach(ing => {
+                select.innerHTML += `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`;
+            });
+        };
+
+        const populatePizzaSelects = () => {
+            const select = document.getElementById('order-pizza-select');
+            select.innerHTML = '';
+            allPizzas.forEach(pizza => {
+                select.innerHTML += `<option value="${pizza.id}">${pizza.name}</option>`;
+            });
+        }
+        
+        document.getElementById('add-pizza-btn').addEventListener('click', () => {
+            document.getElementById('pizza-modal-title').textContent = 'Créer une Pizza';
+            document.getElementById('pizza-form').reset();
+            document.getElementById('pizza-id').value = '';
+            currentRecipe = [];
+            renderCurrentRecipe();
+            openModal('pizza-modal');
+        });
+
+        document.getElementById('cancel-pizza').addEventListener('click', () => closeModal('pizza-modal'));
+
+        document.getElementById('add-recipe-ingredient-btn').addEventListener('click', () => {
+            const select = document.getElementById('recipe-ingredient-select');
+            const ingredientId = select.value;
+            const quantity = parseFloat(document.getElementById('recipe-quantity').value);
+
+            if (!ingredientId || isNaN(quantity) || quantity <= 0) {
+                showToast("Veuillez sélectionner un ingrédient et une quantité valide.");
+                return;
+            }
+
+            const ingredient = allIngredients.find(ing => ing.id === ingredientId);
+            currentRecipe.push({
+                id: ingredient.id,
+                name: ingredient.name,
+                quantity: quantity,
+                unit: ingredient.unit
+            });
+            renderCurrentRecipe();
+            document.getElementById('recipe-quantity').value = '';
+            select.value = '';
+        });
+        
+        const renderCurrentRecipe = () => {
+            const list = document.getElementById('recipe-ingredients-list');
+            list.innerHTML = '';
+            currentRecipe.forEach((item, index) => {
+                const li = document.createElement('div');
+                li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded';
+                li.innerHTML = `
+                    <span>${item.quantity} ${item.unit} de ${item.name}</span>
+                    <button type="button" data-index="${index}" class="remove-recipe-item text-red-500 hover:text-red-700">
+                        <i class="fas fa-times-circle"></i>
+                    </button>`;
+                list.appendChild(li);
+            });
+        };
+
+        document.getElementById('recipe-ingredients-list').addEventListener('click', e => {
+            const button = e.target.closest('.remove-recipe-item');
+            if (button) {
+                currentRecipe.splice(button.dataset.index, 1);
+                renderCurrentRecipe();
+            }
+        });
+
+        document.getElementById('pizza-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const id = document.getElementById('pizza-id').value;
+            const data = {
+                name: document.getElementById('pizza-name').value,
+                price: parseFloat(document.getElementById('pizza-price').value),
+                recipe: currentRecipe
+            };
+            if (data.recipe.length === 0) {
+                showToast("La recette ne peut pas être vide.");
+                return;
+            }
+            try {
+                if (id) {
+                    await updateDoc(doc(pizzasCol, id), data);
+                    showToast('Pizza mise à jour !');
+                } else {
+                    await addDoc(pizzasCol, {...data, createdAt: serverTimestamp()});
+                    showToast('Pizza créée !');
+                }
+                closeModal('pizza-modal');
+            } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); }
+        });
+
+        document.getElementById('pizzas-list').addEventListener('click', async e => {
+             const id = e.target.dataset.id;
+             if(!id) return;
+
+            if (e.target.classList.contains('delete-pizza-btn')) {
+                if(confirm('Voulez-vous vraiment supprimer cette pizza ?')) {
+                    await deleteDoc(doc(pizzasCol, id));
+                    showToast('Pizza supprimée.');
+                }
+            } else if (e.target.classList.contains('edit-pizza-btn')) {
+                const pizza = allPizzas.find(p => p.id === id);
+                document.getElementById('pizza-modal-title').textContent = 'Modifier une Pizza';
+                document.getElementById('pizza-id').value = id;
+                document.getElementById('pizza-name').value = pizza.name;
+                document.getElementById('pizza-price').value = pizza.price;
+                currentRecipe = [...pizza.recipe];
+                renderCurrentRecipe();
+                openModal('pizza-modal');
+            }
+        });
+
+        // --- LOGIQUE COMMANDES ---
+        document.getElementById('add-to-order-form').addEventListener('submit', e => {
+            e.preventDefault();
+            const pizzaId = document.getElementById('order-pizza-select').value;
+            const quantity = parseInt(document.getElementById('order-pizza-quantity').value);
+            const pizza = allPizzas.find(p => p.id === pizzaId);
+            if (!pizza || isNaN(quantity) || quantity <= 0) return;
+
+            const existingItem = currentOrder.find(item => item.id === pizzaId);
+            if(existingItem) {
+                existingItem.quantity += quantity;
+            } else {
+                currentOrder.push({ id: pizza.id, name: pizza.name, quantity: quantity });
+            }
+            renderCurrentOrder();
+        });
+
+        const renderCurrentOrder = () => {
+            const list = document.getElementById('current-order-list');
+            const placeholder = document.getElementById('order-placeholder');
+            const processBtn = document.getElementById('process-order-btn');
+            list.innerHTML = '';
+            if(currentOrder.length === 0){
+                list.appendChild(placeholder);
+                placeholder.style.display = 'block';
+                processBtn.disabled = true;
+            } else {
+                placeholder.style.display = 'none';
+                currentOrder.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center';
+                    li.innerHTML = `
+                        <span>${item.quantity} x ${item.name}</span>
+                        <button data-index="${index}" class="remove-order-item text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>`;
+                    list.appendChild(li);
+                });
+                processBtn.disabled = false;
+            }
+        };
+
+        document.getElementById('current-order-list').addEventListener('click', e => {
+            const button = e.target.closest('.remove-order-item');
+            if (button) {
+                currentOrder.splice(button.dataset.index, 1);
+                renderCurrentOrder();
+            }
+        });
+
+        document.getElementById('process-order-btn').addEventListener('click', async () => {
+            if (currentOrder.length === 0) return;
+            
+            const batch = writeBatch(db);
+            let success = true;
+
+            for (const orderItem of currentOrder) {
+                const pizza = allPizzas.find(p => p.id === orderItem.id);
+                if (!pizza) continue;
+
+                for (const recipeItem of pizza.recipe) {
+                    const ingredient = allIngredients.find(i => i.id === recipeItem.id);
+                    if (!ingredient) {
+                        showToast(`Erreur: Ingrédient '${recipeItem.name}' introuvable.`);
+                        success = false;
+                        break;
+                    }
+
+                    const quantityToDeduct = recipeItem.quantity * orderItem.quantity;
+                    if (ingredient.quantity < quantityToDeduct) {
+                         showToast(`Stock insuffisant pour: ${ingredient.name}`);
+                         success = false;
+                         break;
+                    }
+
+                    const newQuantity = ingredient.quantity - quantityToDeduct;
+                    const ingredientRef = doc(ingredientsCol, ingredient.id);
+                    batch.update(ingredientRef, { quantity: newQuantity });
+                }
+                if (!success) break;
+            }
+            
+            if (success) {
+                try {
+                    await batch.commit();
+                    showToast('Commande validée, stock mis à jour !');
+                    currentOrder = [];
+                    renderCurrentOrder();
+                } catch (error) {
+                    console.error("Batch commit failed: ", error);
+                    showToast('Erreur lors de la mise à jour du stock.');
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>
+
