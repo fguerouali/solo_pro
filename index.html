@@ -235,7 +235,28 @@
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- CONFIGURATION ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID" };
+        // =================================================================================
+        // IMPORTANT : Pour que l'application fonctionne sur Render (ou en ligne),
+        // vous devez coller ici la configuration de VOTRE propre projet Firebase.
+        //
+        // Suivez ces étapes :
+        // 1. Allez sur https://firebase.google.com/ et créez un projet.
+        // 2. Dans votre projet, créez une application web (icône </>).
+        // 3. Firebase vous donnera un objet "firebaseConfig". Copiez-le et collez-le ici.
+        // 4. N'oubliez pas d'activer "Authentication" (avec le mode "Anonyme")
+        //    et "Firestore Database" (en mode production) dans votre projet Firebase.
+        // =================================================================================
+        const firebaseConfigFromUser = {
+          apiKey: "AIzaSyCzUX90zSN2zG9O97g7TNyTmTSNte9OT-E",
+          authDomain: "solopro-6521a.firebaseapp.com",
+          projectId: "solopro-6521a",
+          storageBucket: "solopro-6521a.firebasestorage.app",
+          messagingSenderId: "126450282941",
+          appId: "1:126450282941:web:10e5255e6ee7c75fa8e2d4"            
+        };
+
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
 
@@ -663,4 +684,5 @@
     </script>
 </body>
 </html>
+
 
