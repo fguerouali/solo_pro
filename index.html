@@ -62,7 +62,6 @@
             <div id="dashboard-content" class="tab-content active">
                 <h2 class="text-2xl font-semibold mb-4">Alertes de Stock</h2>
                 <div id="low-stock-alerts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <!-- Les alertes seront insérées ici -->
                     <div id="low-stock-placeholder" class="text-center col-span-full py-10 text-gray-500">
                         <i class="fas fa-check-circle fa-2x text-green-500 mb-2"></i><p>Aucune alerte de stock bas pour le moment.</p>
                     </div>
@@ -194,16 +193,46 @@
 
     <!-- Modals -->
     <div id="ingredient-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
-        <!-- ... Contenu Modal Ingrédient ... -->
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <h3 id="ingredient-modal-title" class="text-xl font-semibold mb-4">Ajouter un ingrédient</h3>
+            <form id="ingredient-form">
+                <input type="hidden" id="ingredient-id">
+                <div class="space-y-4">
+                    <div><label for="ingredient-name" class="block text-sm font-medium text-gray-700">Nom</label><input type="text" id="ingredient-name" required class="mt-1 w-full input-style"></div>
+                    <div><label for="ingredient-quantity" class="block text-sm font-medium text-gray-700">Quantité</label><input type="number" id="ingredient-quantity" min="0" step="any" required class="mt-1 w-full input-style"></div>
+                    <div><label for="ingredient-unit" class="block text-sm font-medium text-gray-700">Unité (kg, L, pièces...)</label><input type="text" id="ingredient-unit" required class="mt-1 w-full input-style"></div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-3"><button type="button" class="btn-secondary" id="cancel-ingredient">Annuler</button><button type="submit" class="btn-primary">Sauvegarder</button></div>
+            </form>
+        </div>
     </div>
+    
     <div id="product-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
-        <!-- ... Contenu Modal Produit ... -->
-    </div>
-    <div id="import-modal" class="modal fixed z-20 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
-        <!-- ... Contenu Modal Import ... -->
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl">
+            <h3 id="product-modal-title" class="text-xl font-semibold mb-4">Créer un Produit</h3>
+            <form id="product-form">
+                <input type="hidden" id="product-id">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-2"><label for="product-name" class="block text-sm font-medium text-gray-700">Nom du Produit</label><input type="text" id="product-name" required class="mt-1 w-full input-style"></div>
+                    <div><label for="product-price" class="block text-sm font-medium text-gray-700">Prix (€)</label><input type="number" id="product-price" min="0" step="0.01" required class="mt-1 w-full input-style"></div>
+                </div>
+                <div class="mt-4"><label for="product-type" class="block text-sm font-medium text-gray-700">Type de produit</label><select id="product-type" class="mt-1 w-full input-style"><option value="Pizza">Pizza</option><option value="Boisson">Boisson</option><option value="Dessert">Dessert</option></select></div>
+                <div id="recipe-section" class="mt-6"><h4 class="text-lg font-medium text-gray-800 mb-2">Recette</h4><div id="recipe-ingredients-list" class="space-y-2 mb-3"></div><div class="flex items-end gap-3"><div class="flex-grow"><label class="block text-sm font-medium">Ingrédient</label><select id="recipe-ingredient-select" class="mt-1 w-full input-style"></select></div><div><label class="block text-sm font-medium">Quantité</label><input type="number" id="recipe-quantity" min="0" step="any" class="mt-1 w-28 input-style"></div><button type="button" id="add-recipe-ingredient-btn" class="btn-secondary h-10">Ajouter</button></div></div>
+                <div id="linked-ingredient-section" class="mt-6 hidden"><h4 class="text-lg font-medium text-gray-800 mb-2">Article en Stock</h4><label class="block text-sm font-medium">Lier ce produit à un article de l'inventaire</label><select id="linked-ingredient-select" class="mt-1 w-full input-style"></select></div>
+                <div class="mt-6 flex justify-end space-x-3"><button type="button" class="btn-secondary" id="cancel-product">Annuler</button><button type="submit" class="btn-primary">Sauvegarder Produit</button></div>
+            </form>
+        </div>
     </div>
 
-    <!-- Modal Fournisseur -->
+    <div id="import-modal" class="modal fixed z-20 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+            <h3 id="import-modal-title" class="text-xl font-semibold mb-4">Importer un fichier CSV</h3>
+            <div id="import-instructions" class="text-sm text-gray-600 bg-gray-100 p-3 rounded-lg mb-4"></div>
+            <div><label for="csv-file-input" class="block text-sm font-medium text-gray-700">Choisir un fichier .csv</label><input type="file" id="csv-file-input" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/></div>
+            <div class="mt-6 flex justify-end space-x-3"><button type="button" class="btn-secondary" id="cancel-import">Annuler</button><button type="button" class="btn-primary" id="process-import-btn" disabled>Lancer l'importation</button></div>
+        </div>
+    </div>
+
     <div id="supplier-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
             <h3 id="supplier-modal-title" class="text-xl font-semibold mb-4">Ajouter un Fournisseur</h3>
@@ -218,29 +247,17 @@
         </div>
     </div>
 
-    <!-- Modal Commande Fournisseur -->
     <div id="purchase-order-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-gray-500 bg-opacity-75 items-center justify-center">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl">
             <h3 class="text-xl font-semibold mb-4">Nouvelle Commande Fournisseur</h3>
             <form id="purchase-order-form">
                 <div><label for="po-supplier-select" class="block text-sm font-medium">Fournisseur</label><select id="po-supplier-select" required class="mt-1 w-full input-style"></select></div>
-                <div class="mt-6"><h4 class="text-lg font-medium text-gray-800 mb-2">Articles</h4>
-                    <div id="po-items-list" class="space-y-2 mb-3"></div>
-                    <div class="flex items-end gap-3">
-                        <div class="flex-grow"><label class="block text-sm font-medium">Ingrédient</label><select id="po-ingredient-select" class="mt-1 w-full input-style"></select></div>
-                        <div><label class="block text-sm font-medium">Quantité</label><input type="number" id="po-quantity" min="0" step="any" class="mt-1 w-28 input-style"></div>
-                        <button type="button" id="add-po-item-btn" class="btn-secondary h-10">Ajouter</button>
-                    </div>
-                </div>
-                <div class="mt-4">
-                     <label for="po-invoice-file" class="block text-sm font-medium text-gray-700">Facture (Optionnel)</label>
-                     <input type="file" id="po-invoice-file" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
-                </div>
+                <div class="mt-6"><h4 class="text-lg font-medium text-gray-800 mb-2">Articles</h4><div id="po-items-list" class="space-y-2 mb-3"></div><div class="flex items-end gap-3"><div class="flex-grow"><label class="block text-sm font-medium">Ingrédient</label><select id="po-ingredient-select" class="mt-1 w-full input-style"></select></div><div><label class="block text-sm font-medium">Quantité</label><input type="number" id="po-quantity" min="0" step="any" class="mt-1 w-28 input-style"></div><button type="button" id="add-po-item-btn" class="btn-secondary h-10">Ajouter</button></div></div>
+                <div class="mt-4"><label for="po-invoice-file" class="block text-sm font-medium text-gray-700">Facture (Optionnel)</label><input type="file" id="po-invoice-file" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/></div>
                 <div class="mt-6 flex justify-end space-x-3"><button type="button" class="btn-secondary" id="cancel-purchase-order">Annuler</button><button type="submit" class="btn-primary">Enregistrer Commande</button></div>
             </form>
         </div>
     </div>
-
 
     <div id="toast" class="hidden fixed bottom-5 right-5 bg-gray-900 text-white py-2 px-5 rounded-lg shadow-lg transition-opacity duration-300">
         <p id="toast-message"></p>
@@ -305,11 +322,7 @@
                 ordersCol = collection(db, `artifacts/${appId}/public/data/orders`);
                 suppliersCol = collection(db, `artifacts/${appId}/public/data/suppliers`);
                 purchaseOrdersCol = collection(db, `artifacts/${appId}/public/data/purchaseOrders`);
-                listenToIngredients();
-                listenToProducts();
-                listenToOrders();
-                listenToSuppliers();
-                listenToPurchaseOrders();
+                listenToAllCollections();
             } else {
                 try {
                     if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
@@ -319,19 +332,143 @@
         });
 
         // --- LISTENERS FIREBASE ---
-        const listenToSuppliers = () => onSnapshot(suppliersCol, snapshot => {
-            allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderSuppliers();
-            populateSupplierSelects();
+        function listenToAllCollections() {
+            onSnapshot(suppliersCol, snapshot => {
+                allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderSuppliers();
+                populateSupplierSelects();
+            });
+
+            onSnapshot(purchaseOrdersCol, snapshot => {
+                const purchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                purchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                renderPurchaseOrders(purchaseOrders);
+            });
+
+            onSnapshot(ingredientsCol, snapshot => {
+                allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allIngredients.sort((a,b) => a.name.localeCompare(b.name));
+                renderIngredients();
+                renderDashboard();
+                populateIngredientSelects();
+            });
+
+            onSnapshot(productsCol, snapshot => {
+                allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allProducts.sort((a,b) => a.name.localeCompare(b.name));
+                renderProducts();
+                populateProductSelects();
+            });
+
+            onSnapshot(ordersCol, snapshot => {
+                orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                orderHistory.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                renderOrderHistory(orderHistory);
+            });
+        }
+        
+        // --- FONCTIONS UTILITAIRES ---
+        const showToast = (message) => {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        };
+        const openModal = (id) => document.getElementById(id).classList.add('flex');
+        const closeModal = (id) => document.getElementById(id).classList.remove('flex');
+
+        // --- LOGIQUE DE NAVIGATION ---
+        document.querySelectorAll('.tab-link').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(`${tab.dataset.tab}-content`).classList.add('active');
+            });
         });
 
-        const listenToPurchaseOrders = () => onSnapshot(purchaseOrdersCol, snapshot => {
-            const purchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            purchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-            renderPurchaseOrders(purchaseOrders);
-        });
+        // --- FONCTIONS DE RENDU ---
+        const renderDashboard = () => {
+            const container = document.getElementById('low-stock-alerts');
+            const placeholder = document.getElementById('low-stock-placeholder');
+            container.innerHTML = ''; // Clear previous alerts
+            const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD);
+            if(lowStockItems.length === 0){
+                container.appendChild(placeholder);
+            } else {
+                 lowStockItems.forEach(item => {
+                     const alertDiv = document.createElement('div');
+                     alertDiv.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow';
+                     alertDiv.innerHTML = `<p class="font-bold">${item.name}</p><p>Stock restant: ${item.quantity} ${item.unit}</p>`;
+                     container.appendChild(alertDiv);
+                 });
+            }
+        };
 
-        // --- LOGIQUE FOURNISSEURS ---
+        const renderIngredients = () => {
+            const list = document.getElementById('ingredients-list');
+            const placeholder = document.getElementById('ingredients-placeholder');
+            const table = document.getElementById('ingredients-table');
+            list.innerHTML = '';
+            if(allIngredients.length === 0) {
+                table.style.display = 'none';
+                placeholder.style.display = 'block';
+            } else {
+                table.style.display = '';
+                placeholder.style.display = 'none';
+                allIngredients.forEach(ing => {
+                    const isLow = ing.quantity < LOW_STOCK_THRESHOLD;
+                    const row = document.createElement('tr');
+                    row.className = isLow ? 'low-stock' : '';
+                    row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td><td class="px-6 py-4 whitespace-nowrap"><span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> <span class="text-gray-500">${ing.unit}</span></td><td class="px-6 py-4 whitespace-nowrap text-sm font-medium"><button data-id="${ing.id}" class="edit-ingredient-btn text-indigo-600 hover:text-indigo-900 mr-4">Modifier</button><button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button></td>`;
+                    list.appendChild(row);
+                });
+            }
+        };
+
+        const renderProducts = () => {
+            const container = document.getElementById('products-list');
+            const placeholder = document.getElementById('products-placeholder');
+            container.innerHTML = '';
+            if(allProducts.length === 0) {
+                 container.appendChild(placeholder);
+            } else {
+                allProducts.forEach(product => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden';
+                    const typeIcon = { Pizza: '<i class="fas fa-pizza-slice"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Dessert: '<i class="fas fa-ice-cream"></i>' };
+                    let contentHtml = '';
+                    if (product.type === 'Pizza') {
+                        let recipeHtml = product.recipe.map(r => `<li>${r.quantity} ${r.unit} ${r.name}</li>`).join('');
+                        contentHtml = `<div class="mt-4"><h4 class="font-semibold text-sm text-gray-600">Recette:</h4><ul class="list-disc list-inside text-gray-500 text-sm">${recipeHtml}</ul></div>`;
+                    } else {
+                        const linkedIngredient = allIngredients.find(i => i.id === product.linkedIngredientId);
+                        contentHtml = `<div class="mt-4"><h4 class="font-semibold text-sm text-gray-600">Article en stock:</h4><p class="text-gray-500 text-sm">${linkedIngredient ? linkedIngredient.name : 'Non lié'}</p></div>`;
+                    }
+                    card.innerHTML = `<div class="p-6"><div class="flex justify-between items-start"><div><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-indigo-600 font-semibold text-lg">${product.price} €</p></div><span class="text-gray-400 text-xl">${typeIcon[product.type]}</span></div>${contentHtml}</div><div class="bg-gray-50 px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-indigo-600 hover:text-indigo-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`;
+                    container.appendChild(card);
+                });
+            }
+        };
+
+        const renderOrderHistory = (history) => {
+            const container = document.getElementById('order-history-list');
+            const placeholder = document.getElementById('order-history-placeholder');
+            container.innerHTML = '';
+            if (history.length === 0) {
+                container.appendChild(placeholder);
+            } else {
+                history.forEach(order => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-4 rounded-xl shadow-md';
+                    const date = order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue';
+                    const itemsHtml = order.items.map(item => `<li>${item.quantity} x ${item.name}</li>`).join('');
+                    card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-gray-700">Vente du ${date}</p><ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul></div><div class="flex items-center gap-4 text-right"><p class="font-bold text-lg text-indigo-600">${order.totalPrice.toFixed(2)} €</p><button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`;
+                    container.appendChild(card);
+                });
+            }
+        };
+
         const renderSuppliers = () => {
             const container = document.getElementById('suppliers-list');
             const placeholder = document.getElementById('suppliers-placeholder');
@@ -342,65 +479,10 @@
                 allSuppliers.forEach(sup => {
                     const div = document.createElement('div');
                     div.className = "bg-white p-3 rounded-lg shadow-sm flex justify-between items-center";
-                    div.innerHTML = `
-                        <div>
-                            <p class="font-semibold">${sup.name}</p>
-                            <p class="text-sm text-gray-500">${sup.contact || ''}</p>
-                        </div>
-                        <div>
-                            <button data-id="${sup.id}" class="edit-supplier-btn text-gray-400 hover:text-indigo-600 mr-2"><i class="fas fa-edit"></i></button>
-                            <button data-id="${sup.id}" class="delete-supplier-btn text-gray-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
-                        </div>
-                    `;
+                    div.innerHTML = `<div><p class="font-semibold">${sup.name}</p><p class="text-sm text-gray-500">${sup.contact || ''}</p></div><div><button data-id="${sup.id}" class="edit-supplier-btn text-gray-400 hover:text-indigo-600 mr-2"><i class="fas fa-edit"></i></button><button data-id="${sup.id}" class="delete-supplier-btn text-gray-400 hover:text-red-600"><i class="fas fa-trash"></i></button></div>`;
                     container.appendChild(div);
                 });
             }
-        };
-
-        document.getElementById('add-supplier-btn').addEventListener('click', () => {
-            document.getElementById('supplier-modal-title').textContent = 'Ajouter un Fournisseur';
-            document.getElementById('supplier-form').reset();
-            document.getElementById('supplier-id').value = '';
-            openModal('supplier-modal');
-        });
-
-        document.getElementById('cancel-supplier').addEventListener('click', () => closeModal('supplier-modal'));
-
-        document.getElementById('supplier-form').addEventListener('submit', async e => {
-            e.preventDefault();
-            const id = document.getElementById('supplier-id').value;
-            const data = {
-                name: document.getElementById('supplier-name').value,
-                contact: document.getElementById('supplier-contact').value
-            };
-            try {
-                if (id) await updateDoc(doc(suppliersCol, id), data);
-                else await addDoc(suppliersCol, data);
-                showToast(id ? 'Fournisseur mis à jour' : 'Fournisseur ajouté');
-                closeModal('supplier-modal');
-            } catch(error) { showToast('Erreur'); }
-        });
-
-        document.getElementById('suppliers-list').addEventListener('click', async e => {
-            const target = e.target.closest('button');
-            if (!target) return;
-            const id = target.dataset.id;
-            if (target.classList.contains('delete-supplier-btn')) {
-                if (confirm('Supprimer ce fournisseur ?')) await deleteDoc(doc(suppliersCol, id));
-            } else if (target.classList.contains('edit-supplier-btn')) {
-                const sup = allSuppliers.find(s => s.id === id);
-                document.getElementById('supplier-id').value = id;
-                document.getElementById('supplier-name').value = sup.name;
-                document.getElementById('supplier-contact').value = sup.contact;
-                openModal('supplier-modal');
-            }
-        });
-
-        // --- LOGIQUE COMMANDES FOURNISSEURS ---
-        const populateSupplierSelects = () => {
-            const select = document.getElementById('po-supplier-select');
-            select.innerHTML = '<option value="">Choisir...</option>';
-            allSuppliers.forEach(s => select.innerHTML += `<option value="${s.id}">${s.name}</option>`);
         };
         
         const renderPurchaseOrders = (purchaseOrders) => {
@@ -416,126 +498,69 @@
                     const isReceived = po.status === 'received';
                     div.className = `bg-white p-3 rounded-lg shadow-sm`;
                     const itemsHtml = po.items.map(i => `<li>${i.quantity} ${i.unit} - ${i.name}</li>`).join('');
-                    div.innerHTML = `
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <p class="font-semibold text-gray-800">${supplier ? supplier.name : 'Fournisseur inconnu'}</p>
-                                <p class="text-xs text-gray-500">${new Date(po.createdAt.seconds * 1000).toLocaleDateString('fr-FR')}</p>
-                                <ul class="text-sm mt-2 list-disc list-inside">${itemsHtml}</ul>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-xs font-bold py-1 px-2 rounded-full ${isReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${isReceived ? 'Reçue' : 'En attente'}</span>
-                                ${po.invoiceUrl ? `<a href="${po.invoiceUrl}" target="_blank" class="block text-sm text-indigo-600 mt-2"><i class="fas fa-file-invoice"></i> Facture</a>` : ''}
-                            </div>
-                        </div>
-                        ${!isReceived ? `<button data-id="${po.id}" class="receive-po-btn w-full btn-primary mt-3 text-sm">Réceptionner la commande</button>` : ''}
-                    `;
+                    div.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-semibold text-gray-800">${supplier ? supplier.name : 'Fournisseur inconnu'}</p><p class="text-xs text-gray-500">${new Date(po.createdAt.seconds * 1000).toLocaleDateString('fr-FR')}</p><ul class="text-sm mt-2 list-disc list-inside">${itemsHtml}</ul></div><div class="text-right"><span class="text-xs font-bold py-1 px-2 rounded-full ${isReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${isReceived ? 'Reçue' : 'En attente'}</span>${po.invoiceUrl ? `<a href="${po.invoiceUrl}" target="_blank" class="block text-sm text-indigo-600 mt-2"><i class="fas fa-file-invoice"></i> Facture</a>` : ''}</div></div>${!isReceived ? `<button data-id="${po.id}" class="receive-po-btn w-full btn-primary mt-3 text-sm">Réceptionner la commande</button>` : ''}`;
                     container.appendChild(div);
                 });
             }
         };
+        
+        // --- LOGIQUE INGREDIENTS ---
+        document.getElementById('add-ingredient-btn').addEventListener('click', () => { document.getElementById('ingredient-modal-title').textContent = 'Ajouter un ingrédient'; document.getElementById('ingredient-form').reset(); document.getElementById('ingredient-id').value = ''; openModal('ingredient-modal'); });
+        document.getElementById('cancel-ingredient').addEventListener('click', () => closeModal('ingredient-modal'));
+        document.getElementById('ingredient-form').addEventListener('submit', async (e) => { e.preventDefault(); const id = document.getElementById('ingredient-id').value; const data = { name: document.getElementById('ingredient-name').value, quantity: parseFloat(document.getElementById('ingredient-quantity').value), unit: document.getElementById('ingredient-unit').value }; try { if (id) await updateDoc(doc(ingredientsCol, id), data); else await addDoc(ingredientsCol, {...data, createdAt: serverTimestamp()}); showToast(id ? 'Ingrédient mis à jour !' : 'Ingrédient ajouté !'); closeModal('ingredient-modal'); } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); } });
+        document.getElementById('ingredients-list').addEventListener('click', async e => { const target = e.target.closest('[data-id]'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-ingredient-btn')) { if(confirm('Voulez-vous vraiment supprimer cet ingrédient ?')) { await deleteDoc(doc(ingredientsCol, id)); showToast('Ingrédient supprimé.'); } } else if (target.classList.contains('edit-ingredient-btn')) { const docSnap = await getDoc(doc(ingredientsCol, id)); const data = docSnap.data(); document.getElementById('ingredient-modal-title').textContent = 'Modifier un ingrédient'; document.getElementById('ingredient-id').value = docSnap.id; document.getElementById('ingredient-name').value = data.name; document.getElementById('ingredient-quantity').value = data.quantity; document.getElementById('ingredient-unit').value = data.unit; openModal('ingredient-modal'); } });
 
-        document.getElementById('add-purchase-order-btn').addEventListener('click', () => {
-            document.getElementById('purchase-order-form').reset();
-            currentPurchaseOrderItems = [];
-            renderCurrentPurchaseOrderItems();
-            openModal('purchase-order-modal');
-        });
+        // --- LOGIQUE PRODUITS ---
+        const populateIngredientSelects = () => { const recipeSelect = document.getElementById('recipe-ingredient-select'); const linkedSelect = document.getElementById('linked-ingredient-select'); const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join(''); recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`; linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`; };
+        const populateProductSelects = () => { const select = document.getElementById('order-product-select'); select.innerHTML = ''; allProducts.forEach(product => select.innerHTML += `<option value="${product.id}">${product.name}</option>`); }
+        document.getElementById('add-product-btn').addEventListener('click', () => { document.getElementById('product-modal-title').textContent = 'Créer un Produit'; document.getElementById('product-form').reset(); document.getElementById('product-id').value = ''; document.getElementById('product-type').dispatchEvent(new Event('change')); currentRecipe = []; renderCurrentRecipe(); openModal('product-modal'); });
+        document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal'));
+        document.getElementById('product-type').addEventListener('change', (e) => { const isPizza = e.target.value === 'Pizza'; document.getElementById('recipe-section').style.display = isPizza ? 'block' : 'none'; document.getElementById('linked-ingredient-section').style.display = isPizza ? 'none' : 'block'; });
+        document.getElementById('add-recipe-ingredient-btn').addEventListener('click', () => { const select = document.getElementById('recipe-ingredient-select'); const ingredientId = select.value; const quantity = parseFloat(document.getElementById('recipe-quantity').value); if (!ingredientId || isNaN(quantity) || quantity <= 0) return showToast("Veuillez sélectionner un ingrédient et une quantité valide."); const ingredient = allIngredients.find(ing => ing.id === ingredientId); currentRecipe.push({ id: ingredient.id, name: ingredient.name, quantity: quantity, unit: ingredient.unit }); renderCurrentRecipe(); document.getElementById('recipe-quantity').value = ''; select.value = ''; });
+        const renderCurrentRecipe = () => { const list = document.getElementById('recipe-ingredients-list'); list.innerHTML = ''; currentRecipe.forEach((item, index) => { const li = document.createElement('div'); li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name}</span><button type="button" data-index="${index}" class="remove-recipe-item text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; list.appendChild(li); }); };
+        document.getElementById('recipe-ingredients-list').addEventListener('click', e => { const button = e.target.closest('.remove-recipe-item'); if (button) { currentRecipe.splice(button.dataset.index, 1); renderCurrentRecipe(); } });
+        document.getElementById('product-form').addEventListener('submit', async e => { e.preventDefault(); const id = document.getElementById('product-id').value; const type = document.getElementById('product-type').value; const data = { name: document.getElementById('product-name').value, price: parseFloat(document.getElementById('product-price').value), type: type }; if (type === 'Pizza') { if (currentRecipe.length === 0) return showToast("La recette ne peut pas être vide pour une pizza."); data.recipe = currentRecipe; } else { const linkedId = document.getElementById('linked-ingredient-select').value; if (!linkedId) return showToast("Veuillez lier ce produit à un article en stock."); data.linkedIngredientId = linkedId; } try { if (id) await updateDoc(doc(productsCol, id), data); else await addDoc(productsCol, {...data, createdAt: serverTimestamp()}); showToast(id ? 'Produit mis à jour !' : 'Produit créé !'); closeModal('product-modal'); } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); } });
+        document.getElementById('products-list').addEventListener('click', async e => { const id = e.target.closest('[data-id]')?.dataset.id; if(!id) return; const target = e.target; if (target.closest('.delete-product-btn')) { if(confirm('Voulez-vous vraiment supprimer ce produit ?')) { await deleteDoc(doc(productsCol, id)); showToast('Produit supprimé.'); } } else if (target.closest('.edit-product-btn')) { const product = allProducts.find(p => p.id === id); document.getElementById('product-modal-title').textContent = 'Modifier un Produit'; document.getElementById('product-id').value = id; document.getElementById('product-name').value = product.name; document.getElementById('product-price').value = product.price; document.getElementById('product-type').value = product.type; document.getElementById('product-type').dispatchEvent(new Event('change')); if (product.type === 'Pizza') { currentRecipe = [...product.recipe]; renderCurrentRecipe(); } else { document.getElementById('linked-ingredient-select').value = product.linkedIngredientId; } openModal('product-modal'); } });
+
+        // --- LOGIQUE VENTES ---
+        document.getElementById('add-to-order-form').addEventListener('submit', e => { e.preventDefault(); const productId = document.getElementById('order-product-select').value; const quantity = parseInt(document.getElementById('order-product-quantity').value); const product = allProducts.find(p => p.id === productId); if (!product || isNaN(quantity) || quantity <= 0) return; const existingItem = currentOrder.find(item => item.id === productId); if(existingItem) existingItem.quantity += quantity; else currentOrder.push({ id: product.id, name: product.name, quantity: quantity, price: product.price }); renderCurrentOrder(); });
+        const renderCurrentOrder = () => { const list = document.getElementById('current-order-list'); const placeholder = document.getElementById('order-placeholder'); const processBtn = document.getElementById('process-order-btn'); list.innerHTML = ''; if(currentOrder.length === 0){ list.appendChild(placeholder); processBtn.disabled = true; } else { currentOrder.forEach((item, index) => { const li = document.createElement('li'); li.className = 'flex justify-between items-center'; li.innerHTML = `<span>${item.quantity} x ${item.name}</span><button data-index="${index}" class="remove-order-item text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>`; list.appendChild(li); }); processBtn.disabled = false; } };
+        document.getElementById('current-order-list').addEventListener('click', e => { const button = e.target.closest('.remove-order-item'); if (button) { currentOrder.splice(button.dataset.index, 1); renderCurrentOrder(); } });
+        document.getElementById('process-order-btn').addEventListener('click', async () => { if (currentOrder.length === 0) return; const batch = writeBatch(db); let success = true; let totalPrice = 0; const tempDeductions = new Map(); for (const orderItem of currentOrder) { const product = allProducts.find(p => p.id === orderItem.id); if (!product) { success = false; break; } totalPrice += product.price * orderItem.quantity; if (product.type === 'Pizza') { for (const recipeItem of product.recipe) { const current = tempDeductions.get(recipeItem.id) || 0; tempDeductions.set(recipeItem.id, current + recipeItem.quantity * orderItem.quantity); } } else { const current = tempDeductions.get(product.linkedIngredientId) || 0; tempDeductions.set(product.linkedIngredientId, current + orderItem.quantity); } } for (const [ingId, qty] of tempDeductions.entries()) { const ing = allIngredients.find(i => i.id === ingId); if (!ing || ing.quantity < qty) { showToast(`Stock insuffisant pour: ${ing ? ing.name : 'inconnu'}`); success = false; break; } batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) }); } if (success) { batch.set(doc(ordersCol), { items: currentOrder, totalPrice, createdAt: serverTimestamp() }); try { await batch.commit(); showToast('Vente validée, stock mis à jour !'); currentOrder = []; renderCurrentOrder(); } catch (error) { console.error("Batch commit failed: ", error); showToast(`Erreur: ${error.message}`); } } });
+        document.getElementById('order-history-list').addEventListener('click', async e => { const deleteBtn = e.target.closest('.delete-order-btn'); if (deleteBtn) { const orderId = deleteBtn.dataset.id; const order = orderHistory.find(o => o.id === orderId); if (!order) return; if (confirm("Voulez-vous vraiment supprimer cette vente ?\n\nLe stock utilisé sera automatiquement restauré.")) { const batch = writeBatch(db); for (const item of order.items) { const prod = allProducts.find(p => p.id === item.id); if (!prod) continue; if (prod.type === 'Pizza') { for (const recipeItem of prod.recipe) { batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(recipeItem.quantity * item.quantity) }); } } else { batch.update(doc(ingredientsCol, prod.linkedIngredientId), { quantity: increment(item.quantity) }); } } batch.delete(doc(ordersCol, orderId)); try { await batch.commit(); showToast("Vente supprimée et stock restauré."); } catch (error) { console.error("Error restoring stock:", error); showToast("Erreur lors de la suppression."); } } } });
+
+        // --- LOGIQUE FOURNISSEURS ---
+        document.getElementById('add-supplier-btn').addEventListener('click', () => { document.getElementById('supplier-modal-title').textContent = 'Ajouter un Fournisseur'; document.getElementById('supplier-form').reset(); document.getElementById('supplier-id').value = ''; openModal('supplier-modal'); });
+        document.getElementById('cancel-supplier').addEventListener('click', () => closeModal('supplier-modal'));
+        document.getElementById('supplier-form').addEventListener('submit', async e => { e.preventDefault(); const id = document.getElementById('supplier-id').value; const data = { name: document.getElementById('supplier-name').value, contact: document.getElementById('supplier-contact').value }; try { if (id) await updateDoc(doc(suppliersCol, id), data); else await addDoc(suppliersCol, data); showToast(id ? 'Fournisseur mis à jour' : 'Fournisseur ajouté'); closeModal('supplier-modal'); } catch(error) { showToast('Erreur'); } });
+        document.getElementById('suppliers-list').addEventListener('click', async e => { const target = e.target.closest('button'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-supplier-btn')) { if (confirm('Supprimer ce fournisseur ?')) await deleteDoc(doc(suppliersCol, id)); } else if (target.classList.contains('edit-supplier-btn')) { const sup = allSuppliers.find(s => s.id === id); document.getElementById('supplier-id').value = id; document.getElementById('supplier-name').value = sup.name; document.getElementById('supplier-contact').value = sup.contact; openModal('supplier-modal'); } });
+
+        // --- LOGIQUE COMMANDES FOURNISSEURS ---
+        const populateSupplierSelects = () => { const select = document.getElementById('po-supplier-select'); select.innerHTML = '<option value="">Choisir...</option>'; allSuppliers.forEach(s => select.innerHTML += `<option value="${s.id}">${s.name}</option>`); };
+        document.getElementById('add-purchase-order-btn').addEventListener('click', () => { document.getElementById('purchase-order-form').reset(); currentPurchaseOrderItems = []; renderCurrentPurchaseOrderItems(); openModal('purchase-order-modal'); });
         document.getElementById('cancel-purchase-order').addEventListener('click', () => closeModal('purchase-order-modal'));
+        const renderCurrentPurchaseOrderItems = () => { const list = document.getElementById('po-items-list'); list.innerHTML = ''; currentPurchaseOrderItems.forEach((item, index) => { const li = document.createElement('div'); li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name}</span><button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; list.appendChild(li); }); };
+        document.getElementById('add-po-item-btn').addEventListener('click', () => { const select = document.getElementById('po-ingredient-select'); const ingredientId = select.value; const quantity = parseFloat(document.getElementById('po-quantity').value); if (!ingredientId || isNaN(quantity) || quantity <= 0) return; const ingredient = allIngredients.find(i => i.id === ingredientId); currentPurchaseOrderItems.push({id: ingredient.id, name: ingredient.name, unit: ingredient.unit, quantity}); renderCurrentPurchaseOrderItems(); select.value = ''; document.getElementById('po-quantity').value = ''; });
+        document.getElementById('po-items-list').addEventListener('click', e => { const button = e.target.closest('.remove-po-item-btn'); if (button) { currentPurchaseOrderItems.splice(button.dataset.index, 1); renderCurrentPurchaseOrderItems(); } });
+        document.getElementById('purchase-order-form').addEventListener('submit', async e => { e.preventDefault(); const supplierId = document.getElementById('po-supplier-select').value; const file = document.getElementById('po-invoice-file').files[0]; if (!supplierId || currentPurchaseOrderItems.length === 0) return showToast('Fournisseur et articles requis.'); let invoiceUrl = ''; if (file) { const storageRef = ref(storage, `invoices/${appId}/${Date.now()}-${file.name}`); await uploadBytes(storageRef, file); invoiceUrl = await getDownloadURL(storageRef); } const data = { supplierId, items: currentPurchaseOrderItems, status: 'pending', createdAt: serverTimestamp(), invoiceUrl }; await addDoc(purchaseOrdersCol, data); showToast('Commande fournisseur créée'); closeModal('purchase-order-modal'); });
+        document.getElementById('purchase-orders-list').addEventListener('click', async e => { const target = e.target.closest('.receive-po-btn'); if (!target) return; const poId = target.dataset.id; const poDoc = await getDoc(doc(purchaseOrdersCol, poId)); const purchaseOrder = poDoc.data(); const batch = writeBatch(db); purchaseOrder.items.forEach(item => { const ingRef = doc(ingredientsCol, item.id); batch.update(ingRef, { quantity: increment(item.quantity) }); }); batch.update(doc(purchaseOrdersCol, poId), { status: 'received', receivedAt: serverTimestamp() }); await batch.commit(); showToast('Stock mis à jour !'); });
 
-        const renderCurrentPurchaseOrderItems = () => {
-            const list = document.getElementById('po-items-list');
-            list.innerHTML = '';
-             currentPurchaseOrderItems.forEach((item, index) => {
-                const li = document.createElement('div');
-                li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded';
-                li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name}</span><button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`;
-                list.appendChild(li);
-            });
-        };
-
-        document.getElementById('add-po-item-btn').addEventListener('click', () => {
-            const select = document.getElementById('po-ingredient-select');
-            const ingredientId = select.value;
-            const quantity = parseFloat(document.getElementById('po-quantity').value);
-            if (!ingredientId || isNaN(quantity) || quantity <= 0) return;
-            
-            const ingredient = allIngredients.find(i => i.id === ingredientId);
-            currentPurchaseOrderItems.push({id: ingredient.id, name: ingredient.name, unit: ingredient.unit, quantity});
-            renderCurrentPurchaseOrderItems();
-            select.value = '';
-            document.getElementById('po-quantity').value = '';
-        });
-
-        document.getElementById('po-items-list').addEventListener('click', e => {
-             const button = e.target.closest('.remove-po-item-btn');
-            if (button) {
-                currentPurchaseOrderItems.splice(button.dataset.index, 1);
-                renderCurrentPurchaseOrderItems();
-            }
-        });
-
-        document.getElementById('purchase-order-form').addEventListener('submit', async e => {
-            e.preventDefault();
-            const supplierId = document.getElementById('po-supplier-select').value;
-            const file = document.getElementById('po-invoice-file').files[0];
-            if (!supplierId || currentPurchaseOrderItems.length === 0) return showToast('Fournisseur et articles requis.');
-
-            let invoiceUrl = '';
-            if (file) {
-                const storageRef = ref(storage, `invoices/${appId}/${Date.now()}-${file.name}`);
-                await uploadBytes(storageRef, file);
-                invoiceUrl = await getDownloadURL(storageRef);
-            }
-
-            const data = {
-                supplierId,
-                items: currentPurchaseOrderItems,
-                status: 'pending',
-                createdAt: serverTimestamp(),
-                invoiceUrl
-            };
-            
-            await addDoc(purchaseOrdersCol, data);
-            showToast('Commande fournisseur créée');
-            closeModal('purchase-order-modal');
-        });
-
-        document.getElementById('purchase-orders-list').addEventListener('click', async e => {
-            const target = e.target.closest('.receive-po-btn');
-            if (!target) return;
-            const poId = target.dataset.id;
-            const poDoc = await getDoc(doc(purchaseOrdersCol, poId));
-            const purchaseOrder = poDoc.data();
-            
-            const batch = writeBatch(db);
-            purchaseOrder.items.forEach(item => {
-                const ingRef = doc(ingredientsCol, item.id);
-                batch.update(ingRef, { quantity: increment(item.quantity) });
-            });
-            batch.update(doc(purchaseOrdersCol, poId), { status: 'received', receivedAt: serverTimestamp() });
-            
-            await batch.commit();
-            showToast('Stock mis à jour !');
-        });
-
-        // ... (Le reste du script JS, inchangé)
-        // (Les fonctions de rendu, logique d'ingrédients, produits, ventes, CSV)
-
-    </script>
-    <script type="module">
-        // --- On met ici le code qui ne dépend pas des nouvelles fonctionnalités pour la lisibilité ---
-        // --- mais dans le fichier final tout est dans un seul bloc <script type="module"> ---
-
-        // --- LISTENERS FIREBASE (suite) ---
-        const listenToIngredients = () => onSnapshot(collection(db, `artifacts/${appId}/public/data/ingredients`), snapshot => {
-            allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            allIngredients.sort((a,b) => a.name.localeCompare(b.name));
-            renderIngredients();
-            renderDashboard();
-            populateIngredientSelects();
-        });
-        // etc. pour les autres listeners
+        // --- LOGIQUE CSV ---
+        const CSV_INSTRUCTIONS = { ingredients: `<p>3 colonnes: <strong>nom,quantite,unite</strong></p><pre>nom,quantite,unite\nTomates,10,kg</pre>`, products: `<p>4 colonnes: <strong>nom,prix,type,details</strong></p><p>Pizza details: Nom:qty:unite;...</p><p>Autre: Nom article en stock</p><pre>Margherita,8.5,Pizza,"Pâte:1:p;Sauce:0.1:kg"\nCoca,2,Boisson,Canette Coca</pre>`, orders: `<p>2 colonnes: <strong>produits,quantites</strong></p><pre>"Margherita;Coca","2;1"</pre>` };
+        document.getElementById('import-ingredients-btn').addEventListener('click', () => { importType = 'ingredients'; document.getElementById('import-modal-title').textContent = 'Importer des Ingrédients'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.ingredients; openModal('import-modal'); });
+        document.getElementById('import-products-btn').addEventListener('click', () => { importType = 'products'; document.getElementById('import-modal-title').textContent = 'Importer des Produits'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.products; openModal('import-modal'); });
+        document.getElementById('import-orders-btn').addEventListener('click', () => { importType = 'orders'; document.getElementById('import-modal-title').textContent = 'Importer des Ventes'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.orders; openModal('import-modal'); });
+        document.getElementById('cancel-import').addEventListener('click', () => closeModal('import-modal'));
+        document.getElementById('csv-file-input').addEventListener('change', () => { document.getElementById('process-import-btn').disabled = !document.getElementById('csv-file-input').files.length; });
+        document.getElementById('process-import-btn').addEventListener('click', async () => { const file = document.getElementById('csv-file-input').files[0]; if (!file) return showToast("Veuillez choisir un fichier."); document.getElementById('process-import-btn').disabled = true; const reader = new FileReader(); reader.onload = async (event) => { const lines = event.target.result.split('\n').filter(line => line.trim() !== ''); lines.shift(); try { if (importType === 'ingredients') await importIngredients(lines); else if (importType === 'products') await importProducts(lines); else if (importType === 'orders') await importOrders(lines); showToast('Importation terminée !'); } catch (error) { console.error("Import error:", error); showToast(`Erreur: ${error.message}`); } finally { closeModal('import-modal'); document.getElementById('csv-file-input').value = ''; document.getElementById('process-import-btn').disabled = false; } }; reader.readAsText(file); });
+        async function importIngredients(lines) { const batch = writeBatch(db); lines.forEach(line => { const [name, quantity, unit] = line.trim().split(','); if (name && quantity && unit) { batch.set(doc(ingredientsCol), { name: name.trim(), quantity: parseFloat(quantity), unit: unit.trim(), createdAt: serverTimestamp() }); } }); await batch.commit(); }
+        async function importProducts(lines) { const batch = writeBatch(db); lines.forEach(line => { const values = line.trim().split(','); const name = values[0], price = values[1], type = values[2], details = values.slice(3).join(','); if (!name || !price || !type || !details) return; const data = { name: name.trim(), price: parseFloat(price), type: type.trim(), createdAt: serverTimestamp() }; if (data.type === 'Pizza') { data.recipe = details.trim().replace(/"/g, '').split(';').map(part => { const [ingName, ingQty, ingUnit] = part.split(':'); const ing = allIngredients.find(i => i.name.toLowerCase() === ingName.toLowerCase()); if (!ing) throw new Error(`Ingrédient introuvable: ${ingName}`); return { id: ing.id, name: ing.name, quantity: parseFloat(ingQty), unit: ingUnit }; }); } else { const linked = allIngredients.find(i => i.name.toLowerCase() === details.trim().toLowerCase()); if (!linked) throw new Error(`Article introuvable: ${details}`); data.linkedIngredientId = linked.id; } batch.set(doc(productsCol), data); }); await batch.commit(); }
+        async function importOrders(lines) { const batch = writeBatch(db); for(const line of lines) { const [pNamesRaw, qtiesRaw] = line.trim().split(','); if(!pNamesRaw || !qtiesRaw) continue; const pNames = pNamesRaw.replace(/"/g, '').split(';'); const qties = qtiesRaw.replace(/"/g, '').split(';'); let items = [], total = 0; for (let i = 0; i < pNames.length; i++) { const name = pNames[i], qty = parseInt(qties[i]); const prod = allProducts.find(p => p.name.toLowerCase() === name.toLowerCase()); if (!prod) throw new Error(`Produit introuvable: ${name}`); items.push({ id: prod.id, name: prod.name, quantity: qty, price: prod.price }); total += prod.price * qty; if (prod.type === 'Pizza') { for (const rItem of prod.recipe) batch.update(doc(ingredientsCol, rItem.id), { quantity: increment(-(rItem.quantity * qty)) }); } else batch.update(doc(ingredientsCol, prod.linkedIngredientId), { quantity: increment(-qty) }); } batch.set(doc(ordersCol), { items, totalPrice: total, createdAt: serverTimestamp() }); } await batch.commit(); }
+        const downloadCSV = (content, filename) => { const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", filename); link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
+        document.getElementById('export-ingredients-btn').addEventListener('click', () => { let csv = "nom,quantite,unite\n"; allIngredients.forEach(i => { csv += `${i.name},${i.quantity},${i.unit}\n`; }); downloadCSV(csv, 'ingredients.csv'); });
+        document.getElementById('export-products-btn').addEventListener('click', () => { let csv = "nom,prix,type,details\n"; allProducts.forEach(p => { let d = ''; if (p.type === 'Pizza') d = `"${p.recipe.map(r => `${r.name}:${r.quantity}:${r.unit}`).join(';')}"`; else { const l = allIngredients.find(i => i.id === p.linkedIngredientId); d = l ? l.name : 'NON LIÉ'; } csv += `${p.name},${p.price},${p.type},${d}\n`; }); downloadCSV(csv, 'produits.csv'); });
+        document.getElementById('export-orders-btn').addEventListener('click', () => { let csv = "date,produits,quantites,prix_total\n"; orderHistory.forEach(o => { const date = o.createdAt ? new Date(o.createdAt.seconds * 1000).toISOString() : ''; const p = o.items.map(i => i.name).join(';'); const q = o.items.map(i => i.quantity).join(';'); csv += `${date},"${p}","${q}",${o.totalPrice.toFixed(2)}\n`; }); downloadCSV(csv, 'historique_ventes.csv'); });
+    
     </script>
 </body>
 </html>
