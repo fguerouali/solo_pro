@@ -85,7 +85,7 @@
                         </thead>
                         <tbody id="ingredients-list" class="bg-white divide-y divide-gray-200"></tbody>
                     </table>
-                     <div id="ingredients-placeholder" class="text-center py-10 text-gray-500">
+                     <div id="ingredients-placeholder" class="hidden text-center py-10 text-gray-500">
                         <p>Aucun ingrédient. Ajoutez-en un pour commencer !</p>
                     </div>
                 </div>
@@ -133,6 +133,18 @@
                          <button id="process-order-btn" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
                              Valider & Déduire du Stock
                          </button>
+                     </div>
+                 </div>
+
+                 <!-- Section Historique des Commandes -->
+                 <div class="mt-12">
+                     <h2 class="text-2xl font-semibold mb-4">Historique des Commandes</h2>
+                     <div id="order-history-list" class="space-y-4">
+                         <div id="order-history-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
+                            <i class="fas fa-history fa-2x text-gray-400 mb-2"></i>
+                            <p>Aucune commande dans l'historique.</p>
+                        </div>
+                        <!-- L'historique des commandes sera inséré ici -->
                      </div>
                  </div>
             </div>
@@ -255,7 +267,7 @@
         const db = getFirestore(app);
 
         // --- COLLECTIONS REFS ---
-        let ingredientsCol, pizzasCol;
+        let ingredientsCol, pizzasCol, ordersCol;
 
         // --- ETAT GLOBAL ---
         let allIngredients = [];
@@ -271,8 +283,10 @@
             if (user) {
                 ingredientsCol = collection(db, `artifacts/${appId}/public/data/ingredients`);
                 pizzasCol = collection(db, `artifacts/${appId}/public/data/pizzas`);
+                ordersCol = collection(db, `artifacts/${appId}/public/data/orders`);
                 listenToIngredients();
                 listenToPizzas();
+                listenToOrders();
             } else {
                 try {
                     if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
@@ -321,15 +335,20 @@
             renderPizzas();
             populatePizzaSelects();
         });
+
+        const listenToOrders = () => onSnapshot(ordersCol, snapshot => {
+            let orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Sort by date, newest first. Ensure createdAt exists.
+            orderHistory.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            renderOrderHistory(orderHistory);
+        });
         
         // --- FONCTIONS DE RENDU ---
         const renderDashboard = () => {
             const container = document.getElementById('low-stock-alerts');
             const placeholder = document.getElementById('low-stock-placeholder');
             
-            // On retire les anciennes alertes sans toucher au placeholder
             container.querySelectorAll('div:not(#low-stock-placeholder)').forEach(div => div.remove());
-
             const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD);
             
             if(lowStockItems.length === 0){
@@ -352,13 +371,12 @@
             const placeholder = document.getElementById('ingredients-placeholder');
             const table = document.getElementById('ingredients-table');
 
-            list.innerHTML = ''; // On peut vider le tbody sans risque
-
+            list.innerHTML = '';
             if(allIngredients.length === 0) {
                 table.style.display = 'none';
                 placeholder.style.display = 'block';
             } else {
-                table.style.display = ''; // Rétablit l'affichage par défaut de la table
+                table.style.display = '';
                 placeholder.style.display = 'none';
                 allIngredients.forEach(ing => {
                     const isLow = ing.quantity < LOW_STOCK_THRESHOLD;
@@ -383,9 +401,7 @@
             const container = document.getElementById('pizzas-list');
             const placeholder = document.getElementById('pizzas-placeholder');
 
-            // On retire les anciennes pizzas sans toucher au placeholder
             container.querySelectorAll('div:not(#pizzas-placeholder)').forEach(div => div.remove());
-
             if(allPizzas.length === 0) {
                  placeholder.style.display = 'block';
             } else {
@@ -407,6 +423,33 @@
                             <button data-id="${pizza.id}" class="edit-pizza-btn text-indigo-600 hover:text-indigo-900 font-medium">Modifier</button>
                             <button data-id="${pizza.id}" class="delete-pizza-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button>
                         </div>`;
+                    container.appendChild(card);
+                });
+            }
+        };
+
+        const renderOrderHistory = (history) => {
+            const container = document.getElementById('order-history-list');
+            const placeholder = document.getElementById('order-history-placeholder');
+            
+            container.querySelectorAll('div:not(#order-history-placeholder)').forEach(div => div.remove());
+
+            if (history.length === 0) {
+                placeholder.style.display = 'block';
+            } else {
+                placeholder.style.display = 'none';
+                history.forEach(order => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-4 rounded-xl shadow-md';
+                    const date = order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue';
+                    const itemsHtml = order.items.map(item => `<li>${item.quantity} x ${item.name}</li>`).join('');
+                    card.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <p class="font-bold text-gray-700">Commande du ${date}</p>
+                            <p class="font-bold text-lg text-indigo-600">${order.totalPrice.toFixed(2)} €</p>
+                        </div>
+                        <ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul>
+                    `;
                     container.appendChild(card);
                 });
             }
@@ -591,7 +634,7 @@
             if(existingItem) {
                 existingItem.quantity += quantity;
             } else {
-                currentOrder.push({ id: pizza.id, name: pizza.name, quantity: quantity });
+                currentOrder.push({ id: pizza.id, name: pizza.name, quantity: quantity, price: pizza.price });
             }
             renderCurrentOrder();
         });
@@ -601,7 +644,6 @@
             const placeholder = document.getElementById('order-placeholder');
             const processBtn = document.getElementById('process-order-btn');
             
-            // On retire les anciens items de la commande sans toucher au placeholder
             list.querySelectorAll('li:not(#order-placeholder)').forEach(li => li.remove());
 
             if(currentOrder.length === 0){
@@ -634,10 +676,17 @@
             
             const batch = writeBatch(db);
             let success = true;
+            let totalPrice = 0;
 
             for (const orderItem of currentOrder) {
                 const pizza = allPizzas.find(p => p.id === orderItem.id);
-                if (!pizza) continue;
+                if (!pizza) {
+                    showToast(`Pizza introuvable.`);
+                    success = false;
+                    break;
+                }
+                
+                totalPrice += pizza.price * orderItem.quantity;
 
                 for (const recipeItem of pizza.recipe) {
                     const ingredient = allIngredients.find(i => i.id === recipeItem.id);
@@ -662,6 +711,13 @@
             }
             
             if (success) {
+                const newOrderRef = doc(ordersCol);
+                batch.set(newOrderRef, {
+                    items: currentOrder,
+                    totalPrice: totalPrice,
+                    createdAt: serverTimestamp()
+                });
+
                 try {
                     await batch.commit();
                     showToast('Commande validée, stock mis à jour !');
@@ -677,5 +733,4 @@
     </script>
 </body>
 </html>
-
 
