@@ -75,7 +75,7 @@
                     </button>
                 </div>
                 <div class="bg-white p-6 rounded-2xl shadow-lg">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <table id="ingredients-table" class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ingrédient</th>
@@ -324,13 +324,15 @@
         
         // --- FONCTIONS DE RENDU ---
         const renderDashboard = () => {
-            const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD);
             const container = document.getElementById('low-stock-alerts');
             const placeholder = document.getElementById('low-stock-placeholder');
-            container.innerHTML = '';
+            
+            // On retire les anciennes alertes sans toucher au placeholder
+            container.querySelectorAll('div:not(#low-stock-placeholder)').forEach(div => div.remove());
+
+            const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD);
             
             if(lowStockItems.length === 0){
-                container.appendChild(placeholder);
                 placeholder.style.display = 'block';
             } else {
                  placeholder.style.display = 'none';
@@ -348,60 +350,66 @@
         const renderIngredients = () => {
             const list = document.getElementById('ingredients-list');
             const placeholder = document.getElementById('ingredients-placeholder');
-            list.innerHTML = '';
+            const table = document.getElementById('ingredients-table');
+
+            list.innerHTML = ''; // On peut vider le tbody sans risque
+
             if(allIngredients.length === 0) {
-                placeholder.style.display = 'table-row-group';
-                list.innerHTML = `<tr><td colspan="3">${placeholder.innerHTML}</td></tr>`
-                return;
+                table.style.display = 'none';
+                placeholder.style.display = 'block';
+            } else {
+                table.style.display = ''; // Rétablit l'affichage par défaut de la table
+                placeholder.style.display = 'none';
+                allIngredients.forEach(ing => {
+                    const isLow = ing.quantity < LOW_STOCK_THRESHOLD;
+                    const row = document.createElement('tr');
+                    row.className = isLow ? 'low-stock' : '';
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> 
+                            <span class="text-gray-500">${ing.unit}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button data-id="${ing.id}" class="edit-ingredient-btn text-indigo-600 hover:text-indigo-900 mr-4">Modifier</button>
+                            <button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button>
+                        </td>`;
+                    list.appendChild(row);
+                });
             }
-            placeholder.style.display = 'none';
-            allIngredients.forEach(ing => {
-                const isLow = ing.quantity < LOW_STOCK_THRESHOLD;
-                const row = document.createElement('tr');
-                row.className = isLow ? 'low-stock' : '';
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> 
-                        <span class="text-gray-500">${ing.unit}</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button data-id="${ing.id}" class="edit-ingredient-btn text-indigo-600 hover:text-indigo-900 mr-4">Modifier</button>
-                        <button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button>
-                    </td>`;
-                list.appendChild(row);
-            });
         };
 
         const renderPizzas = () => {
             const container = document.getElementById('pizzas-list');
             const placeholder = document.getElementById('pizzas-placeholder');
-            container.innerHTML = '';
+
+            // On retire les anciennes pizzas sans toucher au placeholder
+            container.querySelectorAll('div:not(#pizzas-placeholder)').forEach(div => div.remove());
+
             if(allPizzas.length === 0) {
-                 container.appendChild(placeholder);
                  placeholder.style.display = 'block';
-                 return;
-            }
-            placeholder.style.display = 'none';
-            allPizzas.forEach(pizza => {
-                const card = document.createElement('div');
-                card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden';
-                let recipeHtml = pizza.recipe.map(r => `<li>${r.quantity} ${r.unit} ${r.name}</li>`).join('');
-                card.innerHTML = `
-                    <div class="p-6">
-                        <h3 class="text-xl font-bold text-gray-900">${pizza.name}</h3>
-                        <p class="text-indigo-600 font-semibold text-lg">${pizza.price} €</p>
-                        <div class="mt-4">
-                            <h4 class="font-semibold text-sm text-gray-600">Recette:</h4>
-                            <ul class="list-disc list-inside text-gray-500 text-sm">${recipeHtml}</ul>
+            } else {
+                placeholder.style.display = 'none';
+                allPizzas.forEach(pizza => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden';
+                    let recipeHtml = pizza.recipe.map(r => `<li>${r.quantity} ${r.unit} ${r.name}</li>`).join('');
+                    card.innerHTML = `
+                        <div class="p-6">
+                            <h3 class="text-xl font-bold text-gray-900">${pizza.name}</h3>
+                            <p class="text-indigo-600 font-semibold text-lg">${pizza.price} €</p>
+                            <div class="mt-4">
+                                <h4 class="font-semibold text-sm text-gray-600">Recette:</h4>
+                                <ul class="list-disc list-inside text-gray-500 text-sm">${recipeHtml}</ul>
+                            </div>
                         </div>
-                    </div>
-                    <div class="bg-gray-50 px-6 py-3 flex justify-end gap-3">
-                        <button data-id="${pizza.id}" class="edit-pizza-btn text-indigo-600 hover:text-indigo-900 font-medium">Modifier</button>
-                        <button data-id="${pizza.id}" class="delete-pizza-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button>
-                    </div>`;
-                container.appendChild(card);
-            });
+                        <div class="bg-gray-50 px-6 py-3 flex justify-end gap-3">
+                            <button data-id="${pizza.id}" class="edit-pizza-btn text-indigo-600 hover:text-indigo-900 font-medium">Modifier</button>
+                            <button data-id="${pizza.id}" class="delete-pizza-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button>
+                        </div>`;
+                    container.appendChild(card);
+                });
+            }
         };
         
         // --- LOGIQUE INGREDIENTS ---
@@ -592,9 +600,11 @@
             const list = document.getElementById('current-order-list');
             const placeholder = document.getElementById('order-placeholder');
             const processBtn = document.getElementById('process-order-btn');
-            list.innerHTML = '';
+            
+            // On retire les anciens items de la commande sans toucher au placeholder
+            list.querySelectorAll('li:not(#order-placeholder)').forEach(li => li.remove());
+
             if(currentOrder.length === 0){
-                list.appendChild(placeholder);
                 placeholder.style.display = 'block';
                 processBtn.disabled = true;
             } else {
@@ -667,4 +677,5 @@
     </script>
 </body>
 </html>
+
 
