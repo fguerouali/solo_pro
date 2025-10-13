@@ -157,12 +157,12 @@
                          <h3 class="text-lg font-medium mb-4">Ajouter des produits à la vente</h3>
                          <form id="add-to-order-form" class="flex items-end gap-4">
                              <div class="flex-grow">
-                                <label for="order-product-select" class="block text-sm font-medium text-gray-700">Produit</label>
-                                <select id="order-product-select" class="mt-1 block w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-gray-800 focus:border-gray-800"></select>
+                                 <label for="order-product-select" class="block text-sm font-medium text-gray-700">Produit</label>
+                                 <select id="order-product-select" class="mt-1 block w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-gray-800 focus:border-gray-800"></select>
                              </div>
                              <div>
-                                <label for="order-product-quantity" class="block text-sm font-medium text-gray-700">Quantité</label>
-                                <input type="number" id="order-product-quantity" value="1" min="1" class="mt-1 block w-24 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-gray-800 focus:border-gray-800">
+                                 <label for="order-product-quantity" class="block text-sm font-medium text-gray-700">Quantité</label>
+                                 <input type="number" id="order-product-quantity" value="1" min="1" class="mt-1 block w-24 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-gray-800 focus:border-gray-800">
                              </div>
                              <button type="submit" class="bg-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-900 h-10">Ajouter</button>
                          </form>
@@ -170,7 +170,7 @@
                      <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg">
                          <h3 class="text-lg font-medium mb-4">Détail Vente</h3>
                          <ul id="current-order-list" class="space-y-2 mb-4">
-                            <li id="order-placeholder" class="text-gray-500">La vente est vide.</li>
+                             <li id="order-placeholder" class="text-gray-500">La vente est vide.</li>
                          </ul>
                          <div class="border-t pt-4">
                              <div class="flex justify-between items-center">
@@ -187,17 +187,17 @@
                  <!-- Section Historique des Ventes -->
                  <div class="mt-12">
                      <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
-                        <h2 class="text-2xl font-semibold text-gray-800">Historique des Ventes</h2>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <button id="import-orders-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer</button>
-                            <button id="export-orders-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter</button>
-                        </div>
+                         <h2 class="text-2xl font-semibold text-gray-800">Historique des Ventes</h2>
+                         <div class="flex items-center gap-2 flex-wrap">
+                             <button id="import-orders-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer</button>
+                             <button id="export-orders-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter</button>
+                         </div>
                     </div>
                      <div id="order-history-list" class="space-y-4">
                          <div id="order-history-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
                             <i class="fas fa-history fa-2x text-gray-400 mb-2"></i>
-                            <p>Aucune vente dans l'historique.</p>
-                        </div>
+                             <p>Aucune vente dans l'historique.</p>
+                         </div>
                      </div>
                  </div>
             </div>
@@ -397,7 +397,34 @@
             }
         };
 
-        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); container.innerHTML = ''; if(allProducts.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Pizza: '<i class="fas fa-pizza-slice"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Dessert: '<i class="fas fa-ice-cream"></i>' }; let contentHtml = ''; if (product.type === 'Pizza' && product.recipe) { let recipeHtml = product.recipe.map(r => `<li>${r.quantity} ${r.unit} ${r.name}</li>`).join(''); contentHtml = `<div class="mt-2"><h4 class="font-semibold text-sm text-gray-600">Recette:</h4><ul class="list-disc list-inside text-gray-500 text-sm">${recipeHtml}</ul></div>`; } else if (product.linkedIngredientId) { const linkedIngredient = allIngredients.find(i => i.id === product.linkedIngredientId); contentHtml = `<div class="mt-2"><h4 class="font-semibold text-sm text-gray-600">Article en stock:</h4><p class="text-gray-500 text-sm">${linkedIngredient ? linkedIngredient.name : 'Non lié'}</p></div>`; } const productCost = calculateProductCost(product); card.innerHTML = `<div class="p-6"><div class="flex justify-between items-start"><div><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p></div><span class="text-gray-400 text-xl">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div><p class="text-gray-800 font-bold text-2xl text-right mt-4">${product.price.toFixed(2)} Mad</p></div><div class="bg-gray-50 px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
+        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); container.innerHTML = ''; if(allProducts.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Pizza: '<i class="fas fa-pizza-slice"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Dessert: '<i class="fas fa-ice-cream"></i>' }; 
+        
+        let contentHtml = '';
+        if (product.type === 'Pizza' && product.recipe) {
+            let recipeHtml = product.recipe.map(r => {
+                const ingredientDetails = allIngredients.find(ing => ing.id === r.id);
+                let costHtml = '';
+                if (ingredientDetails && ingredientDetails.cost > 0) {
+                    const itemCost = r.quantity * ingredientDetails.cost;
+                    costHtml = `<span class="font-semibold text-gray-600">${itemCost.toFixed(2)} Mad</span>`;
+                }
+                return `<li class="flex justify-between items-center">
+                            <span>- ${r.quantity} ${r.unit} ${r.name}</span>
+                            ${costHtml}
+                        </li>`;
+            }).join('');
+
+            contentHtml = `<div class="mt-2">
+                                <h4 class="font-semibold text-sm text-gray-600">Recette:</h4>
+                                <ul class="text-gray-500 text-sm space-y-1 mt-1">${recipeHtml}</ul>
+                           </div>`;
+
+        } else if (product.linkedIngredientId) {
+            const linkedIngredient = allIngredients.find(i => i.id === product.linkedIngredientId);
+            contentHtml = `<div class="mt-2"><h4 class="font-semibold text-sm text-gray-600">Article en stock:</h4><p class="text-gray-500 text-sm">${linkedIngredient ? linkedIngredient.name : 'Non lié'}</p></div>`;
+        }
+        
+        const productCost = calculateProductCost(product); card.innerHTML = `<div class="p-6"><div class="flex justify-between items-start"><div><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p></div><span class="text-gray-400 text-xl">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div><p class="text-gray-800 font-bold text-2xl text-right mt-4">${product.price.toFixed(2)} Mad</p></div><div class="bg-gray-50 px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
         const renderOrderHistory = (history) => { const container = document.getElementById('order-history-list'); const placeholder = document.getElementById('order-history-placeholder'); container.innerHTML = ''; if (history.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { history.forEach(order => { const card = document.createElement('div'); card.className = 'bg-white p-4 rounded-xl shadow-md'; const date = order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue'; const itemsHtml = order.items.map(item => `<li>${item.quantity} x ${item.name}</li>`).join(''); card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-gray-700">Vente du ${date}</p><ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul></div><div class="flex items-center gap-4 text-right"><p class="font-bold text-lg text-gray-800">${order.totalPrice.toFixed(2)} Mad</p><button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; container.appendChild(card); }); } };
         const renderSuppliers = () => { const container = document.getElementById('suppliers-list'); const placeholder = document.getElementById('suppliers-placeholder'); container.innerHTML = ''; if (allSuppliers.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allSuppliers.forEach(sup => { const div = document.createElement('div'); div.className = "bg-white p-3 rounded-lg shadow-sm flex justify-between items-center"; div.innerHTML = `<div><p class="font-semibold">${sup.name}</p><p class="text-sm text-gray-500">${sup.contact || ''}</p></div><div><button data-id="${sup.id}" class="edit-supplier-btn text-gray-400 hover:text-gray-800 mr-2"><i class="fas fa-edit"></i></button><button data-id="${sup.id}" class="delete-supplier-btn text-gray-400 hover:text-red-600"><i class="fas fa-trash"></i></button></div>`; container.appendChild(div); }); } };
         const renderPurchaseOrders = (purchaseOrders) => { const container = document.getElementById('purchase-orders-list'); const placeholder = document.getElementById('purchase-orders-placeholder'); container.innerHTML = ''; if (purchaseOrders.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { purchaseOrders.forEach(po => { const supplier = allSuppliers.find(s => s.id === po.supplierId); const div = document.createElement('div'); const isReceived = po.status === 'received'; div.className = `bg-white p-3 rounded-lg shadow-sm`; const itemsHtml = po.items.map(i => `<li>${i.quantity} ${i.unit} - ${i.name} (${i.price.toFixed(2)}Mad)</li>`).join(''); const totalDisplay = po.totalCost ? `<p class="font-bold text-lg text-gray-800">${po.totalCost.toFixed(2)} Mad</p>` : ''; div.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-semibold text-gray-800">${supplier ? supplier.name : 'Fournisseur inconnu'}</p><p class="text-xs text-gray-500">${new Date(po.createdAt.seconds * 1000).toLocaleDateString('fr-FR')}</p><ul class="text-sm mt-2 list-disc list-inside">${itemsHtml}</ul></div><div class="text-right"><span class="text-xs font-bold py-1 px-2 rounded-full ${isReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${isReceived ? 'Reçue' : 'En attente'}</span>${totalDisplay}${po.invoiceUrl ? `<a href="${po.invoiceUrl}" target="_blank" class="block text-sm text-gray-600 hover:text-gray-900 mt-2"><i class="fas fa-file-invoice"></i> Facture</a>` : ''}</div></div>${!isReceived ? `<button data-id="${po.id}" class="receive-po-btn w-full btn-primary mt-3 text-sm">Réceptionner la commande</button>` : ''}`; container.appendChild(div); }); } };
@@ -454,4 +481,3 @@
     </script>
 </body>
 </html>
-
