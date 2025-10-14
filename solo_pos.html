@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solo POS - Point de Vente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .table { transition: all 0.3s ease; }
+        .table.available { background-color: #ffffff; border: 2px solid #4ade80; color: #166534; }
+        .table.occupied { background-color: #fef9c3; border: 2px solid #facc15; color: #854d0e; }
+        .table.paying { background-color: #cffafe; border: 2px solid #22d3ee; color: #155e75; }
+        .modal { display: none; }
+        .modal.flex { display: flex; }
+        .header-font { font-family: 'Poppins', sans-serif; }
+        .btn { @apply font-bold py-2 px-4 rounded-lg shadow-md transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed; }
+        .btn-primary { @apply bg-gray-800 text-white hover:bg-gray-900; }
+        .btn-secondary { @apply bg-gray-200 text-gray-800 hover:bg-gray-300; }
+        .btn-green { @apply bg-green-600 text-white hover:bg-green-700; }
+        .btn-red { @apply bg-red-600 text-white hover:bg-red-700; }
+        .btn-cyan { @apply bg-cyan-600 text-white hover:bg-cyan-700; }
+        .input-style { @apply mt-1 p-2 w-full border border-gray-300 rounded-lg shadow-sm focus:ring-gray-800 focus:border-gray-800; }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Container Principal -->
+    <div class="container mx-auto p-4 max-w-7xl">
+        <header class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="header-font text-4xl font-extrabold text-gray-900">SOLO POS</h1>
+                <p class="text-gray-500">Point de Vente</p>
+            </div>
+            <button id="settings-btn" class="btn btn-secondary"><i class="fas fa-cog mr-2"></i>Paramètres</button>
+        </header>
+
+        <!-- Plan de table -->
+        <main id="table-plan" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
+            <!-- Les tables seront générées par JS -->
+        </main>
+    </div>
+
+    <!-- Modal Prise de Commande -->
+    <div id="order-modal" class="modal fixed z-10 inset-0 bg-black bg-opacity-50 justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 max-h-[90vh]">
+            <!-- Colonne de gauche : Menu -->
+            <div class="p-6 overflow-y-auto">
+                <h3 id="order-modal-title" class="text-2xl font-bold mb-4">Table 1</h3>
+                <div id="menu-items" class="space-y-4">
+                    <!-- Les produits seront chargés ici -->
+                </div>
+            </div>
+            <!-- Colonne de droite : Commande en cours -->
+            <div class="p-6 bg-gray-50 rounded-r-2xl flex flex-col">
+                <h4 class="text-xl font-semibold mb-4">Commande en cours</h4>
+                <div id="current-order-items" class="flex-grow space-y-2 overflow-y-auto pr-2">
+                    <p id="current-order-placeholder" class="text-gray-500">Aucun article.</p>
+                </div>
+                <div class="mt-4 border-t pt-4">
+                    <label for="kitchen-note" class="block text-sm font-medium">Message pour la cuisine</label>
+                    <input type="text" id="kitchen-note" class="input-style" placeholder="Ex: Sans oignons...">
+                    <div class="flex justify-between items-center mt-4">
+                        <span class="text-xl font-bold">Total</span>
+                        <span id="current-order-total" class="text-2xl font-extrabold">0.00 Mad</span>
+                    </div>
+                    <div class="mt-4 flex gap-4">
+                        <button id="cancel-order-btn" class="btn btn-secondary w-full">Annuler</button>
+                        <button id="validate-order-btn" class="btn btn-primary w-full"><i class="fas fa-check mr-2"></i>Valider & Lancer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Encaissement -->
+    <div id="payment-modal" class="modal fixed z-20 inset-0 bg-black bg-opacity-50 justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <h3 id="payment-modal-title" class="text-2xl font-bold mb-4">Encaissement Table 1</h3>
+            <div class="text-center mb-4">
+                <p class="text-gray-500">Total à Payer</p>
+                <p id="payment-total" class="text-5xl font-extrabold text-gray-900">0.00 Mad</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium">Méthode de Paiement</label>
+                    <div class="mt-2 grid grid-cols-2 gap-4">
+                        <button data-method="Carte" class="payment-method-btn btn btn-secondary text-lg"><i class="fas fa-credit-card mr-2"></i>Carte</button>
+                        <button data-method="Espèce" class="payment-method-btn btn btn-secondary text-lg"><i class="fas fa-money-bill-wave mr-2"></i>Espèce</button>
+                    </div>
+                </div>
+                <div id="cash-payment-section" class="hidden">
+                    <label for="cash-received" class="block text-sm font-medium">Montant Reçu</label>
+                    <input type="number" id="cash-received" class="input-style text-center text-xl" min="0">
+                    <div class="mt-2 text-center bg-gray-100 p-3 rounded-lg">
+                        <p class="text-gray-500">Monnaie à rendre</p>
+                        <p id="change-due" class="text-3xl font-bold text-cyan-600">0.00 Mad</p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-6 flex gap-4">
+                <button id="cancel-payment-btn" class="btn btn-secondary w-full">Retour</button>
+                <button id="process-payment-btn" class="btn btn-green w-full" disabled>Valider Paiement</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Paramètres -->
+    <div id="settings-modal" class="modal fixed z-30 inset-0 bg-black bg-opacity-50 justify-center items-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+            <h3 class="text-2xl font-bold mb-6">Paramètres des Imprimantes</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="printer-kitchen" class="block text-sm font-medium"><i class="fas fa-utensils mr-2"></i>Imprimante Cuisine (Tickets de préparation)</label>
+                    <input type="text" id="printer-kitchen" class="input-style" placeholder="Ex: 192.168.1.100 ou Nom Reseau">
+                </div>
+                <div>
+                    <label for="printer-pizza" class="block text-sm font-medium"><i class="fas fa-pizza-slice mr-2"></i>Imprimante Pizzaiolo (Tickets pizzas)</label>
+                    <input type="text" id="printer-pizza" class="input-style" placeholder="Ex: 192.168.1.101">
+                </div>
+                <div>
+                    <label for="printer-cashier" class="block text-sm font-medium"><i class="fas fa-cash-register mr-2"></i>Imprimante Caisse (Tickets de caisse)</label>
+                    <input type="text" id="printer-cashier" class="input-style" placeholder="Ex: 192.168.1.102">
+                </div>
+                <div class="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm">
+                    <p><i class="fas fa-info-circle mr-2"></i> Pour l'instant, l'impression est **simulée**. Une intégration matérielle est nécessaire pour une impression réelle sur votre réseau.</p>
+                </div>
+            </div>
+             <div class="mt-6 flex justify-end gap-4">
+                <button id="cancel-settings-btn" class="btn btn-secondary">Annuler</button>
+                <button id="save-settings-btn" class="btn btn-primary">Sauvegarder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Simulation d'Impression -->
+    <div id="print-preview-modal" class="modal fixed z-40 inset-0 bg-black bg-opacity-75 justify-center items-center p-4">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h3 id="print-preview-title" class="text-xl font-bold mb-4 text-center">Impression en cours...</h3>
+            <pre id="print-preview-content" class="bg-gray-100 p-4 rounded-lg text-sm whitespace-pre-wrap font-mono overflow-y-auto max-h-96"></pre>
+            <button id="close-print-preview-btn" class="btn btn-primary w-full mt-4">Fermer</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, onSnapshot, writeBatch, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIGURATION ---
+        const firebaseConfigFromUser = {
+            apiKey: "AIzaSyCzUX90zSN2zG9O97g7TNyTmTSNte9OT-E",
+            authDomain: "solopro-6521a.firebaseapp.com",
+            projectId: "solopro-6521a",
+            storageBucket: "solopro-6521a.appspot.com",
+            messagingSenderId: "126450282941",
+            appId: "1:126450282941:web:10e5255e6ee7c75fa8e2d4"
+        };
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
+
+        // --- INITIALISATION FIREBASE ---
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- COLLECTIONS REFS ---
+        let productsCol, ordersCol, ingredientsCol;
+
+        // --- ETAT GLOBAL DE L'APPLICATION ---
+        let allProducts = [];
+        let tables = [];
+        let currentTableId = null;
+        let printerSettings = { kitchen: '', pizza: '', cashier: '' };
+        const NUMBER_OF_TABLES = 10;
+        
+        // --- INITIALISATION DE L'APP ---
+        function initializeTables() {
+            for (let i = 1; i <= NUMBER_OF_TABLES; i++) {
+                tables.push({ id: i, status: 'available', order: [], total: 0, note: '' });
+            }
+            renderTablePlan();
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                productsCol = collection(db, `artifacts/${appId}/public/data/products`);
+                ordersCol = collection(db, `artifacts/${appId}/public/data/orders`);
+                ingredientsCol = collection(db, `artifacts/${appId}/public/data/ingredients`);
+                
+                onSnapshot(productsCol, snapshot => {
+                    allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderMenuItems();
+                });
+                
+            } else {
+                try {
+                    if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+                    else await signInAnonymously(auth);
+                } catch (error) { console.error("Auth failed:", error); }
+            }
+        });
+        
+        // --- GESTION MODALS ---
+        const openModal = (id) => document.getElementById(id).classList.add('flex');
+        const closeModal = (id) => document.getElementById(id).classList.remove('flex');
+        
+        // --- RENDERING ---
+        function renderMenuItems() {
+            const menuContainer = document.getElementById('menu-items');
+            menuContainer.innerHTML = '';
+            ['Pizza', 'Boisson', 'Dessert'].forEach(type => {
+                const productsOfType = allProducts.filter(p => p.type === type);
+                if (productsOfType.length > 0) {
+                    let itemsHtml = productsOfType.map(p => `
+                        <div data-id="${p.id}" class="add-item-btn flex justify-between items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-100">
+                            <div>
+                                <p class="font-semibold">${p.name}</p>
+                                <p class="text-sm text-gray-500">${p.price.toFixed(2)} Mad</p>
+                            </div>
+                            <i class="fas fa-plus-circle text-green-500 text-xl"></i>
+                        </div>
+                    `).join('');
+                    
+                    menuContainer.innerHTML += `
+                        <h4 class="text-lg font-bold mt-4 border-b pb-1">${type}s</h4>
+                        <div class="space-y-2">${itemsHtml}</div>
+                    `;
+                }
+            });
+        }
+        
+        function renderCurrentOrder() {
+            const table = tables.find(t => t.id === currentTableId);
+            if (!table) return;
+
+            const itemsContainer = document.getElementById('current-order-items');
+            const placeholder = document.getElementById('current-order-placeholder');
+            
+            itemsContainer.innerHTML = '';
+            if (table.order.length === 0) {
+                itemsContainer.appendChild(placeholder);
+            } else {
+                table.order.forEach((item, index) => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'flex items-center justify-between bg-white p-2 rounded-md';
+                    itemEl.innerHTML = `
+                        <div>
+                            <p class="font-semibold">${item.name}</p>
+                            <p class="text-sm text-gray-500">${item.quantity} x ${item.price.toFixed(2)} Mad</p>
+                        </div>
+                        <button data-index="${index}" class="remove-item-btn text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash"></i></button>
+                    `;
+                    itemsContainer.appendChild(itemEl);
+                });
+            }
+            
+            table.total = table.order.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+            document.getElementById('current-order-total').textContent = `${table.total.toFixed(2)} Mad`;
+            document.getElementById('kitchen-note').value = table.note || '';
+        }
+
+        // --- GESTION DES COMMANDES ---
+        document.getElementById('table-plan').addEventListener('click', (e) => {
+            const checkoutBtn = e.target.closest('.checkout-btn');
+            if(checkoutBtn){
+                e.stopPropagation(); // Prevent opening order modal
+                const tableId = parseInt(checkoutBtn.dataset.id);
+                openPaymentModal(tableId);
+                return;
+            }
+
+            const tableEl = e.target.closest('.table');
+            if (!tableEl) return;
+            const tableId = parseInt(tableEl.dataset.id);
+            const table = tables.find(t => t.id === tableId);
+            
+            if (table.status === 'paying') {
+                openPaymentModal(tableId);
+            } else {
+                openOrderModal(tableId);
+            }
+        });
+
+        function openOrderModal(tableId) {
+            currentTableId = tableId;
+            document.getElementById('order-modal-title').textContent = `Table ${tableId}`;
+            renderCurrentOrder();
+            openModal('order-modal');
+        }
+
+        document.body.addEventListener('click', e => {
+            const addBtn = e.target.closest('.add-item-btn');
+            if(addBtn) {
+                const productId = addBtn.dataset.id;
+                const product = allProducts.find(p => p.id === productId);
+                const table = tables.find(t => t.id === currentTableId);
+                
+                if (product && table) {
+                    const existingItem = table.order.find(item => item.id === productId);
+                    if (existingItem) {
+                        existingItem.quantity++;
+                    } else {
+                        table.order.push({ ...product, quantity: 1 });
+                    }
+                    renderCurrentOrder();
+                }
+            }
+            
+            const removeBtn = e.target.closest('.remove-item-btn');
+            if(removeBtn) {
+                const index = parseInt(removeBtn.dataset.index);
+                const table = tables.find(t => t.id === currentTableId);
+                if (table && table.order[index]) {
+                    table.order[index].quantity--;
+                    if (table.order[index].quantity <= 0) {
+                        table.order.splice(index, 1);
+                    }
+                    renderCurrentOrder();
+                }
+            }
+        });
+
+        document.getElementById('cancel-order-btn').addEventListener('click', () => {
+            // Optionnel : on pourrait recharger l'état initial de la table si besoin
+            closeModal('order-modal');
+            currentTableId = null;
+        });
+
+        document.getElementById('validate-order-btn').addEventListener('click', () => {
+            const table = tables.find(t => t.id === currentTableId);
+            if (!table || table.order.length === 0) return;
+            
+            table.status = 'occupied';
+            table.note = document.getElementById('kitchen-note').value;
+
+            // --- Simulation d'impression ---
+            const pizzaItems = table.order.filter(p => p.type === 'Pizza');
+            const otherItems = table.order.filter(p => p.type !== 'Pizza');
+
+            if (pizzaItems.length > 0) {
+                let pizzaContent = `** COMMANDE PIZZA - TABLE ${table.id} **\n`;
+                pizzaItems.forEach(item => {
+                    pizzaContent += `${item.quantity} x ${item.name}\n`;
+                });
+                if(table.note) pizzaContent += `\nNOTE: ${table.note}`;
+                simulatePrint('pizza', pizzaContent);
+            }
+
+            if (otherItems.length > 0) {
+                let kitchenContent = `** COMMANDE CUISINE - TABLE ${table.id} **\n`;
+                otherItems.forEach(item => {
+                    kitchenContent += `${item.quantity} x ${item.name}\n`;
+                });
+                 if(table.note) kitchenContent += `\nNOTE: ${table.note}`;
+                simulatePrint('kitchen', kitchenContent);
+            }
+
+            renderTablePlan();
+            closeModal('order-modal');
+        });
+
+        // --- GESTION DU PAIEMENT ---
+        document.body.addEventListener('click', e => {
+             const tableEl = e.target.closest('.table.occupied');
+             if(tableEl && e.target.closest('.fa-hand-holding-usd')) {
+                 const tableId = parseInt(tableEl.dataset.id);
+                 openPaymentModal(tableId);
+             }
+        });
+        
+        function renderTablePlan() {
+            const plan = document.getElementById('table-plan');
+            plan.innerHTML = '';
+            tables.forEach(table => {
+                const tableEl = document.createElement('div');
+                tableEl.className = `table ${table.status} h-32 rounded-xl flex flex-col justify-center items-center cursor-pointer shadow-lg relative`;
+                tableEl.dataset.id = table.id;
+                
+                let statusIcon = '<i class="fas fa-check-circle text-2xl mb-1"></i>';
+                if (table.status === 'occupied') statusIcon = '<i class="fas fa-utensils text-2xl mb-1"></i>';
+                if (table.status === 'paying') statusIcon = '<i class="fas fa-hand-holding-usd text-2xl mb-1"></i>';
+
+                let checkoutBtn = '';
+                if(table.status === 'occupied'){
+                    checkoutBtn = `<button data-id="${table.id}" class="checkout-btn absolute bottom-2 right-2 btn btn-cyan text-xs py-1 px-2">Encaisser</button>`;
+                }
+
+                tableEl.innerHTML = `
+                    ${statusIcon}
+                    <p class="font-bold text-xl">Table ${table.id}</p>
+                    <p class="text-sm font-semibold">${table.total.toFixed(2)} Mad</p>
+                    ${checkoutBtn}
+                `;
+                plan.appendChild(tableEl);
+            });
+        }
+
+        function openPaymentModal(tableId) {
+            currentTableId = tableId;
+            const table = tables.find(t => t.id === tableId);
+            if (!table) return;
+
+            document.getElementById('payment-modal-title').textContent = `Encaissement Table ${table.id}`;
+            document.getElementById('payment-total').textContent = `${table.total.toFixed(2)} Mad`;
+            
+            // Reset payment UI
+            document.getElementById('cash-payment-section').classList.add('hidden');
+            document.getElementById('cash-received').value = '';
+            document.getElementById('change-due').textContent = '0.00 Mad';
+            document.querySelectorAll('.payment-method-btn').forEach(btn => btn.classList.remove('bg-gray-800', 'text-white'));
+            document.getElementById('process-payment-btn').disabled = true;
+
+            table.status = 'paying';
+            renderTablePlan();
+            openModal('payment-modal');
+        }
+
+        document.querySelectorAll('.payment-method-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('bg-gray-800', 'text-white'));
+                btn.classList.add('bg-gray-800', 'text-white');
+                const method = btn.dataset.method;
+                if (method === 'Espèce') {
+                    document.getElementById('cash-payment-section').classList.remove('hidden');
+                } else {
+                    document.getElementById('cash-payment-section').classList.add('hidden');
+                }
+                document.getElementById('process-payment-btn').disabled = false;
+            });
+        });
+
+        document.getElementById('cash-received').addEventListener('input', (e) => {
+            const table = tables.find(t => t.id === currentTableId);
+            const received = parseFloat(e.target.value) || 0;
+            const change = received - table.total;
+            document.getElementById('change-due').textContent = `${change > 0 ? change.toFixed(2) : '0.00'} Mad`;
+        });
+        
+        document.getElementById('cancel-payment-btn').addEventListener('click', () => {
+            const table = tables.find(t => t.id === currentTableId);
+            if(table) table.status = table.order.length > 0 ? 'occupied' : 'available';
+            renderTablePlan();
+            closeModal('payment-modal');
+        });
+
+        document.getElementById('process-payment-btn').addEventListener('click', async () => {
+            const table = tables.find(t => t.id === currentTableId);
+            const paymentMethod = document.querySelector('.payment-method-btn.bg-gray-800')?.dataset.method;
+
+            if (!table || !paymentMethod) return;
+
+            // 1. Sauvegarder la commande dans Firebase et déduire le stock
+            const batch = writeBatch(db);
+            let success = true;
+
+            const itemsForFirestore = table.order.map(item => ({
+                id: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price
+            }));
+
+            // Déduction du stock
+            const tempDeductions = new Map();
+            for (const orderItem of table.order) {
+                 const product = allProducts.find(p => p.id === orderItem.id);
+                 if (!product) continue;
+                 if (product.type === 'Pizza' && product.recipe) {
+                     for (const recipeItem of product.recipe) {
+                         const current = tempDeductions.get(recipeItem.id) || 0;
+                         tempDeductions.set(recipeItem.id, current + recipeItem.quantity * orderItem.quantity);
+                     }
+                 } else if (product.linkedIngredientId) {
+                     const current = tempDeductions.get(product.linkedIngredientId) || 0;
+                     tempDeductions.set(product.linkedIngredientId, current + orderItem.quantity);
+                 }
+            }
+            for (const [ingId, qty] of tempDeductions.entries()) {
+                 batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
+            }
+
+            const orderData = {
+                items: itemsForFirestore,
+                totalPrice: table.total,
+                paymentMethod: paymentMethod,
+                createdAt: serverTimestamp(),
+                note: table.note
+            };
+            batch.set(doc(collection(ordersCol)), orderData);
+
+            try {
+                await batch.commit();
+            
+                // 2. Simuler l'impression des tickets
+                let receiptContent = `
+    ** SOLO PIZZERIA **
+    Le ${new Date().toLocaleString('fr-FR')}
+    Table: ${table.id}
+    ------------------------------
+    `;
+                table.order.forEach(item => {
+                    receiptContent += `${item.quantity} ${item.name.padEnd(15)} ${(item.quantity * item.price).toFixed(2)}\n`;
+                });
+                receiptContent += `
+    ------------------------------
+    TOTAL: ${table.total.toFixed(2)} Mad
+    Payé en: ${paymentMethod}
+    MERCI DE VOTRE VISITE
+    `;
+                simulatePrint('cashier', `--- Ticket Client ---\n${receiptContent}`);
+                simulatePrint('cashier', `--- Ticket Restaurant ---\n${receiptContent}`);
+
+                // 3. Réinitialiser la table
+                table.status = 'available';
+                table.order = [];
+                table.total = 0;
+                table.note = '';
+                
+                renderTablePlan();
+                closeModal('payment-modal');
+
+            } catch (error) {
+                console.error("Erreur lors de la finalisation de la vente:", error);
+                alert("Une erreur est survenue. La vente n'a pas pu être enregistrée.");
+            }
+        });
+
+
+        // --- GESTION DES PARAMETRES & IMPRESSION ---
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('soloPosPrinterSettings');
+            if (savedSettings) {
+                printerSettings = JSON.parse(savedSettings);
+            }
+            document.getElementById('printer-kitchen').value = printerSettings.kitchen;
+            document.getElementById('printer-pizza').value = printerSettings.pizza;
+            document.getElementById('printer-cashier').value = printerSettings.cashier;
+        }
+
+        document.getElementById('settings-btn').addEventListener('click', () => openModal('settings-modal'));
+        document.getElementById('cancel-settings-btn').addEventListener('click', () => closeModal('settings-modal'));
+        document.getElementById('save-settings-btn').addEventListener('click', () => {
+            printerSettings.kitchen = document.getElementById('printer-kitchen').value;
+            printerSettings.pizza = document.getElementById('printer-pizza').value;
+            printerSettings.cashier = document.getElementById('printer-cashier').value;
+            localStorage.setItem('soloPosPrinterSettings', JSON.stringify(printerSettings));
+            closeModal('settings-modal');
+        });
+
+        function simulatePrint(type, content) {
+            const address = printerSettings[type] || `IMPRIMANTE ${type.toUpperCase()} NON CONFIGURÉE`;
+            document.getElementById('print-preview-title').textContent = `Impression vers : ${address}`;
+            document.getElementById('print-preview-content').textContent = content;
+            openModal('print-preview-modal');
+        }
+        
+        document.getElementById('close-print-preview-btn').addEventListener('click', () => closeModal('print-preview-modal'));
+
+
+        // --- Démarrage ---
+        initializeTables();
+        loadSettings();
+
+    </script>
+</body>
+</html>
+
