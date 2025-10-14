@@ -36,7 +36,10 @@
                 <h1 class="header-font text-4xl font-extrabold text-gray-900">SOLO POS</h1>
                 <p class="text-gray-500">Point de Vente</p>
             </div>
-            <button id="settings-btn" class="btn btn-secondary"><i class="fas fa-cog mr-2"></i>Paramètres</button>
+             <div id="status-indicator" class="text-right">
+                <p class="font-semibold text-green-600"><i class="fas fa-check-circle"></i> Connecté</p>
+                <p class="text-xs text-gray-500">Prêt à encaisser</p>
+            </div>
         </header>
 
         <!-- Plan de table -->
@@ -108,43 +111,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Modal Paramètres -->
-    <div id="settings-modal" class="modal fixed z-30 inset-0 bg-black bg-opacity-50 justify-center items-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
-            <h3 class="text-2xl font-bold mb-6">Paramètres des Imprimantes</h3>
-            <div class="space-y-4">
-                <div>
-                    <label for="printer-kitchen" class="block text-sm font-medium"><i class="fas fa-utensils mr-2"></i>Imprimante Cuisine (Tickets de préparation)</label>
-                    <input type="text" id="printer-kitchen" class="input-style" placeholder="Ex: 192.168.1.100 ou Nom Reseau">
-                </div>
-                <div>
-                    <label for="printer-pizza" class="block text-sm font-medium"><i class="fas fa-pizza-slice mr-2"></i>Imprimante Pizzaiolo (Tickets pizzas)</label>
-                    <input type="text" id="printer-pizza" class="input-style" placeholder="Ex: 192.168.1.101">
-                </div>
-                <div>
-                    <label for="printer-cashier" class="block text-sm font-medium"><i class="fas fa-cash-register mr-2"></i>Imprimante Caisse (Tickets de caisse)</label>
-                    <input type="text" id="printer-cashier" class="input-style" placeholder="Ex: 192.168.1.102">
-                </div>
-                <div class="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm">
-                    <p><i class="fas fa-info-circle mr-2"></i> Pour l'instant, l'impression est **simulée**. Une intégration matérielle est nécessaire pour une impression réelle sur votre réseau.</p>
-                </div>
-            </div>
-             <div class="mt-6 flex justify-end gap-4">
-                <button id="cancel-settings-btn" class="btn btn-secondary">Annuler</button>
-                <button id="save-settings-btn" class="btn btn-primary">Sauvegarder</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Simulation d'Impression -->
-    <div id="print-preview-modal" class="modal fixed z-40 inset-0 bg-black bg-opacity-75 justify-center items-center p-4">
-        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
-            <h3 id="print-preview-title" class="text-xl font-bold mb-4 text-center">Impression en cours...</h3>
-            <pre id="print-preview-content" class="bg-gray-100 p-4 rounded-lg text-sm whitespace-pre-wrap font-mono overflow-y-auto max-h-96"></pre>
-            <button id="close-print-preview-btn" class="btn btn-primary w-full mt-4">Fermer</button>
-        </div>
-    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -176,7 +142,6 @@
         let allProducts = [];
         let tables = [];
         let currentTableId = null;
-        let printerSettings = { kitchen: '', pizza: '', cashier: '' };
         const NUMBER_OF_TABLES = 10;
         
         // --- INITIALISATION DE L'APP ---
@@ -309,6 +274,38 @@
             closeModal('order-modal');
             currentTableId = null;
         });
+        
+        function printTicket(htmlContent) {
+            const frame = document.createElement('iframe');
+            frame.style.position = 'absolute';
+            frame.style.width = '0';
+            frame.style.height = '0';
+            frame.style.border = '0';
+            document.body.appendChild(frame);
+            
+            const frameDoc = frame.contentWindow.document;
+            frameDoc.open();
+            frameDoc.write(`
+                <html><head><title>${document.title}</title>
+                <style>
+                    body { font-family: monospace; margin: 0; padding: 5px; }
+                    h3 { text-align: center; margin: 0; }
+                    p, div { margin: 2px 0; }
+                    .center { text-align: center; }
+                    .items { border-top: 1px dashed black; border-bottom: 1px dashed black; padding: 5px 0; margin: 5px 0; }
+                    .total { font-weight: bold; font-size: 1.1em; }
+                    .flex-between { display: flex; justify-content: space-between; }
+                </style>
+                </head><body>${htmlContent}</body></html>
+            `);
+            frameDoc.close();
+
+            setTimeout(() => {
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+                document.body.removeChild(frame);
+            }, 250);
+        }
 
         document.getElementById('validate-order-btn').addEventListener('click', () => {
             const table = tables.find(t => t.id === currentTableId);
@@ -317,26 +314,23 @@
             table.status = 'occupied';
             table.note = document.getElementById('kitchen-note').value;
 
-            // --- Simulation d'impression ---
+            // --- Impression ---
             const pizzaItems = table.order.filter(p => p.type === 'Pizza');
             const otherItems = table.order.filter(p => p.type !== 'Pizza');
+            const noteHtml = table.note ? `<div><strong>NOTE:</strong> ${table.note}</div>` : '';
 
             if (pizzaItems.length > 0) {
-                let pizzaContent = `** COMMANDE PIZZA - TABLE ${table.id} **\n`;
-                pizzaItems.forEach(item => {
-                    pizzaContent += `${item.quantity} x ${item.name}\n`;
-                });
-                if(table.note) pizzaContent += `\nNOTE: ${table.note}`;
-                simulatePrint('pizza', pizzaContent);
+                let pizzaContent = `<h3>PIZZA - T${table.id}</h3>`;
+                pizzaItems.forEach(item => { pizzaContent += `<div><strong>${item.quantity} x ${item.name}</strong></div>`; });
+                pizzaContent += noteHtml;
+                printTicket(pizzaContent);
             }
 
             if (otherItems.length > 0) {
-                let kitchenContent = `** COMMANDE CUISINE - TABLE ${table.id} **\n`;
-                otherItems.forEach(item => {
-                    kitchenContent += `${item.quantity} x ${item.name}\n`;
-                });
-                 if(table.note) kitchenContent += `\nNOTE: ${table.note}`;
-                simulatePrint('kitchen', kitchenContent);
+                let kitchenContent = `<h3>CUISINE - T${table.id}</h3>`;
+                otherItems.forEach(item => { kitchenContent += `<div><strong>${item.quantity} x ${item.name}</strong></div>`; });
+                kitchenContent += noteHtml;
+                printTicket(kitchenContent);
             }
 
             renderTablePlan();
@@ -421,7 +415,7 @@
             table.status = 'paying';
             renderTablePlan();
             openModal('payment-modal');
-            updatePaymentButtonState(); // Ensure button is disabled initially
+            updatePaymentButtonState();
         }
 
         document.querySelectorAll('.payment-method-btn').forEach(btn => {
@@ -436,7 +430,6 @@
                 if (method === 'Espèce') {
                     document.getElementById('cash-payment-section').classList.remove('hidden');
                     const cashInput = document.getElementById('cash-received');
-                    // Pré-remplir avec le montant total si le champ est vide
                     if (cashInput.value === '') {
                         cashInput.value = table.total.toFixed(2);
                     }
@@ -470,17 +463,9 @@
 
             if (!table || !paymentMethod) return;
 
-            // 1. Sauvegarder la commande dans Firebase et déduire le stock
             const batch = writeBatch(db);
+            const itemsForFirestore = table.order.map(item => ({ id: item.id, name: item.name, quantity: item.quantity, price: item.price }));
 
-            const itemsForFirestore = table.order.map(item => ({
-                id: item.id,
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price
-            }));
-
-            // Déduction du stock
             const tempDeductions = new Map();
             for (const orderItem of table.order) {
                  const product = allProducts.find(p => p.id === orderItem.id);
@@ -500,39 +485,32 @@
                  batch.update(ingRef, { quantity: increment(-qty) });
             }
 
-            const orderData = {
-                items: itemsForFirestore,
-                totalPrice: table.total,
-                paymentMethod: paymentMethod,
-                createdAt: serverTimestamp(),
-                note: table.note
-            };
+            const orderData = { items: itemsForFirestore, totalPrice: table.total, paymentMethod: paymentMethod, createdAt: serverTimestamp(), note: table.note };
             const newOrderRef = doc(ordersCol);
             batch.set(newOrderRef, orderData);
 
             try {
                 await batch.commit();
             
-                // 2. Simuler l'impression des tickets
                 let receiptContent = `
-    ** SOLO PIZZERIA **
-    Le ${new Date().toLocaleString('fr-FR')}
-    Table: ${table.id}
-    ------------------------------
-    `;
+                    <div class="center">
+                        <h3>** SOLO PIZZERIA **</h3>
+                        <p>Le ${new Date().toLocaleString('fr-FR')}</p>
+                        <p>Table: ${table.id}</p>
+                    </div>
+                    <div class="items">
+                `;
                 table.order.forEach(item => {
-                    receiptContent += `${item.quantity} ${item.name.padEnd(15)} ${(item.quantity * item.price).toFixed(2)}\n`;
+                    receiptContent += `<div class="flex-between"><span>${item.quantity} ${item.name}</span> <span>${(item.quantity * item.price).toFixed(2)}</span></div>`;
                 });
                 receiptContent += `
-    ------------------------------
-    TOTAL: ${table.total.toFixed(2)} Mad
-    Payé en: ${paymentMethod}
-    MERCI DE VOTRE VISITE
-    `;
-                simulatePrint('cashier', `--- Ticket Client ---\n${receiptContent}`);
-                simulatePrint('cashier', `--- Ticket Restaurant ---\n${receiptContent}`);
+                    </div>
+                    <div class="flex-between total"><span>TOTAL</span> <span>${table.total.toFixed(2)} Mad</span></div>
+                    <p class="center">Payé en: ${paymentMethod}</p>
+                    <p class="center">MERCI DE VOTRE VISITE</p>
+                `;
+                printTicket(receiptContent);
 
-                // 3. Réinitialiser la table
                 table.status = 'available';
                 table.order = [];
                 table.total = 0;
@@ -547,41 +525,8 @@
             }
         });
 
-
-        // --- GESTION DES PARAMETRES & IMPRESSION ---
-        function loadSettings() {
-            const savedSettings = localStorage.getItem('soloPosPrinterSettings');
-            if (savedSettings) {
-                printerSettings = JSON.parse(savedSettings);
-            }
-            document.getElementById('printer-kitchen').value = printerSettings.kitchen;
-            document.getElementById('printer-pizza').value = printerSettings.pizza;
-            document.getElementById('printer-cashier').value = printerSettings.cashier;
-        }
-
-        document.getElementById('settings-btn').addEventListener('click', () => openModal('settings-modal'));
-        document.getElementById('cancel-settings-btn').addEventListener('click', () => closeModal('settings-modal'));
-        document.getElementById('save-settings-btn').addEventListener('click', () => {
-            printerSettings.kitchen = document.getElementById('printer-kitchen').value;
-            printerSettings.pizza = document.getElementById('printer-pizza').value;
-            printerSettings.cashier = document.getElementById('printer-cashier').value;
-            localStorage.setItem('soloPosPrinterSettings', JSON.stringify(printerSettings));
-            closeModal('settings-modal');
-        });
-
-        function simulatePrint(type, content) {
-            const address = printerSettings[type] || `IMPRIMANTE ${type.toUpperCase()} NON CONFIGURÉE`;
-            document.getElementById('print-preview-title').textContent = `Impression vers : ${address}`;
-            document.getElementById('print-preview-content').textContent = content;
-            openModal('print-preview-modal');
-        }
-        
-        document.getElementById('close-print-preview-btn').addEventListener('click', () => closeModal('print-preview-modal'));
-
-
         // --- Démarrage ---
         initializeTables();
-        loadSettings();
 
     </script>
 </body>
