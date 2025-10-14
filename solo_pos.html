@@ -149,7 +149,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, onSnapshot, writeBatch, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, writeBatch, serverTimestamp, increment, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- CONFIGURATION ---
         const firebaseConfigFromUser = {
@@ -266,27 +266,6 @@
         }
 
         // --- GESTION DES COMMANDES ---
-        document.getElementById('table-plan').addEventListener('click', (e) => {
-            const checkoutBtn = e.target.closest('.checkout-btn');
-            if(checkoutBtn){
-                e.stopPropagation(); // Prevent opening order modal
-                const tableId = parseInt(checkoutBtn.dataset.id);
-                openPaymentModal(tableId);
-                return;
-            }
-
-            const tableEl = e.target.closest('.table');
-            if (!tableEl) return;
-            const tableId = parseInt(tableEl.dataset.id);
-            const table = tables.find(t => t.id === tableId);
-            
-            if (table.status === 'paying') {
-                openPaymentModal(tableId);
-            } else {
-                openOrderModal(tableId);
-            }
-        });
-
         function openOrderModal(tableId) {
             currentTableId = tableId;
             document.getElementById('order-modal-title').textContent = `Table ${tableId}`;
@@ -327,7 +306,6 @@
         });
 
         document.getElementById('cancel-order-btn').addEventListener('click', () => {
-            // Optionnel : on pourrait recharger l'état initial de la table si besoin
             closeModal('order-modal');
             currentTableId = null;
         });
@@ -366,14 +344,6 @@
         });
 
         // --- GESTION DU PAIEMENT ---
-        document.body.addEventListener('click', e => {
-             const tableEl = e.target.closest('.table.occupied');
-             if(tableEl && e.target.closest('.fa-hand-holding-usd')) {
-                 const tableId = parseInt(tableEl.dataset.id);
-                 openPaymentModal(tableId);
-             }
-        });
-        
         function renderTablePlan() {
             const plan = document.getElementById('table-plan');
             plan.innerHTML = '';
@@ -400,6 +370,22 @@
                 plan.appendChild(tableEl);
             });
         }
+        
+        document.getElementById('table-plan').addEventListener('click', (e) => {
+            const checkoutBtn = e.target.closest('.checkout-btn');
+            if(checkoutBtn){
+                e.stopPropagation(); // Prevent opening order modal
+                const tableId = parseInt(checkoutBtn.dataset.id);
+                openPaymentModal(tableId);
+                return;
+            }
+
+            const tableEl = e.target.closest('.table');
+            if (!tableEl) return;
+            const tableId = parseInt(tableEl.dataset.id);
+            openOrderModal(tableId);
+        });
+
 
         function openPaymentModal(tableId) {
             currentTableId = tableId;
@@ -423,11 +409,21 @@
 
         document.querySelectorAll('.payment-method-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                const table = tables.find(t => t.id === currentTableId);
+                if (!table) return;
+
                 document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('bg-gray-800', 'text-white'));
                 btn.classList.add('bg-gray-800', 'text-white');
                 const method = btn.dataset.method;
+
                 if (method === 'Espèce') {
                     document.getElementById('cash-payment-section').classList.remove('hidden');
+                    const cashInput = document.getElementById('cash-received');
+                    // Pré-remplir avec le montant total si le champ est vide
+                    if (cashInput.value === '') {
+                        cashInput.value = table.total.toFixed(2);
+                        cashInput.dispatchEvent(new Event('input')); // Déclencher le calcul de la monnaie
+                    }
                 } else {
                     document.getElementById('cash-payment-section').classList.add('hidden');
                 }
@@ -437,9 +433,10 @@
 
         document.getElementById('cash-received').addEventListener('input', (e) => {
             const table = tables.find(t => t.id === currentTableId);
+            if (!table) return;
             const received = parseFloat(e.target.value) || 0;
             const change = received - table.total;
-            document.getElementById('change-due').textContent = `${change > 0 ? change.toFixed(2) : '0.00'} Mad`;
+            document.getElementById('change-due').textContent = `${change >= 0 ? change.toFixed(2) : '0.00'} Mad`;
         });
         
         document.getElementById('cancel-payment-btn').addEventListener('click', () => {
@@ -457,7 +454,6 @@
 
             // 1. Sauvegarder la commande dans Firebase et déduire le stock
             const batch = writeBatch(db);
-            let success = true;
 
             const itemsForFirestore = table.order.map(item => ({
                 id: item.id,
@@ -482,7 +478,8 @@
                  }
             }
             for (const [ingId, qty] of tempDeductions.entries()) {
-                 batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
+                 const ingRef = doc(ingredientsCol, ingId);
+                 batch.update(ingRef, { quantity: increment(-qty) });
             }
 
             const orderData = {
@@ -492,7 +489,8 @@
                 createdAt: serverTimestamp(),
                 note: table.note
             };
-            batch.set(doc(collection(ordersCol)), orderData);
+            const newOrderRef = doc(ordersCol);
+            batch.set(newOrderRef, orderData);
 
             try {
                 await batch.commit();
