@@ -241,7 +241,7 @@
                     <div class="md:col-span-2"><label for="product-name" class="block text-sm font-medium text-gray-700">Nom du Produit</label><input type="text" id="product-name" required class="mt-1 w-full input-style"></div>
                     <div><label for="product-price" class="block text-sm font-medium text-gray-700">Prix de Vente (Mad)</label><input type="number" id="product-price" min="0" step="0.01" required class="mt-1 w-full input-style"></div>
                 </div>
-                <div class="mt-4"><label for="product-type" class="block text-sm font-medium text-gray-700">Type de produit</label><select id="product-type" class="mt-1 w-full input-style"><option value="Pizza">Pizza</option><option value="Boisson">Boisson</option><option value="Dessert">Dessert</option></select></div>
+                <div class="mt-4"><label for="product-type" class="block text-sm font-medium text-gray-700">Type de produit</label><select id="product-type" class="mt-1 w-full input-style"><option value="Pizza">Pizza</option><option value="Boisson">Boisson</option><option value="Dessert">Dessert</option><option value="Autre">Autre</option></select></div>
                 <div id="recipe-section" class="mt-6">
                     <div class="flex justify-between items-center mb-2">
                          <h4 class="text-lg font-medium text-gray-800">Recette</h4>
@@ -451,7 +451,7 @@
             }
         };
 
-        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); container.innerHTML = ''; if(allProducts.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Pizza: '<i class="fas fa-pizza-slice"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Dessert: '<i class="fas fa-ice-cream"></i>' }; 
+        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); container.innerHTML = ''; if(allProducts.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Pizza: '<i class="fas fa-pizza-slice"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Autres: '<i class="fas fa-truck></i>' }; 
         
         let contentHtml = '';
         if (product.type === 'Pizza' && product.recipe) {
@@ -556,4 +556,5 @@
     </script>
 </body>
 </html>
+
 
