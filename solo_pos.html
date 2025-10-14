@@ -386,6 +386,23 @@
             openOrderModal(tableId);
         });
 
+        function updatePaymentButtonState() {
+            const table = tables.find(t => t.id === currentTableId);
+            const paymentMethod = document.querySelector('.payment-method-btn.bg-gray-800')?.dataset.method;
+            const processBtn = document.getElementById('process-payment-btn');
+
+            if (!paymentMethod || !table) {
+                processBtn.disabled = true;
+                return;
+            }
+
+            if (paymentMethod === 'Espèce') {
+                const received = parseFloat(document.getElementById('cash-received').value) || 0;
+                processBtn.disabled = received < table.total;
+            } else { // For 'Carte'
+                processBtn.disabled = false;
+            }
+        }
 
         function openPaymentModal(tableId) {
             currentTableId = tableId;
@@ -400,11 +417,11 @@
             document.getElementById('cash-received').value = '';
             document.getElementById('change-due').textContent = '0.00 Mad';
             document.querySelectorAll('.payment-method-btn').forEach(btn => btn.classList.remove('bg-gray-800', 'text-white'));
-            document.getElementById('process-payment-btn').disabled = true;
-
+            
             table.status = 'paying';
             renderTablePlan();
             openModal('payment-modal');
+            updatePaymentButtonState(); // Ensure button is disabled initially
         }
 
         document.querySelectorAll('.payment-method-btn').forEach(btn => {
@@ -422,12 +439,12 @@
                     // Pré-remplir avec le montant total si le champ est vide
                     if (cashInput.value === '') {
                         cashInput.value = table.total.toFixed(2);
-                        cashInput.dispatchEvent(new Event('input')); // Déclencher le calcul de la monnaie
                     }
+                    cashInput.dispatchEvent(new Event('input'));
                 } else {
                     document.getElementById('cash-payment-section').classList.add('hidden');
                 }
-                document.getElementById('process-payment-btn').disabled = false;
+                updatePaymentButtonState();
             });
         });
 
@@ -437,6 +454,7 @@
             const received = parseFloat(e.target.value) || 0;
             const change = received - table.total;
             document.getElementById('change-due').textContent = `${change >= 0 ? change.toFixed(2) : '0.00'} Mad`;
+            updatePaymentButtonState();
         });
         
         document.getElementById('cancel-payment-btn').addEventListener('click', () => {
