@@ -241,7 +241,15 @@
                     <div class="md:col-span-2"><label for="product-name" class="block text-sm font-medium text-gray-700">Nom du Produit</label><input type="text" id="product-name" required class="mt-1 w-full input-style"></div>
                     <div><label for="product-price" class="block text-sm font-medium text-gray-700">Prix de Vente (Mad)</label><input type="number" id="product-price" min="0" step="0.01" required class="mt-1 w-full input-style"></div>
                 </div>
-                <div class="mt-4"><label for="product-type" class="block text-sm font-medium text-gray-700">Type de produit</label><select id="product-type" class="mt-1 w-full input-style"><option value="Pizza">Pizza</option><option value="Boisson">Boisson</option><option value="Dessert">Dessert</option><option value="Autre">Autre</option></select></div>
+                <div class="mt-4"><label for="product-type" class="block text-sm font-medium text-gray-700">Type de produit</label>
+                    <select id="product-type" class="mt-1 w-full input-style">
+                        <option value="Entrée">Entrée</option>
+                        <option value="Pizza">Pizza</option>
+                        <option value="Dessert">Dessert</option>
+                        <option value="Boisson">Boisson</option>
+                        <option value="Autre">Autre</option>
+                    </select>
+                </div>
                 <div id="recipe-section" class="mt-6">
                     <div class="flex justify-between items-center mb-2">
                          <h4 class="text-lg font-medium text-gray-800">Recette</h4>
@@ -439,22 +447,23 @@
         const renderIngredients = () => { const list = document.getElementById('ingredients-list'); const placeholder = document.getElementById('ingredients-placeholder'); const table = document.getElementById('ingredients-table'); list.innerHTML = ''; if(allIngredients.length === 0) { table.style.display = 'none'; placeholder.style.display = 'block'; } else { table.style.display = ''; placeholder.style.display = 'none'; allIngredients.forEach(ing => { const isLow = ing.quantity < LOW_STOCK_THRESHOLD; const row = document.createElement('tr'); row.className = isLow ? 'low-stock' : ''; const costDisplay = (ing.cost && ing.cost > 0) ? `${ing.cost.toFixed(2)} Mad` : 'N/A'; row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td><td class="px-6 py-4 whitespace-nowrap"><span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> <span class="text-gray-500">${ing.unit}</span></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${costDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-medium"><button data-id="${ing.id}" class="edit-ingredient-btn text-gray-600 hover:text-gray-900 mr-4">Modifier</button><button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button></td>`; list.appendChild(row); }); } };
         
         const calculateProductCost = (product) => {
-            if (product.type === 'Pizza') {
+            if (product.recipe && product.recipe.length > 0) {
                 return product.recipe.reduce((total, recipeItem) => {
                     const ingredient = allIngredients.find(ing => ing.id === recipeItem.id);
                     const ingredientCost = ingredient ? (ingredient.cost || 0) : 0;
                     return total + (ingredientCost * recipeItem.quantity);
                 }, 0);
-            } else {
+            } else if (product.linkedIngredientId) {
                 const linkedIngredient = allIngredients.find(i => i.id === product.linkedIngredientId);
                 return linkedIngredient ? (linkedIngredient.cost || 0) : 0;
             }
+            return 0;
         };
 
-        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); container.innerHTML = ''; if(allProducts.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Pizza: '<i class="fas fa-pizza-slice"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Autres: '<i class="fas fa-truck></i>' }; 
+        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); container.innerHTML = ''; if(allProducts.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Entrée: '<i class="fas fa-concierge-bell"></i>', Pizza: '<i class="fas fa-pizza-slice"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Autre: '<i class="fas fa-box"></i>' }; 
         
         let contentHtml = '';
-        if (product.type === 'Pizza' && product.recipe) {
+        if (product.recipe && product.recipe.length > 0) {
             let recipeHtml = product.recipe.map(r => {
                 const ingredientDetails = allIngredients.find(ing => ing.id === r.id);
                 let costHtml = '';
@@ -498,7 +507,16 @@
         // --- PRODUITS ---
         const populateIngredientSelects = () => {  const recipeSelect = document.getElementById('recipe-ingredient-select');  const linkedSelect = document.getElementById('linked-ingredient-select');  const poSelect = document.getElementById('po-ingredient-select'); const lossIngredientSelect = document.getElementById('loss-ingredient-select'); const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join('');  recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`;  linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`; poSelect.innerHTML = `<option value="">Choisir...</option>${options}`; lossIngredientSelect.innerHTML = `<option value="">Choisir...</option>${options}`};
         const populateProductSelects = () => { const orderSelect = document.getElementById('order-product-select'); const lossSelect = document.getElementById('loss-product-select'); const options = allProducts.map(product => `<option value="${product.id}">${product.name}</option>`).join(''); orderSelect.innerHTML = options; lossSelect.innerHTML = options; }
-        document.getElementById('add-product-btn').addEventListener('click', () => { document.getElementById('product-modal-title').textContent = 'Créer un Produit'; document.getElementById('product-form').reset(); document.getElementById('product-id').value = ''; document.getElementById('product-type').dispatchEvent(new Event('change')); currentRecipe = []; renderCurrentRecipe(); openModal('product-modal'); }); document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal')); document.getElementById('product-type').addEventListener('change', (e) => { const isPizza = e.target.value === 'Pizza'; document.getElementById('recipe-section').style.display = isPizza ? 'block' : 'none'; document.getElementById('linked-ingredient-section').style.display = isPizza ? 'none' : 'block'; }); document.getElementById('add-recipe-ingredient-btn').addEventListener('click', () => { const select = document.getElementById('recipe-ingredient-select'); const ingredientId = select.value; const quantity = parseFloat(document.getElementById('recipe-quantity').value); if (!ingredientId || isNaN(quantity) || quantity <= 0) return showToast("Veuillez sélectionner un ingrédient et une quantité valide."); const ingredient = allIngredients.find(ing => ing.id === ingredientId); currentRecipe.push({ id: ingredient.id, name: ingredient.name, quantity: quantity, unit: ingredient.unit }); renderCurrentRecipe(); document.getElementById('recipe-quantity').value = ''; select.value = ''; });
+        document.getElementById('add-product-btn').addEventListener('click', () => { document.getElementById('product-modal-title').textContent = 'Créer un Produit'; document.getElementById('product-form').reset(); document.getElementById('product-id').value = ''; document.getElementById('product-type').dispatchEvent(new Event('change')); currentRecipe = []; renderCurrentRecipe(); openModal('product-modal'); }); document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal')); 
+        
+        document.getElementById('product-type').addEventListener('change', (e) => { 
+            const productType = e.target.value;
+            const hasRecipe = ['Pizza', 'Dessert', 'Entrée'].includes(productType);
+            document.getElementById('recipe-section').style.display = hasRecipe ? 'block' : 'none';
+            document.getElementById('linked-ingredient-section').style.display = hasRecipe ? 'none' : 'block';
+        }); 
+        
+        document.getElementById('add-recipe-ingredient-btn').addEventListener('click', () => { const select = document.getElementById('recipe-ingredient-select'); const ingredientId = select.value; const quantity = parseFloat(document.getElementById('recipe-quantity').value); if (!ingredientId || isNaN(quantity) || quantity <= 0) return showToast("Veuillez sélectionner un ingrédient et une quantité valide."); const ingredient = allIngredients.find(ing => ing.id === ingredientId); currentRecipe.push({ id: ingredient.id, name: ingredient.name, quantity: quantity, unit: ingredient.unit }); renderCurrentRecipe(); document.getElementById('recipe-quantity').value = ''; select.value = ''; });
         
         const updateRecipeCost = () => {
              const cost = currentRecipe.reduce((total, recipeItem) => {
@@ -509,7 +527,72 @@
         };
         
         const renderCurrentRecipe = () => { const list = document.getElementById('recipe-ingredients-list'); list.innerHTML = ''; currentRecipe.forEach((item, index) => { const li = document.createElement('div'); li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name}</span><button type="button" data-index="${index}" class="remove-recipe-item text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; list.appendChild(li); }); updateRecipeCost(); }; 
-        document.getElementById('recipe-ingredients-list').addEventListener('click', e => { const button = e.target.closest('.remove-recipe-item'); if (button) { currentRecipe.splice(button.dataset.index, 1); renderCurrentRecipe(); } }); document.getElementById('product-form').addEventListener('submit', async e => { e.preventDefault(); const id = document.getElementById('product-id').value; const type = document.getElementById('product-type').value; const data = { name: document.getElementById('product-name').value, price: parseFloat(document.getElementById('product-price').value), type: type }; if (type === 'Pizza') { if (currentRecipe.length === 0) return showToast("La recette ne peut pas être vide pour une pizza."); data.recipe = currentRecipe; } else { const linkedId = document.getElementById('linked-ingredient-select').value; if (!linkedId) return showToast("Veuillez lier ce produit à un article en stock."); data.linkedIngredientId = linkedId; } try { if (id) await updateDoc(doc(productsCol, id), data); else await addDoc(productsCol, {...data, createdAt: serverTimestamp()}); showToast(id ? 'Produit mis à jour !' : 'Produit créé !'); closeModal('product-modal'); } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); } }); document.getElementById('products-list').addEventListener('click', async e => { const id = e.target.closest('[data-id]')?.dataset.id; if(!id) return; const target = e.target; if (target.closest('.delete-product-btn')) { if(confirm('Voulez-vous vraiment supprimer ce produit ?')) { await deleteDoc(doc(productsCol, id)); showToast('Produit supprimé.'); } } else if (target.closest('.edit-product-btn')) { const product = allProducts.find(p => p.id === id); document.getElementById('product-modal-title').textContent = 'Modifier un Produit'; document.getElementById('product-id').value = id; document.getElementById('product-name').value = product.name; document.getElementById('product-price').value = product.price; document.getElementById('product-type').value = product.type; document.getElementById('product-type').dispatchEvent(new Event('change')); if (product.type === 'Pizza') { currentRecipe = [...product.recipe]; renderCurrentRecipe(); } else { document.getElementById('linked-ingredient-select').value = product.linkedIngredientId; } openModal('product-modal'); } });
+        document.getElementById('recipe-ingredients-list').addEventListener('click', e => { const button = e.target.closest('.remove-recipe-item'); if (button) { currentRecipe.splice(button.dataset.index, 1); renderCurrentRecipe(); } }); 
+        
+        document.getElementById('product-form').addEventListener('submit', async e => { 
+            e.preventDefault(); 
+            const id = document.getElementById('product-id').value; 
+            const type = document.getElementById('product-type').value; 
+            const data = { name: document.getElementById('product-name').value, price: parseFloat(document.getElementById('product-price').value), type: type }; 
+            
+            const hasRecipe = ['Pizza', 'Dessert', 'Entrée'].includes(type);
+
+            if (hasRecipe) {
+                if (currentRecipe.length === 0) return showToast("La recette ne peut pas être vide pour ce type de produit.");
+                data.recipe = currentRecipe;
+                if (data.hasOwnProperty('linkedIngredientId')) {
+                    delete data.linkedIngredientId;
+                }
+            } else {
+                const linkedId = document.getElementById('linked-ingredient-select').value;
+                if (!linkedId) return showToast("Veuillez lier ce produit à un article en stock.");
+                data.linkedIngredientId = linkedId;
+                if (data.hasOwnProperty('recipe')) {
+                    delete data.recipe;
+                }
+            }
+
+            try { 
+                if (id) {
+                    await updateDoc(doc(productsCol, id), data);
+                } else {
+                    await addDoc(productsCol, {...data, createdAt: serverTimestamp()});
+                }
+                showToast(id ? 'Produit mis à jour !' : 'Produit créé !'); 
+                closeModal('product-modal'); 
+            } catch(error) { 
+                console.error(error); 
+                showToast("Erreur lors de l'opération."); 
+            } 
+        }); 
+        
+        document.getElementById('products-list').addEventListener('click', async e => { 
+            const id = e.target.closest('[data-id]')?.dataset.id; 
+            if(!id) return; 
+            const target = e.target; 
+            if (target.closest('.delete-product-btn')) { 
+                if(confirm('Voulez-vous vraiment supprimer ce produit ?')) { 
+                    await deleteDoc(doc(productsCol, id)); 
+                    showToast('Produit supprimé.'); 
+                } 
+            } else if (target.closest('.edit-product-btn')) { 
+                const product = allProducts.find(p => p.id === id); 
+                document.getElementById('product-modal-title').textContent = 'Modifier un Produit'; 
+                document.getElementById('product-id').value = id; 
+                document.getElementById('product-name').value = product.name; 
+                document.getElementById('product-price').value = product.price; 
+                document.getElementById('product-type').value = product.type; 
+                document.getElementById('product-type').dispatchEvent(new Event('change')); 
+                
+                if (product.recipe && product.recipe.length > 0) { 
+                    currentRecipe = [...product.recipe]; 
+                    renderCurrentRecipe(); 
+                } else if (product.linkedIngredientId) { 
+                    document.getElementById('linked-ingredient-select').value = product.linkedIngredientId; 
+                } 
+                openModal('product-modal'); 
+            } 
+        });
         
         // --- VENTES ---
         document.getElementById('add-to-order-form').addEventListener('submit', e => { e.preventDefault(); const productId = document.getElementById('order-product-select').value; const quantity = parseInt(document.getElementById('order-product-quantity').value); const product = allProducts.find(p => p.id === productId); if (!product || isNaN(quantity) || quantity <= 0) return; const existingItem = currentOrder.find(item => item.id === productId); if(existingItem) existingItem.quantity += quantity; else currentOrder.push({ id: product.id, name: product.name, quantity: quantity, price: product.price }); renderCurrentOrder(); });
@@ -517,14 +600,197 @@
             const total = currentOrder.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             document.getElementById('current-order-total').textContent = `${total.toFixed(2)} Mad`;
         };
-        const renderCurrentOrder = () => { const list = document.getElementById('current-order-list'); const placeholder = document.getElementById('order-placeholder'); const processBtn = document.getElementById('process-order-btn'); list.innerHTML = ''; if(currentOrder.length === 0){ list.innerHTML = ''; list.appendChild(placeholder); processBtn.disabled = true; } else { currentOrder.forEach((item, index) => { const li = document.createElement('li'); li.className = 'flex justify-between items-center'; li.innerHTML = `<span>${item.quantity} x ${item.name}</span><button data-index="${index}" class="remove-order-item text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>`; list.appendChild(li); }); processBtn.disabled = false; } updateOrderTotal(); }; document.getElementById('current-order-list').addEventListener('click', e => { const button = e.target.closest('.remove-order-item'); if (button) { currentOrder.splice(button.dataset.index, 1); renderCurrentOrder(); } }); document.getElementById('process-order-btn').addEventListener('click', async () => { if (currentOrder.length === 0) return; const batch = writeBatch(db); let success = true; let totalPrice = 0; const tempDeductions = new Map(); for (const orderItem of currentOrder) { const product = allProducts.find(p => p.id === orderItem.id); if (!product) { success = false; break; } totalPrice += product.price * orderItem.quantity; if (product.type === 'Pizza') { for (const recipeItem of product.recipe) { const current = tempDeductions.get(recipeItem.id) || 0; tempDeductions.set(recipeItem.id, current + recipeItem.quantity * orderItem.quantity); } } else { const current = tempDeductions.get(product.linkedIngredientId) || 0; tempDeductions.set(product.linkedIngredientId, current + orderItem.quantity); } } for (const [ingId, qty] of tempDeductions.entries()) { const ing = allIngredients.find(i => i.id === ingId); if (!ing || ing.quantity < qty) { showToast(`Stock insuffisant pour: ${ing ? ing.name : 'inconnu'}`); success = false; break; } batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) }); } if (success) { batch.set(doc(ordersCol), { items: currentOrder, totalPrice, createdAt: serverTimestamp() }); try { await batch.commit(); showToast('Vente validée, stock mis à jour !'); currentOrder = []; renderCurrentOrder(); } catch (error) { console.error("Batch commit failed: ", error); showToast(`Erreur: ${error.message}`); } } }); document.getElementById('order-history-list').addEventListener('click', async e => { const deleteBtn = e.target.closest('.delete-order-btn'); if (deleteBtn) { const orderId = deleteBtn.dataset.id; const order = orderHistory.find(o => o.id === orderId); if (!order) return; if (confirm("Voulez-vous vraiment supprimer cette vente ?\n\nLe stock utilisé sera automatiquement restauré.")) { const batch = writeBatch(db); for (const item of order.items) { const prod = allProducts.find(p => p.id === item.id); if (!prod) continue; if (prod.type === 'Pizza' && prod.recipe) { for (const recipeItem of prod.recipe) { batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(recipeItem.quantity * item.quantity) }); } } else if (prod.linkedIngredientId) { batch.update(doc(ingredientsCol, prod.linkedIngredientId), { quantity: increment(item.quantity) }); } } batch.delete(doc(ordersCol, orderId)); try { await batch.commit(); showToast("Vente supprimée et stock restauré."); } catch (error) { console.error("Error restoring stock:", error); showToast("Erreur lors de la suppression."); } } } });
+        const renderCurrentOrder = () => { const list = document.getElementById('current-order-list'); const placeholder = document.getElementById('order-placeholder'); const processBtn = document.getElementById('process-order-btn'); list.innerHTML = ''; if(currentOrder.length === 0){ list.innerHTML = ''; list.appendChild(placeholder); processBtn.disabled = true; } else { currentOrder.forEach((item, index) => { const li = document.createElement('li'); li.className = 'flex justify-between items-center'; li.innerHTML = `<span>${item.quantity} x ${item.name}</span><button data-index="${index}" class="remove-order-item text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>`; list.appendChild(li); }); processBtn.disabled = false; } updateOrderTotal(); }; document.getElementById('current-order-list').addEventListener('click', e => { const button = e.target.closest('.remove-order-item'); if (button) { currentOrder.splice(button.dataset.index, 1); renderCurrentOrder(); } }); 
+        
+        document.getElementById('process-order-btn').addEventListener('click', async () => { 
+            if (currentOrder.length === 0) return; 
+            const batch = writeBatch(db); 
+            let totalPrice = 0; 
+            const tempDeductions = new Map(); 
+
+            for (const orderItem of currentOrder) { 
+                const product = allProducts.find(p => p.id === orderItem.id); 
+                if (!product) { 
+                    showToast(`Produit non trouvé : ${orderItem.name}`);
+                    return;
+                } 
+                totalPrice += product.price * orderItem.quantity; 
+
+                if (product.recipe && product.recipe.length > 0) { 
+                    for (const recipeItem of product.recipe) { 
+                        const current = tempDeductions.get(recipeItem.id) || 0; 
+                        tempDeductions.set(recipeItem.id, current + recipeItem.quantity * orderItem.quantity); 
+                    } 
+                } else if (product.linkedIngredientId) { 
+                    const current = tempDeductions.get(product.linkedIngredientId) || 0; 
+                    tempDeductions.set(product.linkedIngredientId, current + orderItem.quantity); 
+                } 
+            } 
+            
+            for (const [ingId, qty] of tempDeductions.entries()) { 
+                const ing = allIngredients.find(i => i.id === ingId); 
+                if (!ing || ing.quantity < qty) { 
+                    showToast(`Stock insuffisant pour: ${ing ? ing.name : 'inconnu'}`); 
+                    return; 
+                } 
+                batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) }); 
+            } 
+
+            batch.set(doc(ordersCol), { items: currentOrder, totalPrice, createdAt: serverTimestamp() }); 
+            
+            try { 
+                await batch.commit(); 
+                showToast('Vente validée, stock mis à jour !'); 
+                currentOrder = []; 
+                renderCurrentOrder(); 
+            } catch (error) { 
+                console.error("Batch commit failed: ", error); 
+                showToast(`Erreur: ${error.message}`); 
+            } 
+        }); 
+        
+        document.getElementById('order-history-list').addEventListener('click', async e => { 
+            const deleteBtn = e.target.closest('.delete-order-btn'); 
+            if (deleteBtn) { 
+                const orderId = deleteBtn.dataset.id; 
+                const order = orderHistory.find(o => o.id === orderId); 
+                if (!order) return; 
+                if (confirm("Voulez-vous vraiment supprimer cette vente ?\n\nLe stock utilisé sera automatiquement restauré.")) { 
+                    const batch = writeBatch(db); 
+                    for (const item of order.items) { 
+                        const prod = allProducts.find(p => p.id === item.id); 
+                        if (!prod) continue; 
+                        
+                        if (prod.recipe && prod.recipe.length > 0) { 
+                            for (const recipeItem of prod.recipe) { 
+                                batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(recipeItem.quantity * item.quantity) }); 
+                            } 
+                        } else if (prod.linkedIngredientId) { 
+                            batch.update(doc(ingredientsCol, prod.linkedIngredientId), { quantity: increment(item.quantity) }); 
+                        } 
+                    } 
+                    batch.delete(doc(ordersCol, orderId)); 
+                    try { 
+                        await batch.commit(); 
+                        showToast("Vente supprimée et stock restauré."); 
+                    } catch (error) { 
+                        console.error("Error restoring stock:", error); 
+                        showToast("Erreur lors de la suppression."); 
+                    } 
+                } 
+            } 
+        });
         
         // --- PERTES ---
         document.getElementById('declare-loss-btn').addEventListener('click', () => { document.getElementById('loss-form').reset(); populateProductSelects(); populateIngredientSelects(); document.querySelector('input[name="loss-type"][value="product"]').checked = true; document.getElementById('loss-product-section').classList.remove('hidden'); document.getElementById('loss-ingredient-section').classList.add('hidden'); document.getElementById('loss-product-select').required = true; document.getElementById('loss-ingredient-select').required = false; openModal('loss-modal'); });
         document.getElementById('cancel-loss').addEventListener('click', () => closeModal('loss-modal'));
         document.querySelectorAll('input[name="loss-type"]').forEach(radio => { radio.addEventListener('change', (e) => { const isProduct = e.target.value === 'product'; document.getElementById('loss-product-section').classList.toggle('hidden', !isProduct); document.getElementById('loss-ingredient-section').classList.toggle('hidden', isProduct); document.getElementById('loss-product-select').required = isProduct; document.getElementById('loss-ingredient-select').required = !isProduct; }); });
-        document.getElementById('loss-form').addEventListener('submit', async (e) => { e.preventDefault(); const type = document.querySelector('input[name="loss-type"]:checked').value; const quantity = parseFloat(document.getElementById('loss-quantity').value); const reason = document.getElementById('loss-reason').value; if (isNaN(quantity) || quantity <= 0) { return showToast("La quantité doit être un nombre positif."); } const batch = writeBatch(db); let lossData = { reason, createdAt: serverTimestamp(), quantity }; let success = true; if (type === 'product') { const productId = document.getElementById('loss-product-select').value; const product = allProducts.find(p => p.id === productId); if (!product) return showToast("Produit non trouvé."); lossData.itemId = productId; lossData.itemName = product.name; lossData.type = 'product'; const tempDeductions = new Map(); if (product.type === 'Pizza') { for (const recipeItem of product.recipe) { const current = tempDeductions.get(recipeItem.id) || 0; tempDeductions.set(recipeItem.id, current + recipeItem.quantity * quantity); } } else { const current = tempDeductions.get(product.linkedIngredientId) || 0; tempDeductions.set(product.linkedIngredientId, current + quantity); } for (const [ingId, qtyToDeduct] of tempDeductions.entries()) { const ing = allIngredients.find(i => i.id === ingId); if (!ing || ing.quantity < qtyToDeduct) { showToast(`Stock insuffisant pour: ${ing ? ing.name : 'inconnu'}`); success = false; break; } batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qtyToDeduct) }); } } else { const ingredientId = document.getElementById('loss-ingredient-select').value; const ingredient = allIngredients.find(i => i.id === ingredientId); if (!ingredient) return showToast("Ingrédient non trouvé."); if (ingredient.quantity < quantity) { showToast(`Stock insuffisant pour: ${ingredient.name}`); success = false; } else { lossData.itemId = ingredientId; lossData.itemName = ingredient.name; lossData.unit = ingredient.unit; lossData.type = 'ingredient'; batch.update(doc(ingredientsCol, ingredientId), { quantity: increment(-quantity) }); } } if (success) { batch.set(doc(lossesCol), lossData); try { await batch.commit(); showToast('Perte enregistrée et stock mis à jour !'); closeModal('loss-modal'); } catch (error) { console.error("Loss commit failed: ", error); showToast(`Erreur: ${error.message}`); } } });
-        document.getElementById('loss-history-list').addEventListener('click', async e => { const deleteBtn = e.target.closest('.delete-loss-btn'); if (deleteBtn) { const lossId = deleteBtn.dataset.id; const loss = allLosses.find(l => l.id === lossId); if (!loss) return; if (confirm("Voulez-vous vraiment annuler cette perte ?\n\nLe stock sera restauré.")) { const batch = writeBatch(db); if (loss.type === 'product') { const product = allProducts.find(p => p.id === loss.itemId); if (product) { if (product.type === 'Pizza' && product.recipe) { for (const recipeItem of product.recipe) { batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(recipeItem.quantity * loss.quantity) }); } } else if (product.linkedIngredientId) { batch.update(doc(ingredientsCol, product.linkedIngredientId), { quantity: increment(loss.quantity) }); } } } else { batch.update(doc(ingredientsCol, loss.itemId), { quantity: increment(loss.quantity) }); } batch.delete(doc(lossesCol, lossId)); try { await batch.commit(); showToast("Perte annulée et stock restauré."); } catch (error) { console.error("Error restoring stock from loss:", error); showToast("Erreur lors de l'annulation de la perte."); } } } });
+        
+        document.getElementById('loss-form').addEventListener('submit', async (e) => { 
+            e.preventDefault(); 
+            const type = document.querySelector('input[name="loss-type"]:checked').value; 
+            const quantity = parseFloat(document.getElementById('loss-quantity').value); 
+            const reason = document.getElementById('loss-reason').value; 
+            if (isNaN(quantity) || quantity <= 0) { return showToast("La quantité doit être un nombre positif."); } 
+            
+            const batch = writeBatch(db); 
+            let lossData = { reason, createdAt: serverTimestamp(), quantity }; 
+            let success = true; 
+
+            if (type === 'product') { 
+                const productId = document.getElementById('loss-product-select').value; 
+                const product = allProducts.find(p => p.id === productId); 
+                if (!product) return showToast("Produit non trouvé."); 
+
+                lossData.itemId = productId; 
+                lossData.itemName = product.name; 
+                lossData.type = 'product'; 
+                
+                const tempDeductions = new Map(); 
+                if (product.recipe && product.recipe.length > 0) { 
+                    for (const recipeItem of product.recipe) { 
+                        const current = tempDeductions.get(recipeItem.id) || 0; 
+                        tempDeductions.set(recipeItem.id, current + recipeItem.quantity * quantity); 
+                    } 
+                } else if (product.linkedIngredientId) { 
+                    const current = tempDeductions.get(product.linkedIngredientId) || 0; 
+                    tempDeductions.set(product.linkedIngredientId, current + quantity); 
+                } 
+
+                for (const [ingId, qtyToDeduct] of tempDeductions.entries()) { 
+                    const ing = allIngredients.find(i => i.id === ingId); 
+                    if (!ing || ing.quantity < qtyToDeduct) { 
+                        showToast(`Stock insuffisant pour: ${ing ? ing.name : 'inconnu'}`); 
+                        success = false; 
+                        break; 
+                    } 
+                    batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qtyToDeduct) }); 
+                } 
+            } else { 
+                const ingredientId = document.getElementById('loss-ingredient-select').value; 
+                const ingredient = allIngredients.find(i => i.id === ingredientId); 
+                if (!ingredient) return showToast("Ingrédient non trouvé."); 
+                
+                if (ingredient.quantity < quantity) { 
+                    showToast(`Stock insuffisant pour: ${ingredient.name}`); 
+                    success = false; 
+                } else { 
+                    lossData.itemId = ingredientId; 
+                    lossData.itemName = ingredient.name; 
+                    lossData.unit = ingredient.unit; 
+                    lossData.type = 'ingredient'; 
+                    batch.update(doc(ingredientsCol, ingredientId), { quantity: increment(-quantity) }); 
+                } 
+            } 
+
+            if (success) { 
+                batch.set(doc(lossesCol), lossData); 
+                try { 
+                    await batch.commit(); 
+                    showToast('Perte enregistrée et stock mis à jour !'); 
+                    closeModal('loss-modal'); 
+                } catch (error) { 
+                    console.error("Loss commit failed: ", error); 
+                    showToast(`Erreur: ${error.message}`); 
+                } 
+            } 
+        });
+        
+        document.getElementById('loss-history-list').addEventListener('click', async e => { 
+            const deleteBtn = e.target.closest('.delete-loss-btn'); 
+            if (deleteBtn) { 
+                const lossId = deleteBtn.dataset.id; 
+                const loss = allLosses.find(l => l.id === lossId); 
+                if (!loss) return; 
+                
+                if (confirm("Voulez-vous vraiment annuler cette perte ?\n\nLe stock sera restauré.")) { 
+                    const batch = writeBatch(db); 
+                    if (loss.type === 'product') { 
+                        const product = allProducts.find(p => p.id === loss.itemId); 
+                        if (product) { 
+                            if (product.recipe && product.recipe.length > 0) { 
+                                for (const recipeItem of product.recipe) { 
+                                    batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(recipeItem.quantity * loss.quantity) }); 
+                                } 
+                            } else if (product.linkedIngredientId) { 
+                                batch.update(doc(ingredientsCol, product.linkedIngredientId), { quantity: increment(loss.quantity) }); 
+                            } 
+                        } 
+                    } else { 
+                        batch.update(doc(ingredientsCol, loss.itemId), { quantity: increment(loss.quantity) }); 
+                    } 
+                    batch.delete(doc(lossesCol, lossId)); 
+                    
+                    try { 
+                        await batch.commit(); 
+                        showToast("Perte annulée et stock restauré."); 
+                    } catch (error) { 
+                        console.error("Error restoring stock from loss:", error); 
+                        showToast("Erreur lors de l'annulation de la perte."); 
+                    } 
+                } 
+            } 
+        });
 
         // --- FOURNISSEURS & ACHATS ---
         document.getElementById('add-supplier-btn').addEventListener('click', () => { document.getElementById('supplier-modal-title').textContent = 'Ajouter un Fournisseur'; document.getElementById('supplier-form').reset(); document.getElementById('supplier-id').value = ''; openModal('supplier-modal'); }); document.getElementById('cancel-supplier').addEventListener('click', () => closeModal('supplier-modal')); document.getElementById('supplier-form').addEventListener('submit', async e => { e.preventDefault(); const id = document.getElementById('supplier-id').value; const data = { name: document.getElementById('supplier-name').value, contact: document.getElementById('supplier-contact').value }; try { if (id) await updateDoc(doc(suppliersCol, id), data); else await addDoc(suppliersCol, data); showToast(id ? 'Fournisseur mis à jour' : 'Fournisseur ajouté'); closeModal('supplier-modal'); } catch(error) { showToast('Erreur'); } }); document.getElementById('suppliers-list').addEventListener('click', async e => { const target = e.target.closest('button'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-supplier-btn')) { if (confirm('Supprimer ce fournisseur ?')) await deleteDoc(doc(suppliersCol, id)); } else if (target.classList.contains('edit-supplier-btn')) { const sup = allSuppliers.find(s => s.id === id); document.getElementById('supplier-id').value = id; document.getElementById('supplier-name').value = sup.name; document.getElementById('supplier-contact').value = sup.contact; openModal('supplier-modal'); } });
@@ -556,5 +822,4 @@
     </script>
 </body>
 </html>
-
 
