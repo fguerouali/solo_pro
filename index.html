@@ -36,6 +36,10 @@
         .btn-primary { @apply bg-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-900 transition-all transform hover:scale-105; }
         .btn-secondary { @apply bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-all; }
         .input-style { @apply p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-gray-800 focus:border-gray-800; }
+        
+        .kpi-filter-btn.active {
+            @apply bg-gray-800 text-white shadow-inner;
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -66,6 +70,36 @@
         <main>
             <!-- Tableau de Bord -->
             <div id="dashboard-content" class="tab-content active">
+                 <!-- Bouton pour afficher les filtres -->
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                         <h2 class="text-2xl font-semibold text-gray-800">Indicateurs de Performance</h2>
+                         <p id="kpi-filter-label" class="text-sm text-gray-500">Période : Tout le temps</p>
+                    </div>
+                    <button id="toggle-kpi-filters-btn" class="btn-secondary"><i class="fas fa-filter mr-2"></i>Filtrer</button>
+                </div>
+
+                <!-- Conteneur des filtres (caché par défaut) -->
+                <div id="kpi-filter-container" class="hidden mb-6 bg-white p-4 rounded-2xl shadow-lg">
+                    <div class="flex flex-wrap items-center justify-center gap-2 md:gap-4">
+                        <!-- Filtres Prédéfinis -->
+                        <div class="flex gap-2">
+                             <button data-filter="today" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Aujourd'hui</button>
+                             <button data-filter="week" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Cette semaine</button>
+                             <button data-filter="month" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Ce mois</button>
+                        </div>
+                        <!-- Plage de Dates Personnalisée -->
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="kpi-start-date" class="input-style p-1 text-sm">
+                            <span>à</span>
+                            <input type="date" id="kpi-end-date" class="input-style p-1 text-sm">
+                            <button id="kpi-filter-range-btn" class="btn-primary py-1 px-3 text-sm">Appliquer</button>
+                        </div>
+                        <button id="kpi-reset-filter-btn" class="text-gray-500 hover:text-gray-800 text-sm font-medium">Réinitialiser</button>
+                    </div>
+                </div>
+
+
                  <!-- KPIs -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
@@ -455,11 +489,11 @@
         
         function listenToAllCollections() {
             onSnapshot(suppliersCol, snapshot => { allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSuppliers(); populateSupplierSelects(); });
-            onSnapshot(purchaseOrdersCol, snapshot => { allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderPurchaseOrders(allPurchaseOrders); renderDashboardAndKPIs(); });
-            onSnapshot(ingredientsCol, snapshot => { allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allIngredients.sort((a,b) => a.name.localeCompare(b.name)); renderIngredients(); renderDashboardAndKPIs(); populateIngredientSelects(); renderProducts(); });
-            onSnapshot(productsCol, snapshot => { allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allProducts.sort((a,b) => a.name.localeCompare(b.name)); renderProducts(); populateProductSelects(); renderDashboardAndKPIs(); });
-            onSnapshot(ordersCol, snapshot => { orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0)); renderOrderHistory(orderHistory); renderDashboardAndKPIs(); });
-            onSnapshot(lossesCol, snapshot => { allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderLossHistory(); renderDashboardAndKPIs(); });
+            onSnapshot(purchaseOrdersCol, snapshot => { allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderPurchaseOrders(allPurchaseOrders); updateAndRenderKPIs(); });
+            onSnapshot(ingredientsCol, snapshot => { allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allIngredients.sort((a,b) => a.name.localeCompare(b.name)); renderIngredients(); updateAndRenderKPIs(); populateIngredientSelects(); renderProducts(); });
+            onSnapshot(productsCol, snapshot => { allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allProducts.sort((a,b) => a.name.localeCompare(b.name)); renderProducts(); populateProductSelects(); updateAndRenderKPIs(); });
+            onSnapshot(ordersCol, snapshot => { orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0)); renderOrderHistory(orderHistory); updateAndRenderKPIs(); });
+            onSnapshot(lossesCol, snapshot => { allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderLossHistory(); updateAndRenderKPIs(); });
         }
         
         // --- HELPERS ---
@@ -485,29 +519,47 @@
             return `${day}/${month}/${year}`;
         };
 
+        const toDate = (timestamp) => {
+            if (!timestamp) return null;
+            return timestamp.seconds ? new Date(timestamp.seconds * 1000) : timestamp;
+        };
+
         // --- NAVIGATION ---
         document.querySelectorAll('.tab-link').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active')); tab.classList.add('active'); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.getElementById(`${tab.dataset.tab}-content`).classList.add('active'); }); });
         
-        // --- RENDERING ---
-        const renderDashboardAndKPIs = () => {
-            // --- KPI Calculations ---
-            const totalSales = orderHistory.reduce((sum, order) => sum + order.totalPrice, 0);
-            const receivedPurchases = allPurchaseOrders.filter(po => po.status === 'received');
-            const totalPurchases = receivedPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
-            const totalOrders = orderHistory.length;
+        // --- RENDERING & KPIs ---
+        const updateAndRenderKPIs = (startDate, endDate, label = "Période : Tout le temps") => {
+             // Update filter label
+            document.getElementById('kpi-filter-label').textContent = label;
+
+             // Filter data based on date range if provided
+            const filteredOrders = !startDate ? orderHistory : orderHistory.filter(o => {
+                const orderDate = toDate(o.saleDate || o.createdAt);
+                return orderDate && orderDate >= startDate && orderDate <= endDate;
+            });
+
+            const filteredPurchases = !startDate ? allPurchaseOrders.filter(p => p.status === 'received') : allPurchaseOrders.filter(p => {
+                const receivedDate = toDate(p.receivedAt);
+                return p.status === 'received' && receivedDate && receivedDate >= startDate && receivedDate <= endDate;
+            });
+
+            const filteredLosses = !startDate ? allLosses : allLosses.filter(l => {
+                const lossDate = toDate(l.createdAt);
+                return lossDate && lossDate >= startDate && lossDate <= endDate;
+            });
             
-            const totalLosses = allLosses.reduce((sum, loss) => {
+            // --- KPI Calculations ---
+            const totalSales = filteredOrders.reduce((sum, order) => sum + order.totalPrice, 0);
+            const totalPurchases = filteredPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
+            const totalOrders = filteredOrders.length;
+            const totalLossesValue = filteredLosses.reduce((sum, loss) => {
                 let lossCost = 0;
                 if (loss.type === 'product') {
                     const product = allProducts.find(p => p.id === loss.itemId);
-                    if (product) {
-                        lossCost = calculateProductCost(product) * loss.quantity;
-                    }
-                } else { // ingredient
+                    if (product) lossCost = calculateProductCost(product) * loss.quantity;
+                } else {
                     const ingredient = allIngredients.find(i => i.id === loss.itemId);
-                    if (ingredient) {
-                        lossCost = (ingredient.cost || 0) * loss.quantity;
-                    }
+                    if (ingredient) lossCost = (ingredient.cost || 0) * loss.quantity;
                 }
                 return sum + lossCost;
             }, 0);
@@ -515,10 +567,10 @@
             // --- Update KPI DOM ---
             document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
             document.getElementById('kpi-total-purchases').textContent = `${totalPurchases.toFixed(2)} Mad`;
-            document.getElementById('kpi-total-losses').textContent = `${totalLosses.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-losses').textContent = `${totalLossesValue.toFixed(2)} Mad`;
             document.getElementById('kpi-total-orders').textContent = totalOrders;
 
-            // --- Low Stock Alerts (existing code) ---
+            // --- Low Stock Alerts (unfiltered) ---
             const container = document.getElementById('low-stock-alerts');
             const placeholder = document.getElementById('low-stock-placeholder');
             container.innerHTML = '';
@@ -594,13 +646,73 @@
     ` : ''; div.innerHTML = `<div class="p-3"><div class="flex justify-between items-start"><div><p class="font-semibold text-gray-800">${supplier ? supplier.name : 'Fournisseur inconnu'}</p><p class="text-xs text-gray-500">${new Date(po.createdAt.seconds * 1000).toLocaleDateString('fr-FR')}</p><ul class="text-sm mt-2 list-disc list-inside">${itemsHtml}</ul></div><div class="text-right"><span class="text-xs font-bold py-1 px-2 rounded-full ${isReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${isReceived ? 'Reçue' : 'En attente'}</span>${totalDisplay}${po.invoiceUrl ? `<a href="${po.invoiceUrl}" target="_blank" class="block text-sm text-gray-600 hover:text-gray-900 mt-2"><i class="fas fa-file-invoice"></i> Facture</a>` : ''}</div></div></div>${actionsHtml}`; container.appendChild(div); }); } };
         const renderLossHistory = () => { const container = document.getElementById('loss-history-list'); const placeholder = document.getElementById('loss-history-placeholder'); container.innerHTML = ''; if (allLosses.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allLosses.forEach(loss => { const card = document.createElement('div'); card.className = 'bg-yellow-50 p-4 rounded-xl shadow-md border-l-4 border-yellow-400'; const date = loss.createdAt ? new Date(loss.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue'; const reasonHtml = loss.reason ? `<p class="text-sm text-gray-500 italic mt-1">"${loss.reason}"</p>` : ''; card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-yellow-800">Perte du ${date}</p><p class="text-gray-700 mt-2"><span class="font-semibold">${loss.quantity} ${loss.unit || ''}</span> de <span class="font-semibold">${loss.itemName}</span></p>${reasonHtml}</div><div class="flex items-center gap-4 text-right"><button data-id="${loss.id}" class="delete-loss-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; container.appendChild(card); }); } };
         
+        // --- KPI FILTERS ---
+        document.getElementById('toggle-kpi-filters-btn').addEventListener('click', () => {
+            document.getElementById('kpi-filter-container').classList.toggle('hidden');
+        });
+
+        document.querySelectorAll('.kpi-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.kpi-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('kpi-start-date').value = '';
+                document.getElementById('kpi-end-date').value = '';
+
+                const filterType = btn.dataset.filter;
+                const now = new Date();
+                let startDate, endDate = new Date(), label;
+                endDate.setHours(23, 59, 59, 999);
+
+                if (filterType === 'today') {
+                    startDate = new Date();
+                    startDate.setHours(0, 0, 0, 0);
+                    label = "Période : Aujourd'hui";
+                } else if (filterType === 'week') {
+                    startDate = new Date(now.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1))); // Monday
+                    startDate.setHours(0, 0, 0, 0);
+                    label = "Période : Cette semaine";
+                } else if (filterType === 'month') {
+                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    startDate.setHours(0, 0, 0, 0);
+                    label = "Période : Ce mois";
+                }
+                updateAndRenderKPIs(startDate, endDate, label);
+                document.getElementById('kpi-filter-container').classList.add('hidden');
+            });
+        });
+
+        document.getElementById('kpi-filter-range-btn').addEventListener('click', () => {
+             document.querySelectorAll('.kpi-filter-btn').forEach(b => b.classList.remove('active'));
+            const startValue = document.getElementById('kpi-start-date').value;
+            const endValue = document.getElementById('kpi-end-date').value;
+            if (!startValue || !endValue) return showToast("Veuillez sélectionner une date de début et de fin.");
+
+            const startDate = new Date(startValue);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(endValue);
+            endDate.setHours(23, 59, 59, 999);
+            
+            const label = `Période : du ${formatDateToDDMMYYYY(startDate)} au ${formatDateToDDMMYYYY(endDate)}`;
+            updateAndRenderKPIs(startDate, endDate, label);
+            document.getElementById('kpi-filter-container').classList.add('hidden');
+        });
+
+        document.getElementById('kpi-reset-filter-btn').addEventListener('click', () => {
+            document.querySelectorAll('.kpi-filter-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('kpi-start-date').value = '';
+            document.getElementById('kpi-end-date').value = '';
+            updateAndRenderKPIs(); // No args means all time
+            document.getElementById('kpi-filter-container').classList.add('hidden');
+        });
+
         // --- INGREDIENTS ---
         document.getElementById('add-ingredient-btn').addEventListener('click', () => { document.getElementById('ingredient-modal-title').textContent = 'Ajouter un ingrédient'; document.getElementById('ingredient-form').reset(); document.getElementById('ingredient-id').value = ''; openModal('ingredient-modal'); }); document.getElementById('cancel-ingredient').addEventListener('click', () => closeModal('ingredient-modal')); document.getElementById('ingredient-form').addEventListener('submit', async (e) => { e.preventDefault(); const id = document.getElementById('ingredient-id').value; const data = { name: document.getElementById('ingredient-name').value, quantity: parseFloat(document.getElementById('ingredient-quantity').value), unit: document.getElementById('ingredient-unit').value, cost: parseFloat(document.getElementById('ingredient-cost').value) || 0 }; try { if (id) await updateDoc(doc(ingredientsCol, id), data); else await addDoc(ingredientsCol, {...data, createdAt: serverTimestamp()}); showToast(id ? 'Ingrédient mis à jour !' : 'Ingrédient ajouté !'); closeModal('ingredient-modal'); } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); } }); document.getElementById('ingredients-list').addEventListener('click', async e => { const target = e.target.closest('[data-id]'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-ingredient-btn')) { if(confirm('Voulez-vous vraiment supprimer cet ingrédient ?')) { await deleteDoc(doc(ingredientsCol, id)); showToast('Ingrédient supprimé.'); } } else if (target.classList.contains('edit-ingredient-btn')) { const docSnap = await getDoc(doc(ingredientsCol, id)); const data = docSnap.data(); document.getElementById('ingredient-modal-title').textContent = 'Modifier un ingrédient'; document.getElementById('ingredient-id').value = docSnap.id; document.getElementById('ingredient-name').value = data.name; document.getElementById('ingredient-quantity').value = data.quantity; document.getElementById('ingredient-unit').value = data.unit; document.getElementById('ingredient-cost').value = data.cost || ''; openModal('ingredient-modal'); } });
         
         // --- PRODUITS ---
         const populateIngredientSelects = () => {  const recipeSelect = document.getElementById('recipe-ingredient-select');  const linkedSelect = document.getElementById('linked-ingredient-select');  const poSelect = document.getElementById('po-ingredient-select'); const lossIngredientSelect = document.getElementById('loss-ingredient-select'); const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join('');  recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`;  linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`; poSelect.innerHTML = `<option value="">Choisir...</option>${options}`; lossIngredientSelect.innerHTML = `<option value="">Choisir...</option>${options}`};
         const populateProductSelects = () => { const orderSelect = document.getElementById('order-product-select'); const lossSelect = document.getElementById('loss-product-select'); const options = allProducts.map(product => `<option value="${product.id}">${product.name}</option>`).join(''); orderSelect.innerHTML = options; lossSelect.innerHTML = options; }
-        document.getElementById('add-product-btn').addEventListener('click', () => { document.getElementById('product-modal-title').textContent = 'Créer un Produit'; document.getElementById('product-form').reset(); document.getElementById('product-id').value = ''; document.getElementById('product-type').dispatchEvent(new Event('change')); currentRecipe = []; renderCurrentRecipe(); openModal('product-modal'); }); document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal')); 
+        document.getElementById('add-product-btn').addEventListener('click', () => { document.getElementById('product-modal-title').textContent = 'Créer un Produit'; document.getElementById('product-form').reset(); document.getElementById('product-id').value = ''; document.getElementById('product-type').dispatchEvent(new Event('change')); currentRecipe = []; renderCurrentRecipe(); openModal('product-modal'); });
+        document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal')); 
         
         document.getElementById('product-type').addEventListener('change', (e) => { 
             const productType = e.target.value;
