@@ -52,7 +52,7 @@
         <!-- Barre de navigation par onglets -->
         <div class="mb-8">
             <div class="border-b border-gray-200">
-                <nav class="-mb-px flex space-x-4 justify-center" aria-label="Tabs">
+                <nav class="-mb-px flex space-x-4 justify-center flex-wrap" aria-label="Tabs">
                     <button class="tab-link active" data-tab="dashboard"><i class="fas fa-chart-line mr-2"></i>Tableau de Bord</button>
                     <button class="tab-link" data-tab="ingredients"><i class="fas fa-box mr-2"></i>Stock</button>
                     <button class="tab-link" data-tab="products"><i class="fas fa-utensils mr-2"></i>Produits</button>
@@ -66,6 +66,25 @@
         <main>
             <!-- Tableau de Bord -->
             <div id="dashboard-content" class="tab-content active">
+                 <!-- KPIs -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes</h3>
+                        <p id="kpi-total-sales" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Achats</h3>
+                        <p id="kpi-total-purchases" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Pertes</h3>
+                        <p id="kpi-total-losses" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Commandes</h3>
+                        <p id="kpi-total-orders" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+                    </div>
+                </div>
                 <h2 class="text-2xl font-semibold mb-4 text-gray-800">Alertes de Stock</h2>
                 <div id="low-stock-alerts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <div id="low-stock-placeholder" class="text-center col-span-full py-10 text-gray-500">
@@ -436,11 +455,11 @@
         
         function listenToAllCollections() {
             onSnapshot(suppliersCol, snapshot => { allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSuppliers(); populateSupplierSelects(); });
-            onSnapshot(purchaseOrdersCol, snapshot => { allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderPurchaseOrders(allPurchaseOrders); });
-            onSnapshot(ingredientsCol, snapshot => { allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allIngredients.sort((a,b) => a.name.localeCompare(b.name)); renderIngredients(); renderDashboard(); populateIngredientSelects(); renderProducts(); /* Re-render products if ingredient costs change */ });
-            onSnapshot(productsCol, snapshot => { allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allProducts.sort((a,b) => a.name.localeCompare(b.name)); renderProducts(); populateProductSelects(); });
-            onSnapshot(ordersCol, snapshot => { orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0)); renderOrderHistory(orderHistory); });
-            onSnapshot(lossesCol, snapshot => { allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderLossHistory(); });
+            onSnapshot(purchaseOrdersCol, snapshot => { allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderPurchaseOrders(allPurchaseOrders); renderDashboardAndKPIs(); });
+            onSnapshot(ingredientsCol, snapshot => { allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allIngredients.sort((a,b) => a.name.localeCompare(b.name)); renderIngredients(); renderDashboardAndKPIs(); populateIngredientSelects(); renderProducts(); });
+            onSnapshot(productsCol, snapshot => { allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allProducts.sort((a,b) => a.name.localeCompare(b.name)); renderProducts(); populateProductSelects(); renderDashboardAndKPIs(); });
+            onSnapshot(ordersCol, snapshot => { orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0)); renderOrderHistory(orderHistory); renderDashboardAndKPIs(); });
+            onSnapshot(lossesCol, snapshot => { allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderLossHistory(); renderDashboardAndKPIs(); });
         }
         
         // --- HELPERS ---
@@ -470,10 +489,57 @@
         document.querySelectorAll('.tab-link').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active')); tab.classList.add('active'); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.getElementById(`${tab.dataset.tab}-content`).classList.add('active'); }); });
         
         // --- RENDERING ---
-        const renderDashboard = () => { const container = document.getElementById('low-stock-alerts'); const placeholder = document.getElementById('low-stock-placeholder'); container.innerHTML = ''; const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD); if(lowStockItems.length === 0){ container.innerHTML = ''; container.appendChild(placeholder); } else { lowStockItems.forEach(item => { const alertDiv = document.createElement('div'); alertDiv.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow'; alertDiv.innerHTML = `<p class="font-bold">${item.name}</p><p>Stock restant: ${item.quantity} ${item.unit}</p>`; container.appendChild(alertDiv); }); } };
+        const renderDashboardAndKPIs = () => {
+            // --- KPI Calculations ---
+            const totalSales = orderHistory.reduce((sum, order) => sum + order.totalPrice, 0);
+            const receivedPurchases = allPurchaseOrders.filter(po => po.status === 'received');
+            const totalPurchases = receivedPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
+            const totalOrders = orderHistory.length;
+            
+            const totalLosses = allLosses.reduce((sum, loss) => {
+                let lossCost = 0;
+                if (loss.type === 'product') {
+                    const product = allProducts.find(p => p.id === loss.itemId);
+                    if (product) {
+                        lossCost = calculateProductCost(product) * loss.quantity;
+                    }
+                } else { // ingredient
+                    const ingredient = allIngredients.find(i => i.id === loss.itemId);
+                    if (ingredient) {
+                        lossCost = (ingredient.cost || 0) * loss.quantity;
+                    }
+                }
+                return sum + lossCost;
+            }, 0);
+
+            // --- Update KPI DOM ---
+            document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-purchases').textContent = `${totalPurchases.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-losses').textContent = `${totalLosses.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-orders').textContent = totalOrders;
+
+            // --- Low Stock Alerts (existing code) ---
+            const container = document.getElementById('low-stock-alerts');
+            const placeholder = document.getElementById('low-stock-placeholder');
+            container.innerHTML = '';
+            const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD);
+            if (lowStockItems.length === 0) {
+                container.innerHTML = '';
+                container.appendChild(placeholder);
+            } else {
+                lowStockItems.forEach(item => {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow';
+                    alertDiv.innerHTML = `<p class="font-bold">${item.name}</p><p>Stock restant: ${item.quantity} ${item.unit}</p>`;
+                    container.appendChild(alertDiv);
+                });
+            }
+        };
+
         const renderIngredients = () => { const list = document.getElementById('ingredients-list'); const placeholder = document.getElementById('ingredients-placeholder'); const table = document.getElementById('ingredients-table'); list.innerHTML = ''; if(allIngredients.length === 0) { table.style.display = 'none'; placeholder.style.display = 'block'; } else { table.style.display = ''; placeholder.style.display = 'none'; allIngredients.forEach(ing => { const isLow = ing.quantity < LOW_STOCK_THRESHOLD; const row = document.createElement('tr'); row.className = isLow ? 'low-stock' : ''; const costDisplay = (ing.cost && ing.cost > 0) ? `${ing.cost.toFixed(2)} Mad` : 'N/A'; row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td><td class="px-6 py-4 whitespace-nowrap"><span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> <span class="text-gray-500">${ing.unit}</span></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${costDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-medium"><button data-id="${ing.id}" class="edit-ingredient-btn text-gray-600 hover:text-gray-900 mr-4">Modifier</button><button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button></td>`; list.appendChild(row); }); } };
         
         const calculateProductCost = (product) => {
+            if (!product) return 0;
             if (product.recipe && product.recipe.length > 0) {
                 return product.recipe.reduce((total, recipeItem) => {
                     const ingredient = allIngredients.find(ing => ing.id === recipeItem.id);
@@ -872,10 +938,55 @@
         document.getElementById('purchase-orders-list').addEventListener('click', async e => { const target = e.target.closest('button[data-id]'); if (!target) return; const poId = target.dataset.id; if (target.classList.contains('receive-po-btn')) { const poDoc = await getDoc(doc(purchaseOrdersCol, poId)); const purchaseOrder = poDoc.data(); const batch = writeBatch(db); purchaseOrder.items.forEach(item => { const ingRef = doc(ingredientsCol, item.id); batch.update(ingRef, { quantity: increment(item.quantity) }); }); batch.update(doc(purchaseOrdersCol, poId), { status: 'received', receivedAt: serverTimestamp() }); await batch.commit(); showToast('Stock mis à jour !'); } else if (target.classList.contains('delete-po-btn')) { if (confirm('Voulez-vous vraiment supprimer cette commande fournisseur ? Cette action est irréversible.')) { try { await deleteDoc(doc(purchaseOrdersCol, poId)); showToast('Commande fournisseur supprimée.'); } catch (error) { console.error("Error deleting purchase order:", error); showToast('Erreur lors de la suppression.'); } } } else if (target.classList.contains('edit-po-btn')) { const purchaseOrder = allPurchaseOrders.find(po => po.id === poId); if (!purchaseOrder) return; document.getElementById('po-modal-title').textContent = 'Modifier la Commande Fournisseur'; document.getElementById('po-id').value = poId; document.getElementById('po-supplier-select').value = purchaseOrder.supplierId; currentPurchaseOrderItems = [...purchaseOrder.items]; renderCurrentPurchaseOrderItems(); document.getElementById('po-invoice-file').value = ''; openModal('purchase-order-modal'); } });
         
         // --- IMPORT/EXPORT ---
-        const CSV_INSTRUCTIONS = { ingredients: `<p>4 colonnes: <strong>nom,quantite,unite,cout</strong></p><pre>nom,quantite,unite,cout\nTomates,10,kg,2.5\n</pre>`, products: `<p>4 colonnes: <strong>nom,prix,type,details</strong></p><p>Pizza details: Nom:qty:unite;...</p><p>Autre: Nom article en stock</p><pre>Margherita,8.5,Pizza,"Pâte:1:p;Sauce:0.1:kg"\nCoca,2,Boisson,Canette Coca</pre>`, orders: `<p>2 colonnes: <strong>produits,quantites</strong></p><pre>"Margherita;Coca","2;1"</pre>` }; document.getElementById('import-ingredients-btn').addEventListener('click', () => { importType = 'ingredients'; document.getElementById('import-modal-title').textContent = 'Importer des Ingrédients'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.ingredients; openModal('import-modal'); }); document.getElementById('import-products-btn').addEventListener('click', () => { importType = 'products'; document.getElementById('import-modal-title').textContent = 'Importer des Produits'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.products; openModal('import-modal'); }); document.getElementById('import-orders-btn').addEventListener('click', () => { importType = 'orders'; document.getElementById('import-modal-title').textContent = 'Importer des Ventes'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.orders; openModal('import-modal'); }); document.getElementById('cancel-import').addEventListener('click', () => closeModal('import-modal')); document.getElementById('csv-file-input').addEventListener('change', () => { document.getElementById('process-import-btn').disabled = !document.getElementById('csv-file-input').files.length; }); document.getElementById('process-import-btn').addEventListener('click', async () => { const file = document.getElementById('csv-file-input').files[0]; if (!file) return showToast("Veuillez choisir un fichier."); document.getElementById('process-import-btn').disabled = true; const reader = new FileReader(); reader.onload = async (event) => { const lines = event.target.result.split('\n').filter(line => line.trim() !== ''); lines.shift(); try { if (importType === 'ingredients') await importIngredients(lines); else if (importType === 'products') await importProducts(lines); else if (importType === 'orders') await importOrders(lines); showToast('Importation terminée !'); } catch (error) { console.error("Import error:", error); showToast(`Erreur: ${error.message}`); } finally { closeModal('import-modal'); document.getElementById('csv-file-input').value = ''; document.getElementById('process-import-btn').disabled = false; } }; reader.readAsText(file); });
+        const CSV_INSTRUCTIONS = { 
+            ingredients: `<p>4 colonnes: <strong>nom,quantite,unite,cout</strong></p><pre>nom,quantite,unite,cout\nTomates,10,kg,2.5\n</pre>`, 
+            products: `<p>4 colonnes: <strong>nom,prix,type,details</strong></p><p>Pizza details: Nom:qty:unite;...</p><p>Autre: Nom article en stock</p><pre>Margherita,8.5,Pizza,"Pâte:1:p;Sauce:0.1:kg"\nCoca,2,Boisson,Canette Coca</pre>`, 
+            orders: `<p>3 colonnes: <strong>date,produits,quantites</strong></p><p>Format date: JJ/MM/AAAA</p><pre>21/10/2025,"Margherita;Coca","2;1"</pre>` 
+        }; 
+
+        document.getElementById('import-ingredients-btn').addEventListener('click', () => { importType = 'ingredients'; document.getElementById('import-modal-title').textContent = 'Importer des Ingrédients'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.ingredients; openModal('import-modal'); }); 
+        document.getElementById('import-products-btn').addEventListener('click', () => { importType = 'products'; document.getElementById('import-modal-title').textContent = 'Importer des Produits'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.products; openModal('import-modal'); }); 
+        document.getElementById('import-orders-btn').addEventListener('click', () => { importType = 'orders'; document.getElementById('import-modal-title').textContent = 'Importer des Ventes'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.orders; openModal('import-modal'); }); 
+        document.getElementById('cancel-import').addEventListener('click', () => closeModal('import-modal')); 
+        document.getElementById('csv-file-input').addEventListener('change', () => { document.getElementById('process-import-btn').disabled = !document.getElementById('csv-file-input').files.length; }); 
+        document.getElementById('process-import-btn').addEventListener('click', async () => { const file = document.getElementById('csv-file-input').files[0]; if (!file) return showToast("Veuillez choisir un fichier."); document.getElementById('process-import-btn').disabled = true; const reader = new FileReader(); reader.onload = async (event) => { const lines = event.target.result.split('\n').filter(line => line.trim() !== ''); lines.shift(); try { if (importType === 'ingredients') await importIngredients(lines); else if (importType === 'products') await importProducts(lines); else if (importType === 'orders') await importOrders(lines); showToast('Importation terminée !'); } catch (error) { console.error("Import error:", error); showToast(`Erreur: ${error.message}`); } finally { closeModal('import-modal'); document.getElementById('csv-file-input').value = ''; document.getElementById('process-import-btn').disabled = false; } }; reader.readAsText(file); });
+        
         async function importIngredients(lines) { const batch = writeBatch(db); lines.forEach(line => { const [name, quantity, unit, cost] = line.trim().split(','); if (name && quantity && unit) { batch.set(doc(ingredientsCol), { name: name.trim(), quantity: parseFloat(quantity), unit: unit.trim(), cost: parseFloat(cost) || 0, createdAt: serverTimestamp() }); } }); await batch.commit(); }
         async function importProducts(lines) { const batch = writeBatch(db); lines.forEach(line => { const values = line.trim().split(','); const name = values[0], price = values[1], type = values[2], details = values.slice(3).join(','); if (!name || !price || !type || !details) return; const data = { name: name.trim(), price: parseFloat(price), type: type.trim(), createdAt: serverTimestamp() }; if (data.type === 'Pizza') { data.recipe = details.trim().replace(/"/g, '').split(';').map(part => { const [ingName, ingQty, ingUnit] = part.split(':'); const ing = allIngredients.find(i => i.name.toLowerCase() === ingName.toLowerCase()); if (!ing) throw new Error(`Ingrédient introuvable: ${ingName}`); return { id: ing.id, name: ing.name, quantity: parseFloat(ingQty), unit: ingUnit }; }); } else { const linked = allIngredients.find(i => i.name.toLowerCase() === details.trim().toLowerCase()); if (!linked) throw new Error(`Article introuvable: ${details}`); data.linkedIngredientId = linked.id; } batch.set(doc(productsCol), data); }); await batch.commit(); }
-        async function importOrders(lines) { const batch = writeBatch(db); for(const line of lines) { const [pNamesRaw, qtiesRaw] = line.trim().split(','); if(!pNamesRaw || !qtiesRaw) continue; const pNames = pNamesRaw.replace(/"/g, '').split(';'); const qties = qtiesRaw.replace(/"/g, '').split(';'); let items = [], total = 0; for (let i = 0; i < pNames.length; i++) { const name = pNames[i], qty = parseInt(qties[i]); const prod = allProducts.find(p => p.name.toLowerCase() === name.toLowerCase()); if (!prod) throw new Error(`Produit introuvable: ${name}`); items.push({ id: prod.id, name: prod.name, quantity: qty, price: prod.price }); total += prod.price * qty; if (prod.type === 'Pizza') { for (const rItem of prod.recipe) batch.update(doc(ingredientsCol, rItem.id), { quantity: increment(-(rItem.quantity * qty)) }); } else batch.update(doc(ingredientsCol, prod.linkedIngredientId), { quantity: increment(-qty) }); } batch.set(doc(ordersCol), { items, totalPrice: total, createdAt: serverTimestamp(), saleDate: new Date() }); } await batch.commit(); }
+        
+        async function importOrders(lines) { 
+            const batch = writeBatch(db); 
+            for(const line of lines) { 
+                const [dateRaw, pNamesRaw, qtiesRaw] = line.trim().split(','); 
+                if(!dateRaw || !pNamesRaw || !qtiesRaw) continue; 
+                
+                const [day, month, year] = dateRaw.trim().split('/');
+                const saleDate = new Date(`${year}-${month}-${day}T12:00:00Z`); // Use ISO format with time and Z for UTC
+                if (isNaN(saleDate.getTime())) {
+                    console.warn(`Date invalide ignorée: ${dateRaw}`);
+                    continue; 
+                }
+
+                const pNames = pNamesRaw.replace(/"/g, '').split(';'); 
+                const qties = qtiesRaw.replace(/"/g, '').split(';'); 
+                let items = [], total = 0; 
+                for (let i = 0; i < pNames.length; i++) { 
+                    const name = pNames[i], qty = parseInt(qties[i]); 
+                    const prod = allProducts.find(p => p.name.toLowerCase() === name.toLowerCase()); 
+                    if (!prod) throw new Error(`Produit introuvable: ${name}`); 
+                    items.push({ id: prod.id, name: prod.name, quantity: qty, price: prod.price }); 
+                    total += prod.price * qty; 
+                    if (prod.recipe && prod.recipe.length > 0) { 
+                        for (const rItem of prod.recipe) batch.update(doc(ingredientsCol, rItem.id), { quantity: increment(-(rItem.quantity * qty)) }); 
+                    } else if(prod.linkedIngredientId) {
+                        batch.update(doc(ingredientsCol, prod.linkedIngredientId), { quantity: increment(-qty) }); 
+                    }
+                } 
+                batch.set(doc(ordersCol), { items, totalPrice: total, createdAt: serverTimestamp(), saleDate }); 
+            } 
+            await batch.commit(); 
+        }
+
         const downloadCSV = (content, filename) => { const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", filename); link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
         document.getElementById('export-ingredients-btn').addEventListener('click', () => { let csv = "nom,quantite,unite,cout\n"; allIngredients.forEach(i => { csv += `${i.name},${i.quantity},${i.unit},${i.cost || 0}\n`; }); downloadCSV(csv, 'ingredients.csv'); });
         document.getElementById('export-products-btn').addEventListener('click', () => { let csv = "nom,prix,type,details\n"; allProducts.forEach(p => { let d = ''; if (p.type === 'Pizza' || p.type === 'Entrée' || p.type === 'Dessert') { if(p.recipe) d = `"${p.recipe.map(r => `${r.name}:${r.quantity}:${r.unit}`).join(';')}"`; } else { const l = allIngredients.find(i => i.id === p.linkedIngredientId); d = l ? l.name : 'NON LIÉ'; } csv += `${p.name},${p.price},${p.type},${d}\n`; }); downloadCSV(csv, 'produits.csv'); });
