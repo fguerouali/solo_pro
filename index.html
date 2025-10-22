@@ -1073,19 +1073,51 @@
         document.getElementById('add-purchase-order-btn').addEventListener('click', () => { document.getElementById('purchase-order-form').reset(); document.getElementById('po-id').value = ''; document.getElementById('po-modal-title').textContent = 'Nouvelle Commande Fournisseur'; currentPurchaseOrderItems = []; renderCurrentPurchaseOrderItems(); openModal('purchase-order-modal'); }); document.getElementById('cancel-purchase-order').addEventListener('click', () => closeModal('purchase-order-modal'));
         
         const updatePurchaseOrderTotal = () => {
-            const total = currentPurchaseOrderItems.reduce((sum, item) => sum + (item.price || 0), 0);
+            // Recalculate total based on currentPurchaseOrderItems prices
+            const total = currentPurchaseOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
              document.getElementById('po-total-cost').textContent = `${total.toFixed(2)} Mad`;
         };
         
-        const renderCurrentPurchaseOrderItems = () => { const list = document.getElementById('po-items-list'); list.innerHTML = ''; currentPurchaseOrderItems.forEach((item, index) => { const li = document.createElement('div'); li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name} <span class="font-semibold">(${item.price.toFixed(2)} Mad)</span></span><button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; list.appendChild(li); }); updatePurchaseOrderTotal(); }; 
-        document.getElementById('add-po-item-btn').addEventListener('click', () => { const select = document.getElementById('po-ingredient-select'); const ingredientId = select.value; const quantity = parseFloat(document.getElementById('po-quantity').value); const price = parseFloat(document.getElementById('po-price').value); if (!ingredientId || isNaN(quantity) || quantity <= 0 || isNaN(price) || price < 0) return showToast('Veuillez remplir tous les champs correctement.'); const ingredient = allIngredients.find(i => i.id === ingredientId); currentPurchaseOrderItems.push({id: ingredient.id, name: ingredient.name, unit: ingredient.unit, quantity, price}); renderCurrentPurchaseOrderItems(); select.value = ''; document.getElementById('po-quantity').value = ''; document.getElementById('po-price').value = ''; }); document.getElementById('po-items-list').addEventListener('click', e => { const button = e.target.closest('.remove-po-item-btn'); if (button) { currentPurchaseOrderItems.splice(button.dataset.index, 1); renderCurrentPurchaseOrderItems(); } }); 
+        const renderCurrentPurchaseOrderItems = () => { const list = document.getElementById('po-items-list'); list.innerHTML = ''; currentPurchaseOrderItems.forEach((item, index) => { const li = document.createElement('div'); li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name} <span class="font-semibold">(${item.price.toFixed(2)} Mad/unité)</span></span><button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; list.appendChild(li); }); updatePurchaseOrderTotal(); }; 
+        
+        document.getElementById('add-po-item-btn').addEventListener('click', () => { 
+            const select = document.getElementById('po-ingredient-select'); 
+            const ingredientId = select.value; 
+            const quantityInput = document.getElementById('po-quantity');
+            const priceInput = document.getElementById('po-price');
+            const quantity = parseFloat(quantityInput.value); 
+            const pricePerUnit = parseFloat(priceInput.value); // Price per unit
+            
+            if (!ingredientId || isNaN(quantity) || quantity <= 0 || isNaN(pricePerUnit) || pricePerUnit < 0) {
+                 return showToast('Veuillez sélectionner un ingrédient et entrer une quantité et un prix par unité valides.'); 
+            }
+            const ingredient = allIngredients.find(i => i.id === ingredientId); 
+            
+            // Store price per unit and quantity
+            currentPurchaseOrderItems.push({
+                id: ingredient.id, 
+                name: ingredient.name, 
+                unit: ingredient.unit, 
+                quantity, 
+                price: pricePerUnit // Store price per unit
+            }); 
+            
+            renderCurrentPurchaseOrderItems(); 
+            select.value = ''; 
+            quantityInput.value = ''; 
+            priceInput.value = ''; 
+        }); 
+        
+        document.getElementById('po-items-list').addEventListener('click', e => { const button = e.target.closest('.remove-po-item-btn'); if (button) { currentPurchaseOrderItems.splice(button.dataset.index, 1); renderCurrentPurchaseOrderItems(); } }); 
         
         document.getElementById('purchase-order-form').addEventListener('submit', async e => { 
             e.preventDefault(); 
+            console.log("Form submitted"); // Debug log 1
             const poId = document.getElementById('po-id').value; 
             const supplierId = document.getElementById('po-supplier-select').value; 
             const fileInput = document.getElementById('po-invoice-file');
             const file = fileInput.files[0]; 
+             console.log("File selected:", file ? file.name : "None"); // Debug log 2
             
             if (!supplierId || currentPurchaseOrderItems.length === 0) return showToast('Fournisseur et articles requis.'); 
             
@@ -1095,35 +1127,48 @@
             // Preserve existing URL if editing and no new file is selected
             if (existingPo && existingPo.invoiceUrl && !file) {
                  invoiceUrl = existingPo.invoiceUrl;
+                 console.log("Preserving existing invoice URL:", invoiceUrl); // Debug log 3a
             }
 
             try {
-                // Upload new file if provided
-                if (file) { 
-                    const storageRef = ref(storage, `invoices/${appId}/${Date.now()}-${file.name}`); 
-                    await uploadBytes(storageRef, file); 
-                    invoiceUrl = await getDownloadURL(storageRef); 
-                     console.log("File uploaded, URL:", invoiceUrl); // Debug log
-                }
+                 // Upload new file if provided
+                 if (file) { 
+                      console.log("Attempting to upload file..."); // Debug log 3b
+                     const storageRef = ref(storage, `invoices/${appId}/${Date.now()}-${file.name}`); 
+                     await uploadBytes(storageRef, file); 
+                     invoiceUrl = await getDownloadURL(storageRef); 
+                     console.log("File uploaded successfully, URL:", invoiceUrl); // Debug log 4
+                 }
 
-                const totalCost = currentPurchaseOrderItems.reduce((sum, item) => sum + item.price, 0); 
-                const data = { supplierId, items: currentPurchaseOrderItems, totalCost, invoiceUrl }; 
-                
+                // Calculate total cost from items (price per unit * quantity)
+                const totalCost = currentPurchaseOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0); 
+                const data = { 
+                    supplierId, 
+                    items: currentPurchaseOrderItems, // Items now include price per unit
+                    totalCost, // Calculated total cost
+                    invoiceUrl 
+                }; 
+                console.log("Data to save:", data); // Debug log 5
+
                 if (poId) { 
+                    console.log("Updating existing PO:", poId); // Debug log 6a
                     await updateDoc(doc(purchaseOrdersCol, poId), data); 
                     showToast('Commande fournisseur mise à jour'); 
                 } else { 
+                    console.log("Adding new PO"); // Debug log 6b
                     data.status = 'pending'; 
                     data.createdAt = serverTimestamp(); 
                     await addDoc(purchaseOrdersCol, data); 
                     showToast('Commande fournisseur créée'); 
                 } 
+                console.log("Database operation successful"); // Debug log 7
                 closeModal('purchase-order-modal'); 
             } catch (error) { 
-                console.error("Error saving purchase order (file upload or DB save): ", error); 
-                showToast("Erreur lors de l'enregistrement. Vérifiez la console pour détails."); 
+                console.error("Error saving purchase order:", error); // Log the full error
+                showToast(`Erreur lors de l'enregistrement: ${error.message}`); // Show more specific error
             } finally {
                 // Reset file input regardless of success/failure after attempting save
+                console.log("Resetting file input"); // Debug log 8
                 fileInput.value = '';
             }
         });
@@ -1145,9 +1190,21 @@
                 await batch.commit(); 
                 showToast('Stock mis à jour !'); 
             } else if (target.classList.contains('delete-po-btn')) { 
+                 const poToDelete = allPurchaseOrders.find(po => po.id === poId);
                 if (confirm('Voulez-vous vraiment supprimer cette commande fournisseur ? Cette action est irréversible.')) { 
                     try { 
-                        // TODO: Optionally delete associated invoice from storage here if needed
+                        // Delete associated invoice from storage if it exists
+                         if (poToDelete && poToDelete.invoiceUrl) {
+                             try {
+                                 const fileRef = ref(storage, poToDelete.invoiceUrl);
+                                 await deleteObject(fileRef);
+                                 console.log("Associated invoice deleted from storage.");
+                             } catch (storageError) {
+                                 // Log error but continue deleting the DB record
+                                 console.error("Error deleting invoice from storage:", storageError);
+                                 showToast("Erreur lors de la suppression de la facture associée, mais la commande sera supprimée.");
+                             }
+                         }
                         await deleteDoc(doc(purchaseOrdersCol, poId)); 
                         showToast('Commande fournisseur supprimée.'); 
                     } catch (error) { 
