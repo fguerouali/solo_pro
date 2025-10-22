@@ -1344,6 +1344,7 @@
         });
         
        // --- IMPORT API SALES ---
+        // Listener to open the API import modal
         document.getElementById('import-api-sales-btn').addEventListener('click', () => {
              // Reset form fields to default (today's date)
             document.getElementById('api-start-date').value = getTodayDateString();
@@ -1366,6 +1367,10 @@
 
             loader.classList.remove('hidden');
             submitButton.disabled = true;
+            let salesImportedCount = 0; // Initialize here
+            let salesSkippedCount = 0; // Initialize here
+            let allSalesData = []; // Initialize here
+
 
             try {
                 // --- Step 1: Authenticate (RISKY - Credentials in code) ---
@@ -1381,20 +1386,23 @@
                     body: JSON.stringify({
                         username: API_USERNAME, // Or 'email' or 'user' etc.
                         password: API_PASSWORD
+                        // The API might require other fields like 'grant_type', 'client_id', etc.
                     })
                 });
 
                 if (!authResponse.ok) {
+                    const errorText = await authResponse.text(); // Get more details if possible
+                    console.error("Auth failed response:", errorText);
                     throw new Error(`Échec d'authentification: ${authResponse.status} ${authResponse.statusText}`);
                 }
 
                 const authData = await authResponse.json();
                  // --- This is a GUESS for where the token might be ---
-                 // --- You MUST verify the correct path to the token ---
+                 // --- You MUST verify the correct path to the token in the ACTUAL response ---
                 const token = authData?.data?.token || authData?.token || authData?.access_token; 
                 
                 if (!token) {
-                    console.error("Auth response data:", authData);
+                    console.error("Auth response data (token not found):", authData);
                     throw new Error("Jeton d'authentification non trouvé dans la réponse de l'API.");
                 }
                 console.log("Authentication successful.");
@@ -1405,15 +1413,15 @@
                 const startDateFormatted = `${startDate} 00:00:00`;
                 const endDateFormatted = `${endDate} 23:59:59`;
 
-                // Construct the URL with query parameters
-                 // Fetch potentially multiple pages
-                let allSalesData = [];
+                // Fetch potentially multiple pages
+                // let allSalesData = []; // Moved initialization outside try block
                 let currentPage = 1;
                 const pageSize = 100; // Fetch more per page if possible
                 let hasMorePages = true;
 
                 while(hasMorePages) {
-                    const salesUrl = `${API_SALES_URL_BASE}?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${encodeURIComponent(startDateFormatted)}&endDate=${encodeURIComponent(endDateFormatted)}&email=${encodeURIComponent(API_USERNAME)}`; // Assuming email is needed, adjust if not
+                    // Construct URL carefully, ensure email is needed/correct
+                    const salesUrl = `${API_SALES_URL_BASE}?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${encodeURIComponent(startDateFormatted)}&endDate=${encodeURIComponent(endDateFormatted)}&email=${encodeURIComponent(API_USERNAME)}`; 
 
                     console.log(`Fetching page ${currentPage} from ${salesUrl}`);
 
@@ -1423,35 +1431,45 @@
                             'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json'
                             // Add other necessary headers based on your Postman screenshot
+                            // e.g., 'X-Requested-With': 'XMLHttpRequest' if needed
                         }
                     });
 
                     if (!salesResponse.ok) {
                          const errorText = await salesResponse.text();
-                        throw new Error(`Erreur API Ventes (${salesResponse.status}): ${salesResponse.statusText}. Response: ${errorText}`);
+                        console.error(`Sales API Error Response (Page ${currentPage}):`, errorText);
+                        throw new Error(`Erreur API Ventes (Page ${currentPage}, Status ${salesResponse.status}): ${salesResponse.statusText}.`);
                     }
 
                     const salesResult = await salesResponse.json();
                      console.log(`Page ${currentPage} response code: ${salesResult.code}, msg: ${salesResult.msg}`);
 
                     if (salesResult.code !== 200 || !salesResult.data) {
-                        throw new Error(`Erreur API Ventes: ${salesResult.msg || 'Données invalides'}`);
+                         console.error("Sales API invalid data structure:", salesResult);
+                        throw new Error(`Erreur API Ventes (Page ${currentPage}): ${salesResult.msg || 'Données invalides ou code non 200'}`);
                     }
                     
                     allSalesData = allSalesData.concat(salesResult.data);
 
-                    // Basic check if there might be more pages (adjust if API provides total count/pages)
-                    if (salesResult.data.length < pageSize) {
+                    // Check if there might be more pages 
+                    if (!salesResult.data || salesResult.data.length < pageSize) { // Added !salesResult.data check
                         hasMorePages = false;
                     } else {
                         currentPage++;
                     }
+                     // Safety break after a large number of pages to prevent infinite loops
+                     if (currentPage > 50) { 
+                         console.warn("Stopped fetching after 50 pages to prevent potential infinite loop.");
+                         hasMorePages = false; 
+                     }
                 }
 
                  console.log(`Total sales items fetched: ${allSalesData.length}`);
                 if (allSalesData.length === 0) {
-                     showToast("Aucune vente trouvée pour la période sélectionnée.");
+                     showToast("Aucune vente trouvée pour la période sélectionnée via API.");
                      closeModal('api-import-modal');
+                     loader.classList.add('hidden'); // Ensure loader is hidden
+                     submitButton.disabled = false; // Re-enable button
                      return; // Exit if no data
                  }
 
@@ -1465,13 +1483,20 @@
                             items: [],
                             totalPrice: 0,
                             // Use operDate from the first item as the saleDate
-                            saleDate: new Date(item.operDate.replace(' ', 'T') + 'Z') // Assume UTC if no timezone info
+                            // Ensure date parsing is robust
+                            saleDate: item.operDate ? new Date(item.operDate.replace(' ', 'T') + 'Z') : new Date() // Fallback to now if operDate is missing
                         };
                          // Normalize date to midday UTC
-                        acc[billNo].saleDate.setUTCHours(12, 0, 0, 0);
+                        if (!isNaN(acc[billNo].saleDate.getTime())) { // Check if date is valid before setting hours
+                             acc[billNo].saleDate.setUTCHours(12, 0, 0, 0);
+                        } else {
+                             console.warn(`Invalid operDate '${item.operDate}' for bill ${billNo}. Using current date.`);
+                             acc[billNo].saleDate = new Date(); // Fallback
+                             acc[billNo].saleDate.setUTCHours(12,0,0,0);
+                        }
                     }
                      // Match product from API (goodsName) to Solo product list
-                     const productNameLower = item.goodsName.trim().toLowerCase();
+                     const productNameLower = (item.goodsName || '').trim().toLowerCase(); // Handle potential null/undefined goodsName
                      const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
 
                      if (matchedProduct) {
@@ -1486,10 +1511,10 @@
                             });
                             acc[billNo].totalPrice += price * quantity; // Calculate total based on API price and quantity
                         } else {
-                             console.warn(`Produit ${item.goodsName} ignoré dans la facture ${billNo}: quantité ou prix invalide.`);
+                             console.warn(`Produit ${item.goodsName || 'N/A'} ignoré dans la facture ${billNo}: quantité ou prix invalide.`);
                         }
                      } else {
-                         console.warn(`Produit API "${item.goodsName}" non trouvé dans la liste des produits Solo. Ignoré pour la facture ${billNo}.`);
+                         console.warn(`Produit API "${item.goodsName || 'N/A'}" non trouvé dans la liste des produits Solo. Ignoré pour la facture ${billNo}.`);
                      }
                     
                     return acc;
@@ -1501,14 +1526,16 @@
                 if (salesToSave.length === 0) {
                      showToast("Aucune vente valide à importer (produits non trouvés ou données incorrectes).");
                      closeModal('api-import-modal');
+                     loader.classList.add('hidden'); // Ensure loader is hidden
+                     submitButton.disabled = false; // Re-enable button
                      return;
                  }
 
 
                 // --- Step 4: Check Stock and Save Batch ---
                  const batch = writeBatch(db);
-                 let salesImportedCount = 0;
-                 let salesSkippedCount = 0;
+                 // salesImportedCount = 0; // Moved initialization outside try block
+                 // salesSkippedCount = 0; // Moved initialization outside try block
                  const failedStockChecks = [];
 
                  for (const sale of salesToSave) {
@@ -1535,10 +1562,11 @@
                          const ing = allIngredients.find(i => i.id === ingId);
                          if (!ing || ing.quantity < qty) {
                              stockAvailable = false;
-                             failedStockChecks.push(`Stock insuffisant pour la facture ${sale.billNo} (produit: ${sale.items.find(i => {
+                              const failedProdName = sale.items.find(i => {
                                  const p = allProducts.find(pr => pr.id === i.id);
                                  return (p?.recipe?.some(r => r.id === ingId) || p?.linkedIngredientId === ingId);
-                             })?.name || 'inconnu'}, ingrédient: ${ing?.name || 'inconnu'})`);
+                             })?.name || 'inconnu';
+                             failedStockChecks.push(`Stock insuffisant pour facture ${sale.billNo} (produit: ${failedProdName}, ingrédient: ${ing?.name || 'inconnu'})`);
                              break; // Stop checking stock for this sale
                          }
                      }
@@ -1549,7 +1577,7 @@
                              batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
                          }
                          // Add sale record to batch
-                         batch.set(doc(ordersCol), {
+                         batch.set(doc(collection(db, ordersCol.path)), { // Use collection() and doc() for new doc ref
                              items: sale.items,
                              totalPrice: sale.totalPrice,
                              createdAt: serverTimestamp(), // Use Firestore timestamp for creation record
@@ -1564,35 +1592,48 @@
                 // --- Step 5: Commit Batch ---
                  if (salesImportedCount > 0) {
                     await batch.commit();
-                    let successMsg = `${salesImportedCount} vente(s) importée(s) avec succès.`;
+                    let successMsg = `${salesImportedCount} vente(s) importée(s) avec succès via API.`;
                     if (salesSkippedCount > 0) {
-                         successMsg += ` ${salesSkippedCount} vente(s) ignorée(s) pour cause de stock insuffisant.`;
-                         console.warn("Ventes ignorées:", failedStockChecks.join('\n'));
+                         successMsg += ` ${salesSkippedCount} vente(s) ignorée(s) (stock insuffisant).`;
+                         console.warn("Ventes ignorées (stock):", failedStockChecks.join('\n'));
                      }
                     showToast(successMsg);
                  } else if (salesSkippedCount > 0) {
-                     showToast(`Aucune vente importée. ${salesSkippedCount} vente(s) ignorée(s) pour cause de stock insuffisant.`);
-                     console.warn("Ventes ignorées:", failedStockChecks.join('\n'));
+                     showToast(`Aucune vente importée via API. ${salesSkippedCount} vente(s) ignorée(s) (stock insuffisant).`);
+                     console.warn("Ventes ignorées (stock):", failedStockChecks.join('\n'));
                  } else {
-                      showToast("Aucune vente valide trouvée à importer."); // Should have been caught earlier, but just in case
+                      showToast("Aucune vente valide trouvée à importer via API."); // Should have been caught earlier
                  }
 
 
             } catch (error) {
-                console.error("Erreur lors de l'importation API:", error);
-                showToast(`Erreur: ${error.message}`);
+                console.error("Erreur détaillée lors de l'importation API:", error);
+                 // Try to provide more specific feedback based on the error
+                 let userMessage = `Erreur: ${error.message}`;
+                 if (error.message.includes("authentification")) {
+                     userMessage = "Échec de l'authentification. Vérifiez l'URL d'authentification et les identifiants dans le code.";
+                 } else if (error.message.includes("Jeton")) {
+                      userMessage = "Jeton non trouvé. L'API d'authentification n'a pas retourné de jeton valide.";
+                 } else if (error.message.includes("API Ventes")) {
+                      userMessage = "Erreur lors de la récupération des ventes depuis l'API.";
+                 } else if (error.message.includes("Stock insuffisant")) {
+                      userMessage = "Erreur de stock détectée avant la sauvegarde."; // Should be handled above, but as fallback
+                 } else if (error instanceof TypeError && error.message.includes('fetch')) {
+                      userMessage = "Erreur réseau ou problème CORS probable. Vérifiez la console pour les détails.";
+                 }
+                showToast(userMessage);
             } finally {
                 loader.classList.add('hidden');
                 submitButton.disabled = false;
-                 // Keep modal open on error, close on success is handled if counts > 0
-                 if(salesImportedCount > 0 || (salesSkippedCount === 0 && salesImportedCount === 0 && allSalesData.length > 0)) { // Close if success or no valid sales found after fetch
+                 // Close modal only if there was some success or no data initially
+                 if(salesImportedCount > 0 || (salesSkippedCount === 0 && salesImportedCount === 0 && allSalesData.length === 0)) { 
                     closeModal('api-import-modal');
                  }
             }
         });
 
 
-        // --- IMPORT/EXPORT ---
+        // --- IMPORT/EXPORT CSV ---
         const CSV_INSTRUCTIONS = { 
             ingredients: `<p>4 colonnes: <strong>nom,quantite,unite,cout</strong></p><pre>nom,quantite,unite,cout\nTomates,10,kg,2.5\n</pre>`, 
             products: `<p>4 colonnes: <strong>nom,prix,type,details</strong></p><p>Pizza details: Nom:qty:unite;...</p><p>Autre: Nom article en stock</p><pre>Margherita,8.5,Pizza,"Pâte:1:p;Sauce:0.1:kg"\nCoca,2,Boisson,Canette Coca</pre>`, 
