@@ -40,6 +40,23 @@
         .kpi-filter-btn.active {
             @apply bg-gray-800 text-white shadow-inner;
         }
+
+        /* Spinner Styles */
+        .loader {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block; /* Or block, depending on layout */
+            margin: 0 auto; /* Center if block */
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -251,7 +268,8 @@
                         </div>
                          <div class="flex items-center gap-2 flex-wrap">
                              <button id="declare-loss-btn" class="btn-secondary bg-yellow-400 hover:bg-yellow-500 text-yellow-900"><i class="fas fa-exclamation-triangle mr-2"></i>Déclarer une perte</button>
-                             <button id="import-orders-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer Ventes</button>
+                             <button id="import-api-sales-btn" class="btn-secondary bg-blue-400 hover:bg-blue-500 text-blue-900"><i class="fas fa-cloud-download-alt mr-2"></i>Importer Ventes (API)</button>
+                             <button id="import-orders-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer Ventes (CSV)</button>
                              <button id="export-orders-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter Ventes</button>
                          </div>
                     </div>
@@ -331,6 +349,34 @@
             <div id="import-instructions" class="text-sm text-gray-600 bg-gray-100 p-3 rounded-lg mb-4"></div>
             <div><label for="csv-file-input" class="block text-sm font-medium text-gray-700">Choisir un fichier .csv</label><input type="file" id="csv-file-input" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"/></div>
             <div class="mt-6 flex justify-end space-x-3"><button type="button" class="btn-secondary" id="cancel-import">Annuler</button><button type="button" class="btn-primary" id="process-import-btn" disabled>Lancer l'importation</button></div>
+        </div>
+    </div>
+
+    <!-- Modal Import API Sales -->
+     <div id="api-import-modal" class="modal fixed z-20 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Importer Ventes via API</h3>
+            <form id="api-import-form">
+                <div class="space-y-4">
+                    <div>
+                        <label for="api-start-date" class="block text-sm font-medium text-gray-700">Date de début</label>
+                        <input type="date" id="api-start-date" required class="mt-1 w-full input-style">
+                    </div>
+                    <div>
+                        <label for="api-end-date" class="block text-sm font-medium text-gray-700">Date de fin</label>
+                        <input type="date" id="api-end-date" required class="mt-1 w-full input-style">
+                    </div>
+                     <!-- Champ pour le jeton retiré -->
+                     <div id="api-import-loader" class="hidden text-center py-4">
+                        <div class="loader"></div>
+                        <p class="text-sm text-gray-500 mt-2">Importation en cours...</p>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" class="btn-secondary" id="cancel-api-import">Annuler</button>
+                    <button type="submit" class="btn-primary" id="process-api-import-btn">Lancer l'importation</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -443,6 +489,16 @@
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
+       
+        // !!! --- AVERTISSEMENT SÉCURITÉ --- !!! 
+        // Stocker les identifiants ici est TRÈS DANGEREUX.
+        // N'importe qui peut les voir dans le code source du navigateur.
+        const API_USERNAME = "faycal@solopizzeria.com";
+        const API_PASSWORD = "faycal@2025";
+        // URL supposée pour l'authentification (ceci est une DEVINETTE !)
+        const API_AUTH_URL = "https://iam.scpos.com/service/sys/login"; 
+        const API_SALES_URL_BASE = "https://iam.scpos.com/service/api/report/order_goods";
+
 
         // --- INITIALISATION FIREBASE ---
         const app = initializeApp(firebaseConfig);
@@ -479,6 +535,9 @@
                 lossesCol = collection(db, `artifacts/${appId}/public/data/losses`);
                 listenToAllCollections();
                 document.getElementById('sale-date').value = getTodayDateString();
+                 // Set default dates for API import modal
+                document.getElementById('api-start-date').value = getTodayDateString();
+                document.getElementById('api-end-date').value = getTodayDateString();
             } else {
                 try {
                     if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
@@ -649,9 +708,9 @@
                     const isReceived = po.status === 'received'; 
                     div.className = `bg-white p-3 rounded-lg shadow-sm`; 
                     // Display price per unit in the list
-                    const itemsHtml = po.items.map(i => `<li>${i.quantity} ${i.unit} - ${i.name} (${i.price.toFixed(2)} Mad/unité)</li>`).join(''); 
+                    const itemsHtml = po.items.map(i => `<li>${i.quantity} ${i.unit} - ${i.name} (${(i.price || 0).toFixed(2)} Mad/unité)</li>`).join(''); 
                     // Calculate total display based on items
-                    const calculatedTotal = po.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    const calculatedTotal = po.items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0);
                     const totalDisplay = `<p class="font-bold text-lg text-gray-800">${calculatedTotal.toFixed(2)} Mad</p>`; // Always show calculated total
                     
                     const actionsHtml = `
@@ -1188,8 +1247,9 @@
                 try {
                     console.log("Attempting to upload file..."); // Debug log 3b
                     const storageRef = ref(storage, `invoices/${appId}/${Date.now()}-${file.name}`);
-                    await uploadBytes(storageRef, file);
-                    invoiceUrl = await getDownloadURL(storageRef);
+                    const uploadTask = await uploadBytes(storageRef, file);
+                    console.log("Upload task snapshot:", uploadTask); // More detailed log
+                    invoiceUrl = await getDownloadURL(uploadTask.ref); // Correct way to get URL after uploadBytes
                     console.log("File uploaded successfully, URL:", invoiceUrl); // Debug log 4
                     await saveOrderData(invoiceUrl); // Save data AFTER getting URL
                 } catch (uploadError) {
@@ -1200,6 +1260,7 @@
                 }
             } else {
                 // No file to upload, proceed directly to saving data with potentially existing URL
+                 console.log("No file to upload, saving data directly."); // Debug log 10
                 await saveOrderData(invoiceUrl);
             }
         });
