@@ -9,7 +9,8 @@ const PORT = process.env.PORT || 3000; // Render sets the PORT environment varia
 // Utilise les variables d'environnement de Render
 const API_USERNAME = process.env.POS_USERNAME; 
 const API_PASSWORD = process.env.POS_PASSWORD;
-const API_AUTH_URL = "https://iampos.net/service/sys/login"; 
+// CORRECTION : Mise à jour de l'URL d'authentification
+const API_AUTH_URL = "https://iampos.net/login"; // Anciennement /service/sys/login
 const API_SALES_URL_BASE = "https://iam.scpos.com/service/api/report/order_goods";
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://solo-pro.onrender.com"; // Fallback au cas où
 
@@ -148,3 +149,4 @@ app.listen(PORT, () => {
      // Ne pas logger les identifiants
      console.log(`Using POS Username: ${API_USERNAME ? 'Configured' : 'NOT CONFIGURED!'}`); 
 });
+
