@@ -9,8 +9,8 @@ const PORT = process.env.PORT || 3000; // Render sets the PORT environment varia
 // Utilise les variables d'environnement de Render
 const API_USERNAME = process.env.POS_USERNAME; 
 const API_PASSWORD = process.env.POS_PASSWORD;
-// CORRECTION : Mise à jour de l'URL d'authentification
-const API_AUTH_URL = "https://iampos.net/login"; // Anciennement /service/sys/login
+// CORRECTION : Mise à jour de l'URL d'authentification et du domaine
+const API_AUTH_URL = "https://iam.scpos.com/auth/login"; // C'est la bonne URL !
 const API_SALES_URL_BASE = "https://iam.scpos.com/service/api/report/order_goods";
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://solo-pro.onrender.com"; // Fallback au cas où
 
@@ -33,19 +33,27 @@ app.use(express.json()); // Pour parser le corps des requêtes POST en JSON
 
 // 1. Route d'authentification (appelée par le frontend)
 app.post('/api/login', async (req, res) => {
-    console.log("Proxy received login request");
+    console.log("Proxy received login request to /api/login");
     if (!API_USERNAME || !API_PASSWORD) {
          return res.status(500).json({ message: "Identifiants POS non configurés sur le serveur proxy." });
     }
     try {
+        // Définition des en-têtes pour imiter la requête du navigateur
+        const headers = {
+            'Content-Type': 'application/json;charset=UTF-8',
+            'Accept': 'application/json, text/plain, */*',
+            'Origin': 'https://iampos.net', // Important : L'API s'attend à cette origine
+            'Referer': 'https://iampos.net/', // Important : L'API s'attend à ce referer
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36',
+            'isToken': 'false',
+            'language': 'fr'
+        };
+
         const authResponse = await fetch(API_AUTH_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                // Ajoutez d'autres en-têtes si l'API d'authentification les requiert
-            },
+            headers: headers,
             body: JSON.stringify({
-                username: API_USERNAME, // Ou 'email' etc. selon l'API
+                username: API_USERNAME, 
                 password: API_PASSWORD
             })
         });
@@ -84,7 +92,7 @@ app.post('/api/login', async (req, res) => {
 
 // 2. Route pour récupérer les ventes (appelée par le frontend avec le token obtenu)
 app.get('/api/sales', async (req, res) => {
-    console.log("Proxy received sales request");
+    console.log("Proxy received sales request to /api/sales");
     const { startDate, endDate, pageNum = 1, pageSize = 100, token } = req.query; // Récupère les paramètres et le token
 
     if (!token) {
@@ -108,13 +116,20 @@ app.get('/api/sales', async (req, res) => {
     console.log(`Proxying request to: ${externalApiUrl}`);
 
     try {
+         // Définition des en-têtes pour la requête des ventes
+         const headers = {
+            'Authorization': `Bearer ${token}`, // Utilise le jeton fourni par le frontend
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/plain, */*',
+            'Origin': 'https://iampos.net', // Ajouté par sécurité
+            'Referer': 'https://iampos.net/', // Ajouté par sécurité
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36',
+            'language': 'fr'
+        };
+
         const salesResponse = await fetch(externalApiUrl, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`, // Utilise le jeton fourni par le frontend
-                'Content-Type': 'application/json',
-                // Ajoutez les autres en-têtes nécessaires (cf. Postman/Network tab)
-            }
+            headers: headers
         });
         
         const responseBody = await salesResponse.text();
