@@ -496,7 +496,8 @@
         const API_USERNAME = "faycal@solopizzeria.com";
         const API_PASSWORD = "faycal@2025";
         // URL supposée pour l'authentification (ceci est une DEVINETTE !)
-        const API_AUTH_URL = "https://iam.scpos.com/service/sys/login"; 
+        // Mise à jour de l'URL d'authentification basée sur l'URL fournie (en supposant le chemin)
+        const API_AUTH_URL = "https://iampos.net/service/sys/login"; // Ajusté selon iampos.net
         const API_SALES_URL_BASE = "https://iam.scpos.com/service/api/report/order_goods";
 
 
@@ -1342,6 +1343,255 @@
             }
         });
         
+       // --- IMPORT API SALES ---
+        document.getElementById('import-api-sales-btn').addEventListener('click', () => {
+             // Reset form fields to default (today's date)
+            document.getElementById('api-start-date').value = getTodayDateString();
+            document.getElementById('api-end-date').value = getTodayDateString();
+            openModal('api-import-modal');
+        });
+        document.getElementById('cancel-api-import').addEventListener('click', () => closeModal('api-import-modal'));
+
+        document.getElementById('api-import-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const startDate = document.getElementById('api-start-date').value;
+            const endDate = document.getElementById('api-end-date').value;
+            const loader = document.getElementById('api-import-loader');
+            const submitButton = document.getElementById('process-api-import-btn');
+
+            if (!startDate || !endDate) {
+                showToast("Veuillez sélectionner les dates de début et de fin.");
+                return;
+            }
+
+            loader.classList.remove('hidden');
+            submitButton.disabled = true;
+
+            try {
+                // --- Step 1: Authenticate (RISKY - Credentials in code) ---
+                console.log("Attempting API authentication...");
+                const authResponse = await fetch(API_AUTH_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                         // Add other headers if required by the auth API
+                    },
+                    // --- This is a GUESS based on common login formats ---
+                    // --- You MUST verify the correct payload format ---
+                    body: JSON.stringify({
+                        username: API_USERNAME, // Or 'email' or 'user' etc.
+                        password: API_PASSWORD
+                    })
+                });
+
+                if (!authResponse.ok) {
+                    throw new Error(`Échec d'authentification: ${authResponse.status} ${authResponse.statusText}`);
+                }
+
+                const authData = await authResponse.json();
+                 // --- This is a GUESS for where the token might be ---
+                 // --- You MUST verify the correct path to the token ---
+                const token = authData?.data?.token || authData?.token || authData?.access_token; 
+                
+                if (!token) {
+                    console.error("Auth response data:", authData);
+                    throw new Error("Jeton d'authentification non trouvé dans la réponse de l'API.");
+                }
+                console.log("Authentication successful.");
+
+                // --- Step 2: Fetch Sales Data ---
+                console.log(`Fetching sales from ${startDate} to ${endDate}...`);
+                 // Format dates as YYYY-MM-DD HH:MM:SS
+                const startDateFormatted = `${startDate} 00:00:00`;
+                const endDateFormatted = `${endDate} 23:59:59`;
+
+                // Construct the URL with query parameters
+                 // Fetch potentially multiple pages
+                let allSalesData = [];
+                let currentPage = 1;
+                const pageSize = 100; // Fetch more per page if possible
+                let hasMorePages = true;
+
+                while(hasMorePages) {
+                    const salesUrl = `${API_SALES_URL_BASE}?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${encodeURIComponent(startDateFormatted)}&endDate=${encodeURIComponent(endDateFormatted)}&email=${encodeURIComponent(API_USERNAME)}`; // Assuming email is needed, adjust if not
+
+                    console.log(`Fetching page ${currentPage} from ${salesUrl}`);
+
+                    const salesResponse = await fetch(salesUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                            // Add other necessary headers based on your Postman screenshot
+                        }
+                    });
+
+                    if (!salesResponse.ok) {
+                         const errorText = await salesResponse.text();
+                        throw new Error(`Erreur API Ventes (${salesResponse.status}): ${salesResponse.statusText}. Response: ${errorText}`);
+                    }
+
+                    const salesResult = await salesResponse.json();
+                     console.log(`Page ${currentPage} response code: ${salesResult.code}, msg: ${salesResult.msg}`);
+
+                    if (salesResult.code !== 200 || !salesResult.data) {
+                        throw new Error(`Erreur API Ventes: ${salesResult.msg || 'Données invalides'}`);
+                    }
+                    
+                    allSalesData = allSalesData.concat(salesResult.data);
+
+                    // Basic check if there might be more pages (adjust if API provides total count/pages)
+                    if (salesResult.data.length < pageSize) {
+                        hasMorePages = false;
+                    } else {
+                        currentPage++;
+                    }
+                }
+
+                 console.log(`Total sales items fetched: ${allSalesData.length}`);
+                if (allSalesData.length === 0) {
+                     showToast("Aucune vente trouvée pour la période sélectionnée.");
+                     closeModal('api-import-modal');
+                     return; // Exit if no data
+                 }
+
+
+                // --- Step 3: Process and Save Sales Data ---
+                const groupedSales = allSalesData.reduce((acc, item) => {
+                    const billNo = item.billNo;
+                    if (!acc[billNo]) {
+                        acc[billNo] = {
+                            billNo: billNo,
+                            items: [],
+                            totalPrice: 0,
+                            // Use operDate from the first item as the saleDate
+                            saleDate: new Date(item.operDate.replace(' ', 'T') + 'Z') // Assume UTC if no timezone info
+                        };
+                         // Normalize date to midday UTC
+                        acc[billNo].saleDate.setUTCHours(12, 0, 0, 0);
+                    }
+                     // Match product from API (goodsName) to Solo product list
+                     const productNameLower = item.goodsName.trim().toLowerCase();
+                     const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
+
+                     if (matchedProduct) {
+                        const quantity = parseFloat(item.numNum);
+                        const price = parseFloat(item.numPrice); // Price from API item
+                        if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
+                            acc[billNo].items.push({
+                                id: matchedProduct.id, // Use Solo product ID
+                                name: matchedProduct.name, // Use Solo product name
+                                quantity: quantity,
+                                price: price // Use price from API
+                            });
+                            acc[billNo].totalPrice += price * quantity; // Calculate total based on API price and quantity
+                        } else {
+                             console.warn(`Produit ${item.goodsName} ignoré dans la facture ${billNo}: quantité ou prix invalide.`);
+                        }
+                     } else {
+                         console.warn(`Produit API "${item.goodsName}" non trouvé dans la liste des produits Solo. Ignoré pour la facture ${billNo}.`);
+                     }
+                    
+                    return acc;
+                }, {});
+
+                const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0); // Only save sales with matched items
+                 console.log(`Sales grouped and filtered: ${salesToSave.length} bills`);
+                
+                if (salesToSave.length === 0) {
+                     showToast("Aucune vente valide à importer (produits non trouvés ou données incorrectes).");
+                     closeModal('api-import-modal');
+                     return;
+                 }
+
+
+                // --- Step 4: Check Stock and Save Batch ---
+                 const batch = writeBatch(db);
+                 let salesImportedCount = 0;
+                 let salesSkippedCount = 0;
+                 const failedStockChecks = [];
+
+                 for (const sale of salesToSave) {
+                     const tempDeductions = new Map();
+                     let stockAvailable = true;
+
+                     for (const saleItem of sale.items) {
+                         const product = allProducts.find(p => p.id === saleItem.id); // Already matched, just refetch
+                         if (!product) continue; // Should not happen if filtered correctly
+
+                         if (product.recipe && product.recipe.length > 0) {
+                             for (const recipeItem of product.recipe) {
+                                 const current = tempDeductions.get(recipeItem.id) || 0;
+                                 tempDeductions.set(recipeItem.id, current + recipeItem.quantity * saleItem.quantity);
+                             }
+                         } else if (product.linkedIngredientId) {
+                             const current = tempDeductions.get(product.linkedIngredientId) || 0;
+                             tempDeductions.set(product.linkedIngredientId, current + saleItem.quantity);
+                         }
+                     }
+
+                     // Check stock for this specific sale
+                     for (const [ingId, qty] of tempDeductions.entries()) {
+                         const ing = allIngredients.find(i => i.id === ingId);
+                         if (!ing || ing.quantity < qty) {
+                             stockAvailable = false;
+                             failedStockChecks.push(`Stock insuffisant pour la facture ${sale.billNo} (produit: ${sale.items.find(i => {
+                                 const p = allProducts.find(pr => pr.id === i.id);
+                                 return (p?.recipe?.some(r => r.id === ingId) || p?.linkedIngredientId === ingId);
+                             })?.name || 'inconnu'}, ingrédient: ${ing?.name || 'inconnu'})`);
+                             break; // Stop checking stock for this sale
+                         }
+                     }
+
+                     if (stockAvailable) {
+                         // Add stock deductions to batch
+                         for (const [ingId, qty] of tempDeductions.entries()) {
+                             batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
+                         }
+                         // Add sale record to batch
+                         batch.set(doc(ordersCol), {
+                             items: sale.items,
+                             totalPrice: sale.totalPrice,
+                             createdAt: serverTimestamp(), // Use Firestore timestamp for creation record
+                             saleDate: sale.saleDate // Use the date from the API
+                         });
+                         salesImportedCount++;
+                     } else {
+                         salesSkippedCount++;
+                     }
+                 }
+
+                // --- Step 5: Commit Batch ---
+                 if (salesImportedCount > 0) {
+                    await batch.commit();
+                    let successMsg = `${salesImportedCount} vente(s) importée(s) avec succès.`;
+                    if (salesSkippedCount > 0) {
+                         successMsg += ` ${salesSkippedCount} vente(s) ignorée(s) pour cause de stock insuffisant.`;
+                         console.warn("Ventes ignorées:", failedStockChecks.join('\n'));
+                     }
+                    showToast(successMsg);
+                 } else if (salesSkippedCount > 0) {
+                     showToast(`Aucune vente importée. ${salesSkippedCount} vente(s) ignorée(s) pour cause de stock insuffisant.`);
+                     console.warn("Ventes ignorées:", failedStockChecks.join('\n'));
+                 } else {
+                      showToast("Aucune vente valide trouvée à importer."); // Should have been caught earlier, but just in case
+                 }
+
+
+            } catch (error) {
+                console.error("Erreur lors de l'importation API:", error);
+                showToast(`Erreur: ${error.message}`);
+            } finally {
+                loader.classList.add('hidden');
+                submitButton.disabled = false;
+                 // Keep modal open on error, close on success is handled if counts > 0
+                 if(salesImportedCount > 0 || (salesSkippedCount === 0 && salesImportedCount === 0 && allSalesData.length > 0)) { // Close if success or no valid sales found after fetch
+                    closeModal('api-import-modal');
+                 }
+            }
+        });
+
+
         // --- IMPORT/EXPORT ---
         const CSV_INSTRUCTIONS = { 
             ingredients: `<p>4 colonnes: <strong>nom,quantite,unite,cout</strong></p><pre>nom,quantite,unite,cout\nTomates,10,kg,2.5\n</pre>`, 
@@ -1351,7 +1601,7 @@
 
         document.getElementById('import-ingredients-btn').addEventListener('click', () => { importType = 'ingredients'; document.getElementById('import-modal-title').textContent = 'Importer des Ingrédients'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.ingredients; openModal('import-modal'); }); 
         document.getElementById('import-products-btn').addEventListener('click', () => { importType = 'products'; document.getElementById('import-modal-title').textContent = 'Importer des Produits'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.products; openModal('import-modal'); }); 
-        document.getElementById('import-orders-btn').addEventListener('click', () => { importType = 'orders'; document.getElementById('import-modal-title').textContent = 'Importer des Ventes'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.orders; openModal('import-modal'); }); 
+        document.getElementById('import-orders-btn').addEventListener('click', () => { importType = 'orders'; document.getElementById('import-modal-title').textContent = 'Importer des Ventes (CSV)'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.orders; openModal('import-modal'); }); 
         document.getElementById('cancel-import').addEventListener('click', () => closeModal('import-modal')); 
         document.getElementById('csv-file-input').addEventListener('change', () => { document.getElementById('process-import-btn').disabled = !document.getElementById('csv-file-input').files.length; }); 
         document.getElementById('process-import-btn').addEventListener('click', async () => { 
