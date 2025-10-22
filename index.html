@@ -352,7 +352,7 @@
         </div>
     </div>
 
-    <!-- Modal Import API Sales -->
+    <!-- Modal Import API Sales (Updated for Proxy) -->
      <div id="api-import-modal" class="modal fixed z-20 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
             <h3 class="text-xl font-semibold mb-4 text-gray-800">Importer Ventes via API</h3>
@@ -366,11 +366,12 @@
                         <label for="api-end-date" class="block text-sm font-medium text-gray-700">Date de fin</label>
                         <input type="date" id="api-end-date" required class="mt-1 w-full input-style">
                     </div>
-                     <!-- Champ pour le jeton retiré -->
+                    <!-- Champ jeton supprimé -->
                      <div id="api-import-loader" class="hidden text-center py-4">
                         <div class="loader"></div>
-                        <p class="text-sm text-gray-500 mt-2">Importation en cours...</p>
+                        <p class="text-sm text-gray-500 mt-2">Authentification et importation...</p>
                     </div>
+                     <p id="api-import-status" class="text-sm text-center text-gray-600 mt-2"></p>
                 </div>
                 <div class="mt-6 flex justify-end space-x-3">
                     <button type="button" class="btn-secondary" id="cancel-api-import">Annuler</button>
@@ -490,15 +491,10 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
        
-        // !!! --- AVERTISSEMENT SÉCURITÉ --- !!! 
-        // Stocker les identifiants ici est TRÈS DANGEREUX.
-        // N'importe qui peut les voir dans le code source du navigateur.
-        const API_USERNAME = "faycal@solopizzeria.com";
-        const API_PASSWORD = "faycal@2025";
-        // URL supposée pour l'authentification (ceci est une DEVINETTE !)
-        // Mise à jour de l'URL d'authentification basée sur l'URL fournie (en supposant le chemin)
-        const API_AUTH_URL = "https://iampos.net/service/sys/login"; // Ajusté selon iampos.net
-        const API_SALES_URL_BASE = "https://iam.scpos.com/service/api/report/order_goods";
+        // --- URL du Proxy ---
+        // !!! REMPLACEZ PAR L'URL RÉELLE DE VOTRE PROXY DÉPLOYÉ SUR RENDER !!!
+        // Par exemple: "https://solo-proxy.onrender.com"
+        const PROXY_URL = "https://solo-proxy.onrender.com"; // <= MODIFIEZ CETTE LIGNE
 
 
         // --- INITIALISATION FIREBASE ---
@@ -1343,8 +1339,7 @@
             }
         });
         
-       // --- IMPORT API SALES ---
-        // Listener to open the API import modal
+       // --- IMPORT API SALES (Using Proxy for Auth) ---
         document.getElementById('import-api-sales-btn').addEventListener('click', () => {
              // Reset form fields to default (today's date)
             document.getElementById('api-start-date').value = getTodayDateString();
@@ -1358,158 +1353,147 @@
             const startDate = document.getElementById('api-start-date').value;
             const endDate = document.getElementById('api-end-date').value;
             const loader = document.getElementById('api-import-loader');
+            const statusText = document.getElementById('api-import-status');
             const submitButton = document.getElementById('process-api-import-btn');
 
             if (!startDate || !endDate) {
                 showToast("Veuillez sélectionner les dates de début et de fin.");
                 return;
             }
+             if (!PROXY_URL || PROXY_URL === "https://votre-proxy-url-ici.onrender.com") {
+                showToast("Erreur: L'URL du PROXY_URL n'est pas configurée dans le script.");
+                return;
+            }
+
 
             loader.classList.remove('hidden');
+            statusText.textContent = 'Authentification en cours...';
             submitButton.disabled = true;
-            let salesImportedCount = 0; // Initialize here
-            let salesSkippedCount = 0; // Initialize here
-            let allSalesData = []; // Initialize here
-
+            let salesImportedCount = 0; 
+            let salesSkippedCount = 0; 
+            let allSalesData = []; 
 
             try {
-                // --- Step 1: Authenticate (RISKY - Credentials in code) ---
-                console.log("Attempting API authentication...");
-                const authResponse = await fetch(API_AUTH_URL, {
+                // --- Step 1: Authenticate via Proxy ---
+                console.log("Attempting API authentication via proxy...");
+                const authResponse = await fetch(`${PROXY_URL}/api/login`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                         // Add other headers if required by the auth API
-                    },
-                    // --- This is a GUESS based on common login formats ---
-                    // --- You MUST verify the correct payload format ---
-                    body: JSON.stringify({
-                        username: API_USERNAME, // Or 'email' or 'user' etc.
-                        password: API_PASSWORD
-                        // The API might require other fields like 'grant_type', 'client_id', etc.
-                    })
+                    headers: { 'Content-Type': 'application/json' }
+                    // Le corps (username/password) est géré par le proxy
                 });
 
+                 const authData = await authResponse.json(); // Toujours essayer de parser JSON
+
                 if (!authResponse.ok) {
-                    const errorText = await authResponse.text(); // Get more details if possible
-                    console.error("Auth failed response:", errorText);
-                    throw new Error(`Échec d'authentification: ${authResponse.status} ${authResponse.statusText}`);
+                    console.error("Proxy Auth failed response:", authData);
+                     // Essayer d'afficher un message plus clair si possible
+                    const detailMsg = authData?.details?.message || authData?.details || authData?.message || `Status ${authResponse.status}`;
+                    throw new Error(`Échec d'authentification via proxy: ${detailMsg}`);
                 }
 
-                const authData = await authResponse.json();
-                 // --- This is a GUESS for where the token might be ---
-                 // --- You MUST verify the correct path to the token in the ACTUAL response ---
-                const token = authData?.data?.token || authData?.token || authData?.access_token; 
+                const token = authData?.token; 
                 
                 if (!token) {
-                    console.error("Auth response data (token not found):", authData);
-                    throw new Error("Jeton d'authentification non trouvé dans la réponse de l'API.");
+                    console.error("Proxy Auth response data (token not found):", authData);
+                    throw new Error("Jeton non reçu du proxy.");
                 }
-                console.log("Authentication successful.");
+                console.log("Proxy Authentication successful.");
+                statusText.textContent = 'Récupération des ventes...';
 
-                // --- Step 2: Fetch Sales Data ---
-                console.log(`Fetching sales from ${startDate} to ${endDate}...`);
-                 // Format dates as YYYY-MM-DD HH:MM:SS
-                const startDateFormatted = `${startDate} 00:00:00`;
-                const endDateFormatted = `${endDate} 23:59:59`;
+
+                // --- Step 2: Fetch Sales Data via Proxy (using obtained token) ---
+                console.log(`Fetching sales from ${startDate} to ${endDate} via proxy...`);
 
                 // Fetch potentially multiple pages
-                // let allSalesData = []; // Moved initialization outside try block
                 let currentPage = 1;
-                const pageSize = 100; // Fetch more per page if possible
+                const pageSize = 100; 
                 let hasMorePages = true;
 
                 while(hasMorePages) {
-                    // Construct URL carefully, ensure email is needed/correct
-                    const salesUrl = `${API_SALES_URL_BASE}?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${encodeURIComponent(startDateFormatted)}&endDate=${encodeURIComponent(endDateFormatted)}&email=${encodeURIComponent(API_USERNAME)}`; 
+                     // Construire l'URL pour appeler NOTRE proxy
+                    const proxySalesUrl = `${PROXY_URL}/api/sales?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${startDate}&endDate=${endDate}&token=${encodeURIComponent(token)}`;
 
-                    console.log(`Fetching page ${currentPage} from ${salesUrl}`);
+                    console.log(`Fetching page ${currentPage} from Proxy: ${proxySalesUrl}`);
 
-                    const salesResponse = await fetch(salesUrl, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                            // Add other necessary headers based on your Postman screenshot
-                            // e.g., 'X-Requested-With': 'XMLHttpRequest' if needed
-                        }
+                    const salesResponse = await fetch(proxySalesUrl, {
+                        method: 'GET'
+                        // Les en-têtes (Authorization) sont gérés par le proxy
                     });
+                    
+                    const salesResult = await salesResponse.json(); // Toujours essayer de parser
 
                     if (!salesResponse.ok) {
-                         const errorText = await salesResponse.text();
-                        console.error(`Sales API Error Response (Page ${currentPage}):`, errorText);
-                        throw new Error(`Erreur API Ventes (Page ${currentPage}, Status ${salesResponse.status}): ${salesResponse.statusText}.`);
+                         console.error(`Proxy Sales API Error Response (Page ${currentPage}):`, salesResult);
+                         const detailMsg = salesResult?.details?.message || salesResult?.details || salesResult?.message || `Status ${salesResponse.status}`;
+                        throw new Error(`Erreur Proxy Ventes (Page ${currentPage}): ${detailMsg}`);
                     }
 
-                    const salesResult = await salesResponse.json();
+
                      console.log(`Page ${currentPage} response code: ${salesResult.code}, msg: ${salesResult.msg}`);
 
                     if (salesResult.code !== 200 || !salesResult.data) {
-                         console.error("Sales API invalid data structure:", salesResult);
-                        throw new Error(`Erreur API Ventes (Page ${currentPage}): ${salesResult.msg || 'Données invalides ou code non 200'}`);
+                         console.error("Proxy Sales API invalid data structure:", salesResult);
+                        throw new Error(`Erreur Proxy Ventes (Page ${currentPage}): ${salesResult.msg || 'Données invalides ou code non 200 renvoyé par le proxy'}`);
                     }
                     
                     allSalesData = allSalesData.concat(salesResult.data);
 
                     // Check if there might be more pages 
-                    if (!salesResult.data || salesResult.data.length < pageSize) { // Added !salesResult.data check
+                    if (!salesResult.data || salesResult.data.length < pageSize) { 
                         hasMorePages = false;
                     } else {
                         currentPage++;
                     }
-                     // Safety break after a large number of pages to prevent infinite loops
+                     // Safety break
                      if (currentPage > 50) { 
-                         console.warn("Stopped fetching after 50 pages to prevent potential infinite loop.");
+                         console.warn("Stopped fetching after 50 pages.");
                          hasMorePages = false; 
                      }
                 }
 
-                 console.log(`Total sales items fetched: ${allSalesData.length}`);
+                 console.log(`Total sales items fetched via proxy: ${allSalesData.length}`);
+                 statusText.textContent = `Traitement de ${allSalesData.length} articles...`;
+
                 if (allSalesData.length === 0) {
                      showToast("Aucune vente trouvée pour la période sélectionnée via API.");
                      closeModal('api-import-modal');
-                     loader.classList.add('hidden'); // Ensure loader is hidden
-                     submitButton.disabled = false; // Re-enable button
-                     return; // Exit if no data
+                     return; 
                  }
 
 
                 // --- Step 3: Process and Save Sales Data ---
                 const groupedSales = allSalesData.reduce((acc, item) => {
-                    const billNo = item.billNo;
+                    // ... (logique de regroupement et de matching produit - INCHANGÉE) ...
+                     const billNo = item.billNo;
                     if (!acc[billNo]) {
                         acc[billNo] = {
                             billNo: billNo,
                             items: [],
                             totalPrice: 0,
-                            // Use operDate from the first item as the saleDate
-                            // Ensure date parsing is robust
-                            saleDate: item.operDate ? new Date(item.operDate.replace(' ', 'T') + 'Z') : new Date() // Fallback to now if operDate is missing
+                            saleDate: item.operDate ? new Date(item.operDate.replace(' ', 'T') + 'Z') : new Date() 
                         };
-                         // Normalize date to midday UTC
-                        if (!isNaN(acc[billNo].saleDate.getTime())) { // Check if date is valid before setting hours
+                        if (!isNaN(acc[billNo].saleDate.getTime())) {
                              acc[billNo].saleDate.setUTCHours(12, 0, 0, 0);
                         } else {
                              console.warn(`Invalid operDate '${item.operDate}' for bill ${billNo}. Using current date.`);
-                             acc[billNo].saleDate = new Date(); // Fallback
+                             acc[billNo].saleDate = new Date(); 
                              acc[billNo].saleDate.setUTCHours(12,0,0,0);
                         }
                     }
-                     // Match product from API (goodsName) to Solo product list
-                     const productNameLower = (item.goodsName || '').trim().toLowerCase(); // Handle potential null/undefined goodsName
+                     const productNameLower = (item.goodsName || '').trim().toLowerCase(); 
                      const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
 
                      if (matchedProduct) {
                         const quantity = parseFloat(item.numNum);
-                        const price = parseFloat(item.numPrice); // Price from API item
+                        const price = parseFloat(item.numPrice); 
                         if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
                             acc[billNo].items.push({
-                                id: matchedProduct.id, // Use Solo product ID
-                                name: matchedProduct.name, // Use Solo product name
+                                id: matchedProduct.id, 
+                                name: matchedProduct.name, 
                                 quantity: quantity,
-                                price: price // Use price from API
+                                price: price 
                             });
-                            acc[billNo].totalPrice += price * quantity; // Calculate total based on API price and quantity
+                            acc[billNo].totalPrice += price * quantity; 
                         } else {
                              console.warn(`Produit ${item.goodsName || 'N/A'} ignoré dans la facture ${billNo}: quantité ou prix invalide.`);
                         }
@@ -1520,31 +1504,30 @@
                     return acc;
                 }, {});
 
-                const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0); // Only save sales with matched items
+                const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0); 
                  console.log(`Sales grouped and filtered: ${salesToSave.length} bills`);
                 
                 if (salesToSave.length === 0) {
                      showToast("Aucune vente valide à importer (produits non trouvés ou données incorrectes).");
                      closeModal('api-import-modal');
-                     loader.classList.add('hidden'); // Ensure loader is hidden
-                     submitButton.disabled = false; // Re-enable button
                      return;
                  }
 
 
                 // --- Step 4: Check Stock and Save Batch ---
                  const batch = writeBatch(db);
-                 // salesImportedCount = 0; // Moved initialization outside try block
-                 // salesSkippedCount = 0; // Moved initialization outside try block
                  const failedStockChecks = [];
+                 statusText.textContent = `Vérification du stock pour ${salesToSave.length} commandes...`;
+
 
                  for (const sale of salesToSave) {
+                     // ... (logique de vérification stock et création batch - INCHANGÉE) ...
                      const tempDeductions = new Map();
                      let stockAvailable = true;
 
                      for (const saleItem of sale.items) {
-                         const product = allProducts.find(p => p.id === saleItem.id); // Already matched, just refetch
-                         if (!product) continue; // Should not happen if filtered correctly
+                         const product = allProducts.find(p => p.id === saleItem.id); 
+                         if (!product) continue; 
 
                          if (product.recipe && product.recipe.length > 0) {
                              for (const recipeItem of product.recipe) {
@@ -1577,11 +1560,11 @@
                              batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
                          }
                          // Add sale record to batch
-                         batch.set(doc(collection(db, ordersCol.path)), { // Use collection() and doc() for new doc ref
+                         batch.set(doc(collection(db, ordersCol.path)), { 
                              items: sale.items,
                              totalPrice: sale.totalPrice,
-                             createdAt: serverTimestamp(), // Use Firestore timestamp for creation record
-                             saleDate: sale.saleDate // Use the date from the API
+                             createdAt: serverTimestamp(), 
+                             saleDate: sale.saleDate 
                          });
                          salesImportedCount++;
                      } else {
@@ -1591,6 +1574,7 @@
 
                 // --- Step 5: Commit Batch ---
                  if (salesImportedCount > 0) {
+                    statusText.textContent = `Enregistrement de ${salesImportedCount} vente(s)...`;
                     await batch.commit();
                     let successMsg = `${salesImportedCount} vente(s) importée(s) avec succès via API.`;
                     if (salesSkippedCount > 0) {
@@ -1602,28 +1586,27 @@
                      showToast(`Aucune vente importée via API. ${salesSkippedCount} vente(s) ignorée(s) (stock insuffisant).`);
                      console.warn("Ventes ignorées (stock):", failedStockChecks.join('\n'));
                  } else {
-                      showToast("Aucune vente valide trouvée à importer via API."); // Should have been caught earlier
+                      showToast("Aucune vente valide trouvée à importer via API."); 
                  }
 
 
             } catch (error) {
-                console.error("Erreur détaillée lors de l'importation API:", error);
-                 // Try to provide more specific feedback based on the error
+                console.error("Erreur détaillée lors de l'importation API via proxy:", error);
                  let userMessage = `Erreur: ${error.message}`;
-                 if (error.message.includes("authentification")) {
-                     userMessage = "Échec de l'authentification. Vérifiez l'URL d'authentification et les identifiants dans le code.";
-                 } else if (error.message.includes("Jeton")) {
-                      userMessage = "Jeton non trouvé. L'API d'authentification n'a pas retourné de jeton valide.";
-                 } else if (error.message.includes("API Ventes")) {
-                      userMessage = "Erreur lors de la récupération des ventes depuis l'API.";
-                 } else if (error.message.includes("Stock insuffisant")) {
-                      userMessage = "Erreur de stock détectée avant la sauvegarde."; // Should be handled above, but as fallback
+                 // Adapter les messages d'erreur pour le contexte proxy
+                  if (error.message.includes("authentification via proxy")) {
+                     userMessage = `Échec d'authentification proxy. Vérifiez les logs du proxy.`;
+                 } else if (error.message.includes("Jeton non reçu du proxy")) {
+                      userMessage = "Le proxy n'a pas réussi à obtenir un jeton. Vérifiez les logs du proxy.";
+                 } else if (error.message.includes("Proxy Ventes")) {
+                      userMessage = "Erreur lors de la récupération des ventes via le proxy.";
                  } else if (error instanceof TypeError && error.message.includes('fetch')) {
-                      userMessage = "Erreur réseau ou problème CORS probable. Vérifiez la console pour les détails.";
+                      userMessage = `Erreur réseau en contactant le proxy (${PROXY_URL}). Est-il déployé et l'URL est-elle correcte ?`;
                  }
                 showToast(userMessage);
             } finally {
                 loader.classList.add('hidden');
+                statusText.textContent = ''; // Clear status text
                 submitButton.disabled = false;
                  // Close modal only if there was some success or no data initially
                  if(salesImportedCount > 0 || (salesSkippedCount === 0 && salesImportedCount === 0 && allSalesData.length === 0)) { 
