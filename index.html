@@ -360,7 +360,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-4 items-end gap-3">
                         <div class="md:col-span-2"><label class="block text-sm font-medium">Ingrédient</label><select id="po-ingredient-select" class="mt-1 w-full input-style"></select></div>
                         <div><label class="block text-sm font-medium">Quantité</label><input type="number" id="po-quantity" min="0" step="any" class="mt-1 w-full input-style"></div>
-                        <div><label class="block text-sm font-medium">Prix (Mad)</label><input type="number" id="po-price" min="0" step="any" class="mt-1 w-full input-style"></div>
+                        <div><label class="block text-sm font-medium">Prix/Unité (Mad)</label><input type="number" id="po-price" min="0" step="any" class="mt-1 w-full input-style"></div>
                     </div>
                      <button type="button" id="add-po-item-btn" class="btn-secondary h-10 w-full mt-3">Ajouter à la commande</button>
                 </div>
@@ -648,8 +648,12 @@
                     const div = document.createElement('div'); 
                     const isReceived = po.status === 'received'; 
                     div.className = `bg-white p-3 rounded-lg shadow-sm`; 
-                    const itemsHtml = po.items.map(i => `<li>${i.quantity} ${i.unit} - ${i.name} (${i.price.toFixed(2)} Mad)</li>`).join(''); 
-                    const totalDisplay = po.totalCost ? `<p class="font-bold text-lg text-gray-800">${po.totalCost.toFixed(2)} Mad</p>` : ''; 
+                    // Display price per unit in the list
+                    const itemsHtml = po.items.map(i => `<li>${i.quantity} ${i.unit} - ${i.name} (${i.price.toFixed(2)} Mad/unité)</li>`).join(''); 
+                    // Calculate total display based on items
+                    const calculatedTotal = po.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    const totalDisplay = `<p class="font-bold text-lg text-gray-800">${calculatedTotal.toFixed(2)} Mad</p>`; // Always show calculated total
+                    
                     const actionsHtml = `
                     <div class="flex justify-between items-center mt-3 pt-3 border-t">
                          <div>
@@ -670,7 +674,7 @@
                             <div class="text-right">
                                 <span class="text-xs font-bold py-1 px-2 rounded-full ${isReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${isReceived ? 'Reçue' : 'En attente'}</span>
                                 ${isReceived ? `<p class="text-xs text-gray-500 mt-1">Reçue le ${formatDateToDDMMYYYY(po.receivedAt)}</p>` : ''}
-                                ${totalDisplay}
+                                ${totalDisplay} 
                                 ${po.invoiceUrl ? `<a href="${po.invoiceUrl}" target="_blank" class="block text-sm text-gray-600 hover:text-gray-900 mt-2"><i class="fas fa-file-invoice"></i> Facture</a>` : ''}
                             </div>
                         </div>
@@ -1073,33 +1077,43 @@
         document.getElementById('add-purchase-order-btn').addEventListener('click', () => { document.getElementById('purchase-order-form').reset(); document.getElementById('po-id').value = ''; document.getElementById('po-modal-title').textContent = 'Nouvelle Commande Fournisseur'; currentPurchaseOrderItems = []; renderCurrentPurchaseOrderItems(); openModal('purchase-order-modal'); }); document.getElementById('cancel-purchase-order').addEventListener('click', () => closeModal('purchase-order-modal'));
         
         const updatePurchaseOrderTotal = () => {
-            // Recalculate total based on currentPurchaseOrderItems prices
+            // Recalculate total based on currentPurchaseOrderItems prices (price per unit * quantity)
             const total = currentPurchaseOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
              document.getElementById('po-total-cost').textContent = `${total.toFixed(2)} Mad`;
         };
         
-        const renderCurrentPurchaseOrderItems = () => { const list = document.getElementById('po-items-list'); list.innerHTML = ''; currentPurchaseOrderItems.forEach((item, index) => { const li = document.createElement('div'); li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name} <span class="font-semibold">(${item.price.toFixed(2)} Mad/unité)</span></span><button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; list.appendChild(li); }); updatePurchaseOrderTotal(); }; 
+        const renderCurrentPurchaseOrderItems = () => { 
+            const list = document.getElementById('po-items-list'); 
+            list.innerHTML = ''; 
+            currentPurchaseOrderItems.forEach((item, index) => { 
+                const li = document.createElement('div'); 
+                li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; 
+                // Display price per unit
+                li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name} <span class="font-semibold">(${item.price.toFixed(2)} Mad/unité)</span></span><button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; 
+                list.appendChild(li); 
+            }); 
+            updatePurchaseOrderTotal(); 
+        }; 
         
         document.getElementById('add-po-item-btn').addEventListener('click', () => { 
             const select = document.getElementById('po-ingredient-select'); 
             const ingredientId = select.value; 
             const quantityInput = document.getElementById('po-quantity');
-            const priceInput = document.getElementById('po-price');
+            const priceInput = document.getElementById('po-price'); // Input for price per unit
             const quantity = parseFloat(quantityInput.value); 
-            const pricePerUnit = parseFloat(priceInput.value); // Price per unit
+            const pricePerUnit = parseFloat(priceInput.value); 
             
             if (!ingredientId || isNaN(quantity) || quantity <= 0 || isNaN(pricePerUnit) || pricePerUnit < 0) {
                  return showToast('Veuillez sélectionner un ingrédient et entrer une quantité et un prix par unité valides.'); 
             }
             const ingredient = allIngredients.find(i => i.id === ingredientId); 
             
-            // Store price per unit and quantity
             currentPurchaseOrderItems.push({
                 id: ingredient.id, 
                 name: ingredient.name, 
                 unit: ingredient.unit, 
                 quantity, 
-                price: pricePerUnit // Store price per unit
+                price: pricePerUnit // Store price per unit correctly
             }); 
             
             renderCurrentPurchaseOrderItems(); 
@@ -1110,66 +1124,83 @@
         
         document.getElementById('po-items-list').addEventListener('click', e => { const button = e.target.closest('.remove-po-item-btn'); if (button) { currentPurchaseOrderItems.splice(button.dataset.index, 1); renderCurrentPurchaseOrderItems(); } }); 
         
-        document.getElementById('purchase-order-form').addEventListener('submit', async e => { 
-            e.preventDefault(); 
+        // --- Corrected Purchase Order Form Submission ---
+        document.getElementById('purchase-order-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
             console.log("Form submitted"); // Debug log 1
-            const poId = document.getElementById('po-id').value; 
-            const supplierId = document.getElementById('po-supplier-select').value; 
+            const poId = document.getElementById('po-id').value;
+            const supplierId = document.getElementById('po-supplier-select').value;
             const fileInput = document.getElementById('po-invoice-file');
-            const file = fileInput.files[0]; 
-             console.log("File selected:", file ? file.name : "None"); // Debug log 2
-            
-            if (!supplierId || currentPurchaseOrderItems.length === 0) return showToast('Fournisseur et articles requis.'); 
-            
-            let invoiceUrl = ''; 
-            const existingPo = poId ? allPurchaseOrders.find(po => po.id === poId) : null; 
-            
-            // Preserve existing URL if editing and no new file is selected
-            if (existingPo && existingPo.invoiceUrl && !file) {
-                 invoiceUrl = existingPo.invoiceUrl;
-                 console.log("Preserving existing invoice URL:", invoiceUrl); // Debug log 3a
+            const file = fileInput.files[0];
+            console.log("File selected:", file ? file.name : "None"); // Debug log 2
+
+            if (!supplierId || currentPurchaseOrderItems.length === 0) {
+                showToast('Fournisseur et articles requis.');
+                return;
             }
 
-            try {
-                 // Upload new file if provided
-                 if (file) { 
-                      console.log("Attempting to upload file..."); // Debug log 3b
-                     const storageRef = ref(storage, `invoices/${appId}/${Date.now()}-${file.name}`); 
-                     await uploadBytes(storageRef, file); 
-                     invoiceUrl = await getDownloadURL(storageRef); 
-                     console.log("File uploaded successfully, URL:", invoiceUrl); // Debug log 4
-                 }
+            let invoiceUrl = '';
+            const existingPo = poId ? allPurchaseOrders.find(po => po.id === poId) : null;
 
-                // Calculate total cost from items (price per unit * quantity)
-                const totalCost = currentPurchaseOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0); 
-                const data = { 
-                    supplierId, 
-                    items: currentPurchaseOrderItems, // Items now include price per unit
-                    totalCost, // Calculated total cost
-                    invoiceUrl 
-                }; 
-                console.log("Data to save:", data); // Debug log 5
+            // Preserve existing URL if editing and no new file is selected
+            if (existingPo && existingPo.invoiceUrl && !file) {
+                invoiceUrl = existingPo.invoiceUrl;
+                console.log("Preserving existing invoice URL:", invoiceUrl); // Debug log 3a
+            }
 
-                if (poId) { 
-                    console.log("Updating existing PO:", poId); // Debug log 6a
-                    await updateDoc(doc(purchaseOrdersCol, poId), data); 
-                    showToast('Commande fournisseur mise à jour'); 
-                } else { 
-                    console.log("Adding new PO"); // Debug log 6b
-                    data.status = 'pending'; 
-                    data.createdAt = serverTimestamp(); 
-                    await addDoc(purchaseOrdersCol, data); 
-                    showToast('Commande fournisseur créée'); 
-                } 
-                console.log("Database operation successful"); // Debug log 7
-                closeModal('purchase-order-modal'); 
-            } catch (error) { 
-                console.error("Error saving purchase order:", error); // Log the full error
-                showToast(`Erreur lors de l'enregistrement: ${error.message}`); // Show more specific error
-            } finally {
-                // Reset file input regardless of success/failure after attempting save
-                console.log("Resetting file input"); // Debug log 8
-                fileInput.value = '';
+            // Function to handle the database save operation
+            const saveOrderData = async (url) => {
+                try {
+                    // Calculate total cost from items (price per unit * quantity)
+                    const totalCost = currentPurchaseOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    const data = {
+                        supplierId,
+                        items: currentPurchaseOrderItems,
+                        totalCost, // Calculated total cost
+                        invoiceUrl: url // Use the URL passed to the function
+                    };
+                    console.log("Data to save:", data); // Debug log 5
+
+                    if (poId) {
+                        console.log("Updating existing PO:", poId); // Debug log 6a
+                        await updateDoc(doc(purchaseOrdersCol, poId), data);
+                        showToast('Commande fournisseur mise à jour');
+                    } else {
+                        console.log("Adding new PO"); // Debug log 6b
+                        data.status = 'pending';
+                        data.createdAt = serverTimestamp();
+                        await addDoc(purchaseOrdersCol, data);
+                        showToast('Commande fournisseur créée');
+                    }
+                    console.log("Database operation successful"); // Debug log 7
+                    closeModal('purchase-order-modal');
+                } catch (dbError) {
+                    console.error("Error saving purchase order to DB:", dbError); // Log DB error specifically
+                    showToast(`Erreur lors de l'enregistrement en base de données: ${dbError.message}`);
+                } finally {
+                     console.log("Resetting file input in finally block"); // Debug log 8
+                    fileInput.value = ''; // Reset file input in finally block
+                }
+            };
+
+            // Process file upload first if a file exists
+            if (file) {
+                try {
+                    console.log("Attempting to upload file..."); // Debug log 3b
+                    const storageRef = ref(storage, `invoices/${appId}/${Date.now()}-${file.name}`);
+                    await uploadBytes(storageRef, file);
+                    invoiceUrl = await getDownloadURL(storageRef);
+                    console.log("File uploaded successfully, URL:", invoiceUrl); // Debug log 4
+                    await saveOrderData(invoiceUrl); // Save data AFTER getting URL
+                } catch (uploadError) {
+                    console.error("Error uploading file:", uploadError); // Log upload error specifically
+                    showToast(`Erreur lors de l'envoi de la facture: ${uploadError.message}`);
+                     console.log("Resetting file input after upload error"); // Debug log 9
+                    fileInput.value = ''; // Reset file input on upload error
+                }
+            } else {
+                // No file to upload, proceed directly to saving data with potentially existing URL
+                await saveOrderData(invoiceUrl);
             }
         });
         
@@ -1184,7 +1215,13 @@
                 const batch = writeBatch(db); 
                 purchaseOrder.items.forEach(item => { 
                     const ingRef = doc(ingredientsCol, item.id); 
-                    batch.update(ingRef, { quantity: increment(item.quantity) }); 
+                    // Make sure quantity and price are numbers before incrementing
+                    const quantityToAdd = Number(item.quantity) || 0; 
+                    if (quantityToAdd > 0) {
+                        batch.update(ingRef, { quantity: increment(quantityToAdd) }); 
+                    } else {
+                        console.warn(`Invalid quantity found for item ${item.name} in PO ${poId}. Skipping stock update for this item.`);
+                    }
                 }); 
                 batch.update(doc(purchaseOrdersCol, poId), { status: 'received', receivedAt: serverTimestamp() }); 
                 await batch.commit(); 
@@ -1218,7 +1255,11 @@
                 document.getElementById('po-modal-title').textContent = 'Modifier la Commande Fournisseur'; 
                 document.getElementById('po-id').value = poId; 
                 document.getElementById('po-supplier-select').value = purchaseOrder.supplierId; 
-                currentPurchaseOrderItems = [...purchaseOrder.items]; 
+                // Ensure items have price (backward compatibility or just robustness)
+                 currentPurchaseOrderItems = purchaseOrder.items.map(item => ({
+                    ...item,
+                    price: Number(item.price) || 0 // Ensure price is a number, default to 0 if missing/invalid
+                }));
                 renderCurrentPurchaseOrderItems(); 
                 document.getElementById('po-invoice-file').value = ''; 
                 openModal('purchase-order-modal'); 
@@ -1229,7 +1270,11 @@
                  document.getElementById('po-id').value = ''; // Clear ID for new order
                  document.getElementById('po-modal-title').textContent = 'Nouvelle Commande Fournisseur (Relance)';
                  document.getElementById('po-supplier-select').value = poToReorder.supplierId;
-                 currentPurchaseOrderItems = poToReorder.items.map(item => ({...item})); // Create a shallow copy of items
+                 // Ensure items have price when reordering
+                 currentPurchaseOrderItems = poToReorder.items.map(item => ({
+                      ...item,
+                     price: Number(item.price) || 0 // Ensure price is a number
+                 })); 
                  renderCurrentPurchaseOrderItems();
                  document.getElementById('po-invoice-file').value = ''; // Clear potential old invoice
                  openModal('purchase-order-modal');
