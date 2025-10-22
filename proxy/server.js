@@ -9,18 +9,19 @@ const PORT = process.env.PORT || 3000; // Render sets the PORT environment varia
 // Utilise les variables d'environnement de Render
 const API_USERNAME = process.env.POS_USERNAME; 
 const API_PASSWORD = process.env.POS_PASSWORD;
-// CORRECTION : Mise à jour de l'URL d'authentification et du domaine
-const API_AUTH_URL = "https://iam.scpos.com/auth/login"; // C'est la bonne URL !
+// URL d'authentification (Corrigée)
+const API_AUTH_URL = "https://iam.scpos.com/auth/login"; 
 const API_SALES_URL_BASE = "https://iam.scpos.com/service/api/report/order_goods";
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://solo-pro.onrender.com"; // Fallback au cas où
+// Email spécifique requis pour l'API des ventes (selon votre URL d'exemple)
+const API_SALES_EMAIL = "f.guerouali@gmail.com"; 
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://solo-pro.onrender.com"; // Fallback
 
 // Vérification au démarrage si les variables d'environnement sont définies
 if (!API_USERNAME || !API_PASSWORD) {
     console.error("ERREUR: Les variables d'environnement POS_USERNAME et POS_PASSWORD sont requises !");
-    // process.exit(1); // Arrête le serveur s'il manque des identifiants (plus sûr)
 }
 if (!FRONTEND_URL) {
-     console.warn("ATTENTION: La variable d'environnement FRONTEND_URL n'est pas définie, utilisation de la valeur par défaut.");
+     console.warn("ATTENTION: La variable d'environnement FRONTEND_URL n'est pas définie.");
 }
 
 
@@ -101,17 +102,16 @@ app.get('/api/sales', async (req, res) => {
     if (!startDate || !endDate) {
         return res.status(400).json({ message: "Dates de début et de fin requises." });
     }
-     if (!API_USERNAME) { // Vérifie si l'email (utilisé dans l'URL) est disponible
-         return res.status(500).json({ message: "Email utilisateur POS non configuré sur le serveur proxy." });
+     if (!API_SALES_EMAIL) { // Vérifie si l'email pour l'URL des ventes est disponible
+         return res.status(500).json({ message: "Email pour l'API des ventes non configuré sur le serveur proxy." });
     }
 
 
     const startDateFormatted = `${startDate} 00:00:00`;
     const endDateFormatted = `${endDate} 23:59:59`;
     
-    // Construire l'URL de l'API externe
-    // !! Assurez-vous que l'email est bien nécessaire ici, sinon retirez-le !!
-    const externalApiUrl = `${API_SALES_URL_BASE}?pageNum=${pageNum}&pageSize=${pageSize}&startDate=${encodeURIComponent(startDateFormatted)}&endDate=${encodeURIComponent(endDateFormatted)}&email=${encodeURIComponent(API_USERNAME)}`;
+    // CORRECTION : Utiliser API_SALES_EMAIL au lieu de API_USERNAME dans l'URL
+    const externalApiUrl = `${API_SALES_URL_BASE}?pageNum=${pageNum}&pageSize=${pageSize}&startDate=${encodeURIComponent(startDateFormatted)}&endDate=${encodeURIComponent(endDateFormatted)}&email=${encodeURIComponent(API_SALES_EMAIL)}`;
 
     console.log(`Proxying request to: ${externalApiUrl}`);
 
