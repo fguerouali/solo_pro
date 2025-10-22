@@ -635,15 +635,50 @@
         const productCost = calculateProductCost(product); card.innerHTML = `<div class="p-6"><div class="flex justify-between items-start"><div><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p></div><span class="text-gray-400 text-xl">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div><p class="text-gray-800 font-bold text-2xl text-right mt-4">${product.price.toFixed(2)} Mad</p></div><div class="bg-gray-50 px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
         const renderOrderHistory = (history) => { const container = document.getElementById('order-history-list'); const placeholder = document.getElementById('order-history-placeholder'); container.innerHTML = ''; if (history.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { history.forEach(order => { const card = document.createElement('div'); card.className = 'bg-white p-4 rounded-xl shadow-md'; const displayDate = formatDateToDDMMYYYY(order.saleDate || order.createdAt); const itemsHtml = order.items.map(item => `<li>${item.quantity} x ${item.name}</li>`).join(''); card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-gray-700">Vente du ${displayDate}</p><ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul></div><div class="flex items-center gap-4 text-right"><p class="font-bold text-lg text-gray-800">${order.totalPrice.toFixed(2)} Mad</p><button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; container.appendChild(card); }); } };
         const renderSuppliers = () => { const container = document.getElementById('suppliers-list'); const placeholder = document.getElementById('suppliers-placeholder'); container.innerHTML = ''; if (allSuppliers.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allSuppliers.forEach(sup => { const div = document.createElement('div'); div.className = "bg-white p-3 rounded-lg shadow-sm flex justify-between items-center"; div.innerHTML = `<div><p class="font-semibold">${sup.name}</p><p class="text-sm text-gray-500">${sup.contact || ''}</p></div><div><button data-id="${sup.id}" class="edit-supplier-btn text-gray-400 hover:text-gray-800 mr-2"><i class="fas fa-edit"></i></button><button data-id="${sup.id}" class="delete-supplier-btn text-gray-400 hover:text-red-600"><i class="fas fa-trash"></i></button></div>`; container.appendChild(div); }); } };
-        const renderPurchaseOrders = (purchaseOrders) => { const container = document.getElementById('purchase-orders-list'); const placeholder = document.getElementById('purchase-orders-placeholder'); container.innerHTML = ''; if (purchaseOrders.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { purchaseOrders.forEach(po => { const supplier = allSuppliers.find(s => s.id === po.supplierId); const div = document.createElement('div'); const isReceived = po.status === 'received'; div.className = `bg-white p-3 rounded-lg shadow-sm`; const itemsHtml = po.items.map(i => `<li>${i.quantity} ${i.unit} - ${i.name} (${i.price.toFixed(2)}Mad)</li>`).join(''); const totalDisplay = po.totalCost ? `<p class="font-bold text-lg text-gray-800">${po.totalCost.toFixed(2)} Mad</p>` : ''; const actionsHtml = !isReceived ? `
-        <div class="flex justify-between items-center mt-3 pt-3 border-t">
-             <div>
-                 <button data-id="${po.id}" class="edit-po-btn text-gray-500 hover:text-gray-800 text-sm font-medium mr-3"><i class="fas fa-edit mr-1"></i> Modifier</button>
-                 <button data-id="${po.id}" class="delete-po-btn text-red-500 hover:text-red-800 text-sm font-medium"><i class="fas fa-trash mr-1"></i> Supprimer</button>
-            </div>
-            <button data-id="${po.id}" class="receive-po-btn btn-primary text-sm py-1 px-3">Réceptionner</button>
-        </div>
-    ` : ''; div.innerHTML = `<div class="p-3"><div class="flex justify-between items-start"><div><p class="font-semibold text-gray-800">${supplier ? supplier.name : 'Fournisseur inconnu'}</p><p class="text-xs text-gray-500">${new Date(po.createdAt.seconds * 1000).toLocaleDateString('fr-FR')}</p><ul class="text-sm mt-2 list-disc list-inside">${itemsHtml}</ul></div><div class="text-right"><span class="text-xs font-bold py-1 px-2 rounded-full ${isReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${isReceived ? 'Reçue' : 'En attente'}</span>${totalDisplay}${po.invoiceUrl ? `<a href="${po.invoiceUrl}" target="_blank" class="block text-sm text-gray-600 hover:text-gray-900 mt-2"><i class="fas fa-file-invoice"></i> Facture</a>` : ''}</div></div></div>${actionsHtml}`; container.appendChild(div); }); } };
+        const renderPurchaseOrders = (purchaseOrders) => { 
+            const container = document.getElementById('purchase-orders-list'); 
+            const placeholder = document.getElementById('purchase-orders-placeholder'); 
+            container.innerHTML = ''; 
+            if (purchaseOrders.length === 0) { 
+                container.innerHTML = ''; 
+                container.appendChild(placeholder); 
+            } else { 
+                purchaseOrders.forEach(po => { 
+                    const supplier = allSuppliers.find(s => s.id === po.supplierId); 
+                    const div = document.createElement('div'); 
+                    const isReceived = po.status === 'received'; 
+                    div.className = `bg-white p-3 rounded-lg shadow-sm`; 
+                    const itemsHtml = po.items.map(i => `<li>${i.quantity} ${i.unit} - ${i.name} (${i.price.toFixed(2)} Mad)</li>`).join(''); 
+                    const totalDisplay = po.totalCost ? `<p class="font-bold text-lg text-gray-800">${po.totalCost.toFixed(2)} Mad</p>` : ''; 
+                    const actionsHtml = `
+                    <div class="flex justify-between items-center mt-3 pt-3 border-t">
+                         <div>
+                             <button data-id="${po.id}" class="reorder-po-btn text-blue-500 hover:text-blue-800 text-sm font-medium mr-3"><i class="fas fa-redo mr-1"></i> Relancer</button>
+                             ${!isReceived ? `<button data-id="${po.id}" class="edit-po-btn text-gray-500 hover:text-gray-800 text-sm font-medium mr-3"><i class="fas fa-edit mr-1"></i> Modifier</button>` : ''}
+                             ${!isReceived ? `<button data-id="${po.id}" class="delete-po-btn text-red-500 hover:text-red-800 text-sm font-medium"><i class="fas fa-trash mr-1"></i> Supprimer</button>` : ''}
+                         </div>
+                         ${!isReceived ? `<button data-id="${po.id}" class="receive-po-btn btn-primary text-sm py-1 px-3">Réceptionner</button>` : ''}
+                    </div>`; 
+                    
+                    div.innerHTML = `<div class="p-3">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-semibold text-gray-800">${supplier ? supplier.name : 'Fournisseur inconnu'}</p>
+                                <p class="text-xs text-gray-500">${formatDateToDDMMYYYY(po.createdAt)}</p>
+                                <ul class="text-sm mt-2 list-disc list-inside">${itemsHtml}</ul>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-bold py-1 px-2 rounded-full ${isReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${isReceived ? 'Reçue' : 'En attente'}</span>
+                                ${isReceived ? `<p class="text-xs text-gray-500 mt-1">Reçue le ${formatDateToDDMMYYYY(po.receivedAt)}</p>` : ''}
+                                ${totalDisplay}
+                                ${po.invoiceUrl ? `<a href="${po.invoiceUrl}" target="_blank" class="block text-sm text-gray-600 hover:text-gray-900 mt-2"><i class="fas fa-file-invoice"></i> Facture</a>` : ''}
+                            </div>
+                        </div>
+                    </div>${actionsHtml}`; 
+                    container.appendChild(div); 
+                }); 
+            } 
+        };
         const renderLossHistory = () => { const container = document.getElementById('loss-history-list'); const placeholder = document.getElementById('loss-history-placeholder'); container.innerHTML = ''; if (allLosses.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allLosses.forEach(loss => { const card = document.createElement('div'); card.className = 'bg-yellow-50 p-4 rounded-xl shadow-md border-l-4 border-yellow-400'; const date = loss.createdAt ? new Date(loss.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue'; const reasonHtml = loss.reason ? `<p class="text-sm text-gray-500 italic mt-1">"${loss.reason}"</p>` : ''; card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-yellow-800">Perte du ${date}</p><p class="text-gray-700 mt-2"><span class="font-semibold">${loss.quantity} ${loss.unit || ''}</span> de <span class="font-semibold">${loss.itemName}</span></p>${reasonHtml}</div><div class="flex items-center gap-4 text-right"><button data-id="${loss.id}" class="delete-loss-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; container.appendChild(card); }); } };
         
         // --- KPI FILTERS ---
@@ -1045,9 +1080,104 @@
         const renderCurrentPurchaseOrderItems = () => { const list = document.getElementById('po-items-list'); list.innerHTML = ''; currentPurchaseOrderItems.forEach((item, index) => { const li = document.createElement('div'); li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name} <span class="font-semibold">(${item.price.toFixed(2)} Mad)</span></span><button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; list.appendChild(li); }); updatePurchaseOrderTotal(); }; 
         document.getElementById('add-po-item-btn').addEventListener('click', () => { const select = document.getElementById('po-ingredient-select'); const ingredientId = select.value; const quantity = parseFloat(document.getElementById('po-quantity').value); const price = parseFloat(document.getElementById('po-price').value); if (!ingredientId || isNaN(quantity) || quantity <= 0 || isNaN(price) || price < 0) return showToast('Veuillez remplir tous les champs correctement.'); const ingredient = allIngredients.find(i => i.id === ingredientId); currentPurchaseOrderItems.push({id: ingredient.id, name: ingredient.name, unit: ingredient.unit, quantity, price}); renderCurrentPurchaseOrderItems(); select.value = ''; document.getElementById('po-quantity').value = ''; document.getElementById('po-price').value = ''; }); document.getElementById('po-items-list').addEventListener('click', e => { const button = e.target.closest('.remove-po-item-btn'); if (button) { currentPurchaseOrderItems.splice(button.dataset.index, 1); renderCurrentPurchaseOrderItems(); } }); 
         
-        document.getElementById('purchase-order-form').addEventListener('submit', async e => { e.preventDefault(); const poId = document.getElementById('po-id').value; const supplierId = document.getElementById('po-supplier-select').value; const file = document.getElementById('po-invoice-file').files[0]; if (!supplierId || currentPurchaseOrderItems.length === 0) return showToast('Fournisseur et articles requis.'); let invoiceUrl = ''; const existingPo = poId ? allPurchaseOrders.find(po => po.id === poId) : null; if (existingPo && existingPo.invoiceUrl) { invoiceUrl = existingPo.invoiceUrl; } if (file) { const storageRef = ref(storage, `invoices/${appId}/${Date.now()}-${file.name}`); await uploadBytes(storageRef, file); invoiceUrl = await getDownloadURL(storageRef); } const totalCost = currentPurchaseOrderItems.reduce((sum, item) => sum + item.price, 0); const data = { supplierId, items: currentPurchaseOrderItems, totalCost, invoiceUrl }; try { if (poId) { await updateDoc(doc(purchaseOrdersCol, poId), data); showToast('Commande fournisseur mise à jour'); } else { data.status = 'pending'; data.createdAt = serverTimestamp(); await addDoc(purchaseOrdersCol, data); showToast('Commande fournisseur créée'); } closeModal('purchase-order-modal'); } catch (error) { console.error("Error saving purchase order: ", error); showToast("Erreur lors de l'enregistrement."); } });
+        document.getElementById('purchase-order-form').addEventListener('submit', async e => { 
+            e.preventDefault(); 
+            const poId = document.getElementById('po-id').value; 
+            const supplierId = document.getElementById('po-supplier-select').value; 
+            const fileInput = document.getElementById('po-invoice-file');
+            const file = fileInput.files[0]; 
+            
+            if (!supplierId || currentPurchaseOrderItems.length === 0) return showToast('Fournisseur et articles requis.'); 
+            
+            let invoiceUrl = ''; 
+            const existingPo = poId ? allPurchaseOrders.find(po => po.id === poId) : null; 
+            
+            // Preserve existing URL if editing and no new file is selected
+            if (existingPo && existingPo.invoiceUrl && !file) {
+                 invoiceUrl = existingPo.invoiceUrl;
+            }
+
+            try {
+                // Upload new file if provided
+                if (file) { 
+                    const storageRef = ref(storage, `invoices/${appId}/${Date.now()}-${file.name}`); 
+                    await uploadBytes(storageRef, file); 
+                    invoiceUrl = await getDownloadURL(storageRef); 
+                     console.log("File uploaded, URL:", invoiceUrl); // Debug log
+                }
+
+                const totalCost = currentPurchaseOrderItems.reduce((sum, item) => sum + item.price, 0); 
+                const data = { supplierId, items: currentPurchaseOrderItems, totalCost, invoiceUrl }; 
+                
+                if (poId) { 
+                    await updateDoc(doc(purchaseOrdersCol, poId), data); 
+                    showToast('Commande fournisseur mise à jour'); 
+                } else { 
+                    data.status = 'pending'; 
+                    data.createdAt = serverTimestamp(); 
+                    await addDoc(purchaseOrdersCol, data); 
+                    showToast('Commande fournisseur créée'); 
+                } 
+                closeModal('purchase-order-modal'); 
+            } catch (error) { 
+                console.error("Error saving purchase order (file upload or DB save): ", error); 
+                showToast("Erreur lors de l'enregistrement. Vérifiez la console pour détails."); 
+            } finally {
+                // Reset file input regardless of success/failure after attempting save
+                fileInput.value = '';
+            }
+        });
         
-        document.getElementById('purchase-orders-list').addEventListener('click', async e => { const target = e.target.closest('button[data-id]'); if (!target) return; const poId = target.dataset.id; if (target.classList.contains('receive-po-btn')) { const poDoc = await getDoc(doc(purchaseOrdersCol, poId)); const purchaseOrder = poDoc.data(); const batch = writeBatch(db); purchaseOrder.items.forEach(item => { const ingRef = doc(ingredientsCol, item.id); batch.update(ingRef, { quantity: increment(item.quantity) }); }); batch.update(doc(purchaseOrdersCol, poId), { status: 'received', receivedAt: serverTimestamp() }); await batch.commit(); showToast('Stock mis à jour !'); } else if (target.classList.contains('delete-po-btn')) { if (confirm('Voulez-vous vraiment supprimer cette commande fournisseur ? Cette action est irréversible.')) { try { await deleteDoc(doc(purchaseOrdersCol, poId)); showToast('Commande fournisseur supprimée.'); } catch (error) { console.error("Error deleting purchase order:", error); showToast('Erreur lors de la suppression.'); } } } else if (target.classList.contains('edit-po-btn')) { const purchaseOrder = allPurchaseOrders.find(po => po.id === poId); if (!purchaseOrder) return; document.getElementById('po-modal-title').textContent = 'Modifier la Commande Fournisseur'; document.getElementById('po-id').value = poId; document.getElementById('po-supplier-select').value = purchaseOrder.supplierId; currentPurchaseOrderItems = [...purchaseOrder.items]; renderCurrentPurchaseOrderItems(); document.getElementById('po-invoice-file').value = ''; openModal('purchase-order-modal'); } });
+        document.getElementById('purchase-orders-list').addEventListener('click', async e => { 
+            const target = e.target.closest('button[data-id]'); 
+            if (!target) return; 
+            const poId = target.dataset.id; 
+            
+            if (target.classList.contains('receive-po-btn')) { 
+                const poDoc = await getDoc(doc(purchaseOrdersCol, poId)); 
+                const purchaseOrder = poDoc.data(); 
+                const batch = writeBatch(db); 
+                purchaseOrder.items.forEach(item => { 
+                    const ingRef = doc(ingredientsCol, item.id); 
+                    batch.update(ingRef, { quantity: increment(item.quantity) }); 
+                }); 
+                batch.update(doc(purchaseOrdersCol, poId), { status: 'received', receivedAt: serverTimestamp() }); 
+                await batch.commit(); 
+                showToast('Stock mis à jour !'); 
+            } else if (target.classList.contains('delete-po-btn')) { 
+                if (confirm('Voulez-vous vraiment supprimer cette commande fournisseur ? Cette action est irréversible.')) { 
+                    try { 
+                        // TODO: Optionally delete associated invoice from storage here if needed
+                        await deleteDoc(doc(purchaseOrdersCol, poId)); 
+                        showToast('Commande fournisseur supprimée.'); 
+                    } catch (error) { 
+                        console.error("Error deleting purchase order:", error); 
+                        showToast('Erreur lors de la suppression.'); 
+                    } 
+                } 
+            } else if (target.classList.contains('edit-po-btn')) { 
+                const purchaseOrder = allPurchaseOrders.find(po => po.id === poId); 
+                if (!purchaseOrder) return; 
+                document.getElementById('po-modal-title').textContent = 'Modifier la Commande Fournisseur'; 
+                document.getElementById('po-id').value = poId; 
+                document.getElementById('po-supplier-select').value = purchaseOrder.supplierId; 
+                currentPurchaseOrderItems = [...purchaseOrder.items]; 
+                renderCurrentPurchaseOrderItems(); 
+                document.getElementById('po-invoice-file').value = ''; 
+                openModal('purchase-order-modal'); 
+            } else if (target.classList.contains('reorder-po-btn')) {
+                 const poToReorder = allPurchaseOrders.find(po => po.id === poId);
+                 if (!poToReorder) return;
+                 document.getElementById('purchase-order-form').reset();
+                 document.getElementById('po-id').value = ''; // Clear ID for new order
+                 document.getElementById('po-modal-title').textContent = 'Nouvelle Commande Fournisseur (Relance)';
+                 document.getElementById('po-supplier-select').value = poToReorder.supplierId;
+                 currentPurchaseOrderItems = poToReorder.items.map(item => ({...item})); // Create a shallow copy of items
+                 renderCurrentPurchaseOrderItems();
+                 document.getElementById('po-invoice-file').value = ''; // Clear potential old invoice
+                 openModal('purchase-order-modal');
+            }
+        });
         
         // --- IMPORT/EXPORT ---
         const CSV_INSTRUCTIONS = { 
@@ -1061,43 +1191,156 @@
         document.getElementById('import-orders-btn').addEventListener('click', () => { importType = 'orders'; document.getElementById('import-modal-title').textContent = 'Importer des Ventes'; document.getElementById('import-instructions').innerHTML = CSV_INSTRUCTIONS.orders; openModal('import-modal'); }); 
         document.getElementById('cancel-import').addEventListener('click', () => closeModal('import-modal')); 
         document.getElementById('csv-file-input').addEventListener('change', () => { document.getElementById('process-import-btn').disabled = !document.getElementById('csv-file-input').files.length; }); 
-        document.getElementById('process-import-btn').addEventListener('click', async () => { const file = document.getElementById('csv-file-input').files[0]; if (!file) return showToast("Veuillez choisir un fichier."); document.getElementById('process-import-btn').disabled = true; const reader = new FileReader(); reader.onload = async (event) => { const lines = event.target.result.split('\n').filter(line => line.trim() !== ''); lines.shift(); try { if (importType === 'ingredients') await importIngredients(lines); else if (importType === 'products') await importProducts(lines); else if (importType === 'orders') await importOrders(lines); showToast('Importation terminée !'); } catch (error) { console.error("Import error:", error); showToast(`Erreur: ${error.message}`); } finally { closeModal('import-modal'); document.getElementById('csv-file-input').value = ''; document.getElementById('process-import-btn').disabled = false; } }; reader.readAsText(file); });
+        document.getElementById('process-import-btn').addEventListener('click', async () => { 
+            const file = document.getElementById('csv-file-input').files[0]; 
+            if (!file) return showToast("Veuillez choisir un fichier."); 
+            document.getElementById('process-import-btn').disabled = true; 
+            const reader = new FileReader(); 
+            reader.onload = async (event) => { 
+                const lines = event.target.result.split('\n').filter(line => line.trim() !== ''); 
+                if (lines.length <= 1) { // Check if only header or empty
+                   showToast("Le fichier CSV est vide ou ne contient que l'en-tête.");
+                   closeModal('import-modal'); 
+                   document.getElementById('csv-file-input').value = ''; 
+                   document.getElementById('process-import-btn').disabled = false; 
+                   return;
+                }
+                const header = lines.shift(); // Remove header line
+                try { 
+                    if (importType === 'ingredients') await importIngredients(lines); 
+                    else if (importType === 'products') await importProducts(lines); 
+                    else if (importType === 'orders') await importOrders(lines); 
+                    showToast('Importation terminée !'); 
+                } catch (error) { 
+                    console.error("Import error:", error); 
+                    showToast(`Erreur lors de l'importation: ${error.message}. Vérifiez la ligne correspondante dans votre fichier.`); 
+                } finally { 
+                    closeModal('import-modal'); 
+                    document.getElementById('csv-file-input').value = ''; 
+                    document.getElementById('process-import-btn').disabled = false; 
+                } 
+            }; 
+            reader.readAsText(file); 
+        });
         
-        async function importIngredients(lines) { const batch = writeBatch(db); lines.forEach(line => { const [name, quantity, unit, cost] = line.trim().split(','); if (name && quantity && unit) { batch.set(doc(ingredientsCol), { name: name.trim(), quantity: parseFloat(quantity), unit: unit.trim(), cost: parseFloat(cost) || 0, createdAt: serverTimestamp() }); } }); await batch.commit(); }
-        async function importProducts(lines) { const batch = writeBatch(db); lines.forEach(line => { const values = line.trim().split(','); const name = values[0], price = values[1], type = values[2], details = values.slice(3).join(','); if (!name || !price || !type || !details) return; const data = { name: name.trim(), price: parseFloat(price), type: type.trim(), createdAt: serverTimestamp() }; if (data.type === 'Pizza') { data.recipe = details.trim().replace(/"/g, '').split(';').map(part => { const [ingName, ingQty, ingUnit] = part.split(':'); const ing = allIngredients.find(i => i.name.toLowerCase() === ingName.toLowerCase()); if (!ing) throw new Error(`Ingrédient introuvable: ${ingName}`); return { id: ing.id, name: ing.name, quantity: parseFloat(ingQty), unit: ingUnit }; }); } else { const linked = allIngredients.find(i => i.name.toLowerCase() === details.trim().toLowerCase()); if (!linked) throw new Error(`Article introuvable: ${details}`); data.linkedIngredientId = linked.id; } batch.set(doc(productsCol), data); }); await batch.commit(); }
+        async function importIngredients(lines) { 
+            const batch = writeBatch(db); 
+            lines.forEach((line, index) => { 
+                try {
+                    const [name, quantity, unit, cost] = line.trim().split(','); 
+                    if (name && quantity && unit) { 
+                        // Use collection() and doc() to ensure a new document reference
+                        batch.set(doc(collection(db, ingredientsCol.path)), { name: name.trim(), quantity: parseFloat(quantity), unit: unit.trim(), cost: parseFloat(cost) || 0, createdAt: serverTimestamp() }); 
+                    } else {
+                        console.warn(`Ligne ingrédient ignorée (données manquantes): Ligne ${index + 2}`, line);
+                    }
+                } catch(e) {
+                     throw new Error(`Erreur à la ligne ${index + 2} (ingrédients) : ${e.message}`);
+                }
+            }); 
+            await batch.commit(); 
+        }
+
+        async function importProducts(lines) { 
+            const batch = writeBatch(db); 
+            lines.forEach((line, index) => { 
+                try {
+                    const values = line.trim().split(','); 
+                    const name = values[0], price = values[1], type = values[2], details = values.slice(3).join(','); 
+                    if (!name || !price || !type || !details) {
+                        console.warn(`Ligne produit ignorée (données manquantes): Ligne ${index + 2}`, line);
+                        return; // Skip this line
+                    }; 
+                    const data = { name: name.trim(), price: parseFloat(price), type: type.trim(), createdAt: serverTimestamp() }; 
+                    if (['Pizza', 'Entrée', 'Dessert'].includes(data.type)) { 
+                         data.recipe = details.trim().replace(/"/g, '').split(';').map(part => { 
+                            const [ingName, ingQty, ingUnit] = part.split(':'); 
+                             if(!ingName || !ingQty || !ingUnit) throw new Error(`Format de recette incorrect pour ${name}`);
+                            const ing = allIngredients.find(i => i.name.toLowerCase() === ingName.trim().toLowerCase()); 
+                            if (!ing) throw new Error(`Ingrédient introuvable: ${ingName} pour le produit ${name}`); 
+                            return { id: ing.id, name: ing.name, quantity: parseFloat(ingQty), unit: ingUnit.trim() }; 
+                         }); 
+                         if (data.recipe.length === 0 || data.recipe.some(r => !r.id)) throw new Error(`Recette invalide ou vide pour ${name}`);
+                    } else { 
+                        const linked = allIngredients.find(i => i.name.toLowerCase() === details.trim().toLowerCase()); 
+                        if (!linked) throw new Error(`Article en stock introuvable: ${details} pour le produit ${name}`); 
+                        data.linkedIngredientId = linked.id; 
+                    } 
+                    // Use collection() and doc() to ensure a new document reference
+                    batch.set(doc(collection(db, productsCol.path)), data); 
+                 } catch(e) {
+                     throw new Error(`Erreur à la ligne ${index + 2} (produits) : ${e.message}`);
+                }
+            }); 
+            await batch.commit(); 
+        }
         
         async function importOrders(lines) { 
             const batch = writeBatch(db); 
-            for(const line of lines) { 
-                const [dateRaw, pNamesRaw, qtiesRaw] = line.trim().split(','); 
-                if(!dateRaw || !pNamesRaw || !qtiesRaw) continue; 
-                
-                const [day, month, year] = dateRaw.trim().split('/');
-                const saleDate = new Date(`${year}-${month}-${day}T12:00:00Z`); // Use ISO format with time and Z for UTC
-                if (isNaN(saleDate.getTime())) {
-                    console.warn(`Date invalide ignorée: ${dateRaw}`);
-                    continue; 
-                }
-
-                const pNames = pNamesRaw.replace(/"/g, '').split(';'); 
-                const qties = qtiesRaw.replace(/"/g, '').split(';'); 
-                let items = [], total = 0; 
-                for (let i = 0; i < pNames.length; i++) { 
-                    const name = pNames[i], qty = parseInt(qties[i]); 
-                    const prod = allProducts.find(p => p.name.toLowerCase() === name.toLowerCase()); 
-                    if (!prod) throw new Error(`Produit introuvable: ${name}`); 
-                    items.push({ id: prod.id, name: prod.name, quantity: qty, price: prod.price }); 
-                    total += prod.price * qty; 
-                    if (prod.recipe && prod.recipe.length > 0) { 
-                        for (const rItem of prod.recipe) batch.update(doc(ingredientsCol, rItem.id), { quantity: increment(-(rItem.quantity * qty)) }); 
-                    } else if(prod.linkedIngredientId) {
-                        batch.update(doc(ingredientsCol, prod.linkedIngredientId), { quantity: increment(-qty) }); 
+            for(const [index, line] of lines.entries()) { 
+                 try {
+                    const [dateRaw, pNamesRaw, qtiesRaw] = line.trim().split(','); 
+                    if(!dateRaw || !pNamesRaw || !qtiesRaw) {
+                         console.warn(`Ligne vente ignorée (données manquantes): Ligne ${index + 2}`, line);
+                        continue; // Skip this line
+                    }; 
+                    
+                    const [day, month, year] = dateRaw.trim().split('/');
+                    if (!day || !month || !year || day.length !== 2 || month.length !== 2 || year.length !== 4) {
+                         throw new Error(`Format de date invalide (attendu JJ/MM/AAAA) pour ${dateRaw}`);
                     }
-                } 
-                batch.set(doc(ordersCol), { items, totalPrice: total, createdAt: serverTimestamp(), saleDate }); 
+                    const saleDate = new Date(`${year}-${month}-${day}T12:00:00Z`); // Use ISO format with time and Z for UTC
+                    if (isNaN(saleDate.getTime())) {
+                        throw new Error(`Date invalide: ${dateRaw}`);
+                    }
+
+                    const pNames = pNamesRaw.replace(/"/g, '').split(';'); 
+                    const qties = qtiesRaw.replace(/"/g, '').split(';'); 
+                    if (pNames.length !== qties.length) throw new Error(`Nombre de produits et quantités incohérent`);
+                    
+                    let items = [], total = 0; 
+                    let deductions = new Map(); // Track deductions for this specific order line
+
+                    for (let i = 0; i < pNames.length; i++) { 
+                        const name = pNames[i].trim();
+                        const qtyStr = qties[i].trim();
+                        const qty = parseInt(qtyStr); 
+                         if (isNaN(qty) || qty <= 0) throw new Error(`Quantité invalide: ${qtyStr} pour ${name}`);
+
+                        const prod = allProducts.find(p => p.name.toLowerCase() === name.toLowerCase()); 
+                        if (!prod) throw new Error(`Produit introuvable: ${name}`); 
+                        items.push({ id: prod.id, name: prod.name, quantity: qty, price: prod.price }); 
+                        total += prod.price * qty; 
+
+                        // Aggregate deductions needed for this order line
+                        if (prod.recipe && prod.recipe.length > 0) { 
+                            for (const rItem of prod.recipe) {
+                                const currentDeduction = deductions.get(rItem.id) || 0;
+                                deductions.set(rItem.id, currentDeduction + (rItem.quantity * qty));
+                            } 
+                        } else if(prod.linkedIngredientId) {
+                            const currentDeduction = deductions.get(prod.linkedIngredientId) || 0;
+                            deductions.set(prod.linkedIngredientId, currentDeduction + qty);
+                        }
+                    } 
+
+                    // Apply deductions via batch update
+                     for(const [ingId, qtyToDeduct] of deductions.entries()) {
+                          // Note: We don't check stock here during import, assuming historical data is correct
+                          // or stock adjustment isn't the primary goal of historical import.
+                          // If stock checking IS needed, you'd query the current stock first.
+                         batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qtyToDeduct) }); 
+                     }
+
+                     // Use collection() and doc() to ensure a new document reference
+                    batch.set(doc(collection(db, ordersCol.path)), { items, totalPrice: total, createdAt: serverTimestamp(), saleDate }); 
+                 } catch(e) {
+                     throw new Error(`Erreur à la ligne ${index + 2} (ventes) : ${e.message}`);
+                 }
             } 
             await batch.commit(); 
         }
+
 
         const downloadCSV = (content, filename) => { const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", filename); link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
         document.getElementById('export-ingredients-btn').addEventListener('click', () => { let csv = "nom,quantite,unite,cout\n"; allIngredients.forEach(i => { csv += `${i.name},${i.quantity},${i.unit},${i.cost || 0}\n`; }); downloadCSV(csv, 'ingredients.csv'); });
