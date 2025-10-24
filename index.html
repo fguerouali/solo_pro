@@ -344,7 +344,24 @@
                     <div id="recipe-ingredients-list" class="space-y-2 mb-3"></div>
                     <div class="flex items-end gap-3"><div class="flex-grow"><label class="block text-sm font-medium">Ingrédient</label><select id="recipe-ingredient-select" class="mt-1 w-full input-style"></select></div><div><label class="block text-sm font-medium">Quantité</label><input type="number" id="recipe-quantity" min="0" step="any" class="mt-1 w-28 input-style"></div><button type="button" id="add-recipe-ingredient-btn" class="btn-secondary h-10">Ajouter</button></div>
                 </div>
-                <div id="linked-ingredient-section" class="mt-6 hidden"><h4 class="text-lg font-medium text-gray-800 mb-2">Article en Stock</h4><label class="block text-sm font-medium">Lier ce produit à un article de l'inventaire</label><select id="linked-ingredient-select" class="mt-1 w-full input-style"></select></div>
+                
+                <!-- MODIFICATION: Ajout champ quantité pour produits liés -->
+                <div id="linked-ingredient-section" class="mt-6 hidden">
+                    <h4 class="text-lg font-medium text-gray-800 mb-2">Article en Stock</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2">
+                            <label for="linked-ingredient-select" class="block text-sm font-medium">Lier à l'article</label>
+                            <select id="linked-ingredient-select" class="mt-1 w-full input-style"></select>
+                        </div>
+                        <div>
+                            <label for="linked-ingredient-quantity" class="block text-sm font-medium">Quantité Consommée</label>
+                            <input type="number" id="linked-ingredient-quantity" value="1" min="0" step="any" class="mt-1 w-full input-style">
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Quantité de l'article en stock consommée par vente de 1 produit.</p>
+                </div>
+                <!-- FIN MODIFICATION -->
+
                 <div class="mt-6 flex justify-end space-x-3"><button type="button" class="btn-secondary" id="cancel-product">Annuler</button><button type="submit" class="btn-primary">Sauvegarder Produit</button></div>
             </form>
         </div>
@@ -864,7 +881,18 @@
         // --- PRODUITS ---
         const populateIngredientSelects = () => {  const recipeSelect = document.getElementById('recipe-ingredient-select');  const linkedSelect = document.getElementById('linked-ingredient-select');  const poSelect = document.getElementById('po-ingredient-select'); const lossIngredientSelect = document.getElementById('loss-ingredient-select'); const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join('');  recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`;  linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`; poSelect.innerHTML = `<option value="">Choisir...</option>${options}`; lossIngredientSelect.innerHTML = `<option value="">Choisir...</option>${options}`};
         const populateProductSelects = () => { const orderSelect = document.getElementById('order-product-select'); const lossSelect = document.getElementById('loss-product-select'); const options = allProducts.map(product => `<option value="${product.id}">${product.name}</option>`).join(''); orderSelect.innerHTML = options; lossSelect.innerHTML = options; }
-        document.getElementById('add-product-btn').addEventListener('click', () => { document.getElementById('product-modal-title').textContent = 'Créer un Produit'; document.getElementById('product-form').reset(); document.getElementById('product-id').value = ''; document.getElementById('product-type').dispatchEvent(new Event('change')); currentRecipe = []; renderCurrentRecipe(); openModal('product-modal'); });
+        document.getElementById('add-product-btn').addEventListener('click', () => { 
+            document.getElementById('product-modal-title').textContent = 'Créer un Produit'; 
+            document.getElementById('product-form').reset(); 
+            document.getElementById('product-id').value = ''; 
+            document.getElementById('product-type').dispatchEvent(new Event('change')); 
+            currentRecipe = []; 
+            renderCurrentRecipe(); 
+            // *** NEW: Reset linked quantity field on add ***
+            document.getElementById('linked-ingredient-quantity').value = 1;
+            // *** END NEW ***
+            openModal('product-modal'); 
+        });
         document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal')); 
         
         document.getElementById('product-type').addEventListener('change', (e) => { 
@@ -901,10 +929,24 @@
                 if (data.hasOwnProperty('linkedIngredientId')) {
                     delete data.linkedIngredientId;
                 }
+                 if (data.hasOwnProperty('linkedIngredientQuantity')) { // Clean up
+                    delete data.linkedIngredientQuantity;
+                }
             } else {
                 const linkedId = document.getElementById('linked-ingredient-select').value;
+                // *** NEW: Get linked quantity ***
+                const linkedQty = parseFloat(document.getElementById('linked-ingredient-quantity').value);
+                // *** END NEW ***
+
                 if (!linkedId) return showToast("Veuillez lier ce produit à un article en stock.");
+                // *** NEW: Validate linked quantity ***
+                if (isNaN(linkedQty) || linkedQty <= 0) {
+                    return showToast("Veuillez entrer une quantité consommée valide (positive).");
+                }
+                // *** END NEW ***
+
                 data.linkedIngredientId = linkedId;
+                data.linkedIngredientQuantity = linkedQty; // *** NEW ***
                 if (data.hasOwnProperty('recipe')) {
                     delete data.recipe;
                 }
@@ -947,6 +989,9 @@
                     renderCurrentRecipe(); 
                 } else if (product.linkedIngredientId) { 
                     document.getElementById('linked-ingredient-select').value = product.linkedIngredientId; 
+                    // *** NEW: Populate linked quantity ***
+                    document.getElementById('linked-ingredient-quantity').value = product.linkedIngredientQuantity || 1; // Default to 1 if not set
+                    // *** END NEW ***
                 } 
                 openModal('product-modal'); 
             } 
@@ -994,8 +1039,12 @@
                         tempDeductions.set(recipeItem.id, current + recipeItem.quantity * orderItem.quantity); 
                     } 
                 } else if (product.linkedIngredientId) { 
+                    // *** MODIFIED: Use linkedIngredientQuantity ***
+                    const linkedQtyPerProduct = product.linkedIngredientQuantity || 1; // Default to 1
+                    const totalQtyToDeduct = linkedQtyPerProduct * orderItem.quantity;
                     const current = tempDeductions.get(product.linkedIngredientId) || 0; 
-                    tempDeductions.set(product.linkedIngredientId, current + orderItem.quantity); 
+                    tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct); 
+                    // *** END MODIFICATION ***
                 } 
             } 
             
@@ -1048,7 +1097,11 @@
                                 batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(recipeItem.quantity * item.quantity) }); 
                             } 
                         } else if (prod.linkedIngredientId) { 
-                            batch.update(doc(ingredientsCol, prod.linkedIngredientId), { quantity: increment(item.quantity) }); 
+                            // *** MODIFIED: Use linkedIngredientQuantity ***
+                            const linkedQtyPerProduct = prod.linkedIngredientQuantity || 1;
+                            const totalQtyToRestore = linkedQtyPerProduct * item.quantity;
+                            batch.update(doc(ingredientsCol, prod.linkedIngredientId), { quantity: increment(totalQtyToRestore) }); 
+                            // *** END MODIFICATION ***
                         } 
                     } 
                     batch.delete(doc(ordersCol, orderId)); 
@@ -1121,8 +1174,12 @@
                         tempDeductions.set(recipeItem.id, current + recipeItem.quantity * quantity); 
                     } 
                 } else if (product.linkedIngredientId) { 
+                    // *** MODIFIED: Use linkedIngredientQuantity ***
+                    const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
+                    const totalQtyToDeduct = linkedQtyPerProduct * quantity;
                     const current = tempDeductions.get(product.linkedIngredientId) || 0; 
-                    tempDeductions.set(product.linkedIngredientId, current + quantity); 
+                    tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct); 
+                    // *** END MODIFICATION ***
                 } 
 
                 for (const [ingId, qtyToDeduct] of tempDeductions.entries()) { 
@@ -1181,7 +1238,11 @@
                                     batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(recipeItem.quantity * loss.quantity) }); 
                                 } 
                             } else if (product.linkedIngredientId) { 
-                                batch.update(doc(ingredientsCol, product.linkedIngredientId), { quantity: increment(loss.quantity) }); 
+                                // *** MODIFIED: Use linkedIngredientQuantity ***
+                                const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
+                                const totalQtyToRestore = linkedQtyPerProduct * loss.quantity;
+                                batch.update(doc(ingredientsCol, product.linkedIngredientId), { quantity: increment(totalQtyToRestore) }); 
+                                // *** END MODIFICATION ***
                             } 
                         } 
                     } else { 
@@ -1680,9 +1741,13 @@
                                  const current = tempDeductions.get(recipeItem.id) || 0;
                                  tempDeductions.set(recipeItem.id, current + recipeItem.quantity * saleItem.quantity);
                              }
-                         } else if (product.linkedIngredientId) {
+                         } else if (product.linkedIngredientId) { 
+                             // *** MODIFIED: Use linkedIngredientQuantity ***
+                             const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
+                             const totalQtyToDeduct = linkedQtyPerProduct * saleItem.quantity;
                              const current = tempDeductions.get(product.linkedIngredientId) || 0;
-                             tempDeductions.set(product.linkedIngredientId, current + saleItem.quantity);
+                             tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct);
+                             // *** END MODIFICATION ***
                          }
                      }
 
@@ -1765,7 +1830,10 @@
         // --- IMPORT/EXPORT CSV ---
         const CSV_INSTRUCTIONS = { 
             ingredients: `<p>4 colonnes: <strong>nom,quantite,unite,cout</strong></p><pre>nom,quantite,unite,cout\nTomates,10,kg,2.5\n</pre>`, 
-            products: `<p>4 colonnes: <strong>nom,prix,type,details</strong></p><p>Pizza details: Nom:qty:unite;...</p><p>Autre: Nom article en stock</p><pre>Margherita,8.5,Pizza,"Pâte:1:p;Sauce:0.1:kg"\nCoca,2,Boisson,Canette Coca</pre>`, 
+            products: `<p>4 colonnes: <strong>nom,prix,type,details</strong></p>
+                       <p>Pizza/Entrée/Dessert details: "NomIngrédient1:qty1:unit1;NomIngrédient2:qty2:unit2"</p>
+                       <p>Boisson/Autre details: "NomArticleStock:qtyConsommée"</p>
+                       <pre>Margherita,8.5,Pizza,"Pâte:1:p;Sauce:0.1:kg"\nCoca,2,Boisson,"Canette Coca:1"</pre>`, 
             orders: `<p>3 colonnes: <strong>date,produits,quantites</strong></p><p>Format date: JJ/MM/AAAA</p><pre>21/10/2025,"Margherita;Coca","2;1"</pre>` 
         }; 
 
@@ -1835,7 +1903,8 @@
                         return; // Skip this line
                     }; 
                     const data = { name: name.trim(), price: parseFloat(price), type: type.trim(), createdAt: serverTimestamp() }; 
-                    if (['Pizza', 'Entrée', 'Dessert'].includes(data.type)) { 
+                    
+                    if (['Pizza', 'Entrée', 'Dessert'].includes(data.type)) { // Recipe product
                          data.recipe = details.trim().replace(/"/g, '').split(';').map(part => { 
                             const [ingName, ingQty, ingUnit] = part.split(':'); 
                              if(!ingName || !ingQty || !ingUnit) throw new Error(`Format de recette incorrect pour ${name}`);
@@ -1844,10 +1913,22 @@
                             return { id: ing.id, name: ing.name, quantity: parseFloat(ingQty), unit: ingUnit.trim() }; 
                          }); 
                          if (data.recipe.length === 0 || data.recipe.some(r => !r.id)) throw new Error(`Recette invalide ou vide pour ${name}`);
-                    } else { 
-                        const linked = allIngredients.find(i => i.name.toLowerCase() === details.trim().toLowerCase()); 
-                        if (!linked) throw new Error(`Article en stock introuvable: ${details} pour le produit ${name}`); 
+                    
+                    } else { // Linked product (Boisson, Autre)
+                        // *** MODIFIED: Handle new linked format "Article:Qty" ***
+                        const parts = details.trim().replace(/"/g, '').split(':');
+                        const ingName = parts[0];
+                        const ingQty = parseFloat(parts[1]);
+
+                        if (!ingName || isNaN(ingQty) || ingQty <= 0) {
+                            throw new Error(`Format de lien incorrect pour ${name}. Attendu: "NomArticleStock:Qty"`);
+                        }
+
+                        const linked = allIngredients.find(i => i.name.toLowerCase() === ingName.trim().toLowerCase()); 
+                        if (!linked) throw new Error(`Article en stock introuvable: ${ingName} pour le produit ${name}`); 
                         data.linkedIngredientId = linked.id; 
+                        data.linkedIngredientQuantity = ingQty;
+                        // *** END MODIFICATION ***
                     } 
                     // Use collection() and doc() to ensure a new document reference
                     batch.set(doc(collection(db, productsCol.path)), data); 
@@ -1902,8 +1983,10 @@
                                 deductions.set(rItem.id, currentDeduction + (rItem.quantity * qty));
                             } 
                         } else if(prod.linkedIngredientId) {
+                            const linkedQtyPerProduct = prod.linkedIngredientQuantity || 1; // *** NEW ***
+                            const totalQtyToDeduct = linkedQtyPerProduct * qty; // *** NEW ***
                             const currentDeduction = deductions.get(prod.linkedIngredientId) || 0;
-                            deductions.set(prod.linkedIngredientId, currentDeduction + qty);
+                            deductions.set(prod.linkedIngredientId, currentDeduction + totalQtyToDeduct); // *** MODIFIED ***
                         }
                     } 
 
@@ -1927,7 +2010,23 @@
 
         const downloadCSV = (content, filename) => { const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", filename); link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
         document.getElementById('export-ingredients-btn').addEventListener('click', () => { let csv = "nom,quantite,unite,cout\n"; allIngredients.forEach(i => { csv += `${i.name},${i.quantity},${i.unit},${i.cost || 0}\n`; }); downloadCSV(csv, 'ingredients.csv'); });
-        document.getElementById('export-products-btn').addEventListener('click', () => { let csv = "nom,prix,type,details\n"; allProducts.forEach(p => { let d = ''; if (p.type === 'Pizza' || p.type === 'Entrée' || p.type === 'Dessert') { if(p.recipe) d = `"${p.recipe.map(r => `${r.name}:${r.quantity}:${r.unit}`).join(';')}"`; } else { const l = allIngredients.find(i => i.id === p.linkedIngredientId); d = l ? l.name : 'NON LIÉ'; } csv += `${p.name},${p.price},${p.type},${d}\n`; }); downloadCSV(csv, 'produits.csv'); });
+        document.getElementById('export-products-btn').addEventListener('click', () => { 
+            let csv = "nom,prix,type,details\n"; 
+            allProducts.forEach(p => { 
+                let d = ''; 
+                if (p.type === 'Pizza' || p.type === 'Entrée' || p.type === 'Dessert') { 
+                    if(p.recipe) d = `"${p.recipe.map(r => `${r.name}:${r.quantity}:${r.unit}`).join(';')}"`; 
+                } else { // Linked product
+                    // *** MODIFIED: Export in new format "Article:Qty" ***
+                    const l = allIngredients.find(i => i.id === p.linkedIngredientId); 
+                    const q = p.linkedIngredientQuantity || 1;
+                    d = l ? `"${l.name}:${q}"` : '"NON LIÉ:1"'; 
+                    // *** END MODIFICATION ***
+                } 
+                csv += `${p.name},${p.price},${p.type},${d}\n`; 
+            }); 
+            downloadCSV(csv, 'produits.csv'); 
+        });
         document.getElementById('export-orders-btn').addEventListener('click', () => { 
             let csv = "date,produits,quantites,prix_total\n"; 
             orderHistory.forEach(o => { 
