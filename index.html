@@ -118,21 +118,25 @@
 
 
                  <!-- KPIs -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes</h3>
                         <p id="kpi-total-sales" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Achats</h3>
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Achats (Reçus)</h3>
                         <p id="kpi-total-purchases" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Achats (Non Payés)</h3>
+                        <p id="kpi-unpaid-purchases" class="text-3xl font-bold text-red-600 mt-1">0.00 Mad</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Pertes</h3>
                         <p id="kpi-total-losses" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Commandes</h3>
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes (Nbre)</h3>
                         <p id="kpi-total-orders" class="text-3xl font-bold text-gray-900 mt-1">0</p>
                     </div>
                 </div>
@@ -404,6 +408,20 @@
             <form id="purchase-order-form">
                 <input type="hidden" id="po-id">
                 <div><label for="po-supplier-select" class="block text-sm font-medium">Fournisseur</label><select id="po-supplier-select" required class="mt-1 w-full input-style"></select></div>
+                <!-- Statut de Paiement -->
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700">Statut de Paiement</label>
+                    <div class="mt-2 flex gap-4">
+                        <label class="flex items-center">
+                            <input type="radio" name="po-payment-status" value="unpaid" class="h-4 w-4 text-gray-800 border-gray-300 focus:ring-gray-700" checked>
+                            <span class="ml-2 text-sm text-gray-700">Non Payé</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="po-payment-status" value="paid" class="h-4 w-4 text-gray-800 border-gray-300 focus:ring-gray-700">
+                            <span class="ml-2 text-sm text-gray-700">Payé</span>
+                        </label>
+                    </div>
+                </div>
                 <div class="mt-6">
                     <h4 class="text-lg font-medium text-gray-800 mb-2">Articles</h4>
                     <div id="po-items-list" class="space-y-2 mb-3"></div>
@@ -604,6 +622,22 @@
                 const receivedDate = toDate(p.receivedAt);
                 return p.status === 'received' && receivedDate && receivedDate >= startDate && receivedDate <= endDate;
             });
+            
+            // *** NEW: Filter for unpaid *and* received purchases ***
+            // Filter by received date, but check paymentStatus
+            const filteredUnpaidPurchases = !startDate 
+                ? allPurchaseOrders.filter(p => p.status === 'received' && p.paymentStatus !== 'paid')
+                : allPurchaseOrders.filter(p => {
+                    // Filter based on *received* date for "Achats" period
+                    const receivedDate = toDate(p.receivedAt); 
+                    return p.status === 'received' && 
+                           p.paymentStatus !== 'paid' &&
+                           receivedDate && 
+                           receivedDate >= startDate && 
+                           receivedDate <= endDate;
+                });
+            // *** END NEW ***
+
 
             const filteredLosses = !startDate ? allLosses : allLosses.filter(l => {
                 const lossDate = toDate(l.createdAt);
@@ -612,7 +646,10 @@
             
             // --- KPI Calculations ---
             const totalSales = filteredOrders.reduce((sum, order) => sum + order.totalPrice, 0);
-            const totalPurchases = filteredPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
+            const totalPurchases = filteredPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0); // This is total *received* purchases
+            // *** NEW: Calculate total unpaid purchases (from the *received* ones in the period) ***
+            const totalUnpaidPurchases = filteredUnpaidPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
+            // *** END NEW ***
             const totalOrders = filteredOrders.length;
             const totalLossesValue = filteredLosses.reduce((sum, loss) => {
                 let lossCost = 0;
@@ -629,6 +666,7 @@
             // --- Update KPI DOM ---
             document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
             document.getElementById('kpi-total-purchases').textContent = `${totalPurchases.toFixed(2)} Mad`;
+            document.getElementById('kpi-unpaid-purchases').textContent = `${totalUnpaidPurchases.toFixed(2)} Mad`; // *** NEW ***
             document.getElementById('kpi-total-losses').textContent = `${totalLossesValue.toFixed(2)} Mad`;
             document.getElementById('kpi-total-orders').textContent = totalOrders;
 
@@ -709,12 +747,16 @@
                     const supplier = allSuppliers.find(s => s.id === po.supplierId); 
                     const div = document.createElement('div'); 
                     const isReceived = po.status === 'received'; 
+                    // *** NEW: Check payment status ***
+                    const isPaid = po.paymentStatus === 'paid';
+                    // *** END NEW ***
                     div.className = `bg-white p-3 rounded-lg shadow-sm`; 
                     // Display price per unit in the list
                     const itemsHtml = po.items.map(i => `<li>${i.quantity} ${i.unit} - ${i.name} (${(i.price || 0).toFixed(2)} Mad/unité)</li>`).join(''); 
                     // Use the saved totalCost, which might be the manually adjusted one
                     const totalDisplay = `<p class="font-bold text-lg text-gray-800">${(po.totalCost || 0).toFixed(2)} Mad</p>`; 
                     
+                    // *** NEW: Actions logic updated ***
                     const actionsHtml = `
                     <div class="flex justify-between items-center mt-3 pt-3 border-t">
                          <div>
@@ -722,9 +764,17 @@
                              ${!isReceived ? `<button data-id="${po.id}" class="edit-po-btn text-gray-500 hover:text-gray-800 text-sm font-medium mr-3"><i class="fas fa-edit mr-1"></i> Modifier</button>` : ''}
                              ${!isReceived ? `<button data-id="${po.id}" class="delete-po-btn text-red-500 hover:text-red-800 text-sm font-medium"><i class="fas fa-trash mr-1"></i> Supprimer</button>` : ''}
                          </div>
-                         ${!isReceived ? `<button data-id="${po.id}" class="receive-po-btn btn-primary text-sm py-1 px-3">Réceptionner</button>` : ''}
+                         <div class="flex gap-2">
+                             ${!isPaid ? `<button data-id="${po.id}" class="pay-po-btn btn-secondary bg-green-100 hover:bg-green-200 text-green-800 text-sm py-1 px-3"><i class="fas fa-check mr-1"></i> Marquer Payé</button>` : ''}
+                             ${!isReceived ? `<button data-id="${po.id}" class="receive-po-btn btn-primary text-sm py-1 px-3">Réceptionner</button>` : ''}
+                         </div>
                     </div>`; 
+                    // *** END NEW ***
                     
+                    // *** NEW: Payment status tag added ***
+                    const paymentTag = `<span class="text-xs font-bold py-1 px-2 rounded-full ${isPaid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${isPaid ? 'Payé' : 'Non Payé'}</span>`;
+                    // *** END NEW ***
+
                     div.innerHTML = `<div class="p-3">
                         <div class="flex justify-between items-start">
                             <div>
@@ -733,7 +783,10 @@
                                 <ul class="text-sm mt-2 list-disc list-inside">${itemsHtml}</ul>
                             </div>
                             <div class="text-right">
-                                <span class="text-xs font-bold py-1 px-2 rounded-full ${isReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${isReceived ? 'Reçue' : 'En attente'}</span>
+                                <div class="flex flex-col items-end gap-1">
+                                    <span class="text-xs font-bold py-1 px-2 rounded-full ${isReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${isReceived ? 'Reçue' : 'En attente'}</span>
+                                    ${paymentTag} <!-- NEW TAG ADDED -->
+                                </div>
                                 ${isReceived ? `<p class="text-xs text-gray-500 mt-1">Reçue le ${formatDateToDDMMYYYY(po.receivedAt)}</p>` : ''}
                                 ${totalDisplay} 
                                 ${po.invoiceUrl ? `<a href="${po.invoiceUrl}" target="_blank" class="block text-sm text-gray-600 hover:text-gray-900 mt-2"><i class="fas fa-file-invoice"></i> Facture</a>` : ''}
@@ -1150,7 +1203,19 @@
         // --- FOURNISSEURS & ACHATS ---
         document.getElementById('add-supplier-btn').addEventListener('click', () => { document.getElementById('supplier-modal-title').textContent = 'Ajouter un Fournisseur'; document.getElementById('supplier-form').reset(); document.getElementById('supplier-id').value = ''; openModal('supplier-modal'); }); document.getElementById('cancel-supplier').addEventListener('click', () => closeModal('supplier-modal')); document.getElementById('supplier-form').addEventListener('submit', async e => { e.preventDefault(); const id = document.getElementById('supplier-id').value; const data = { name: document.getElementById('supplier-name').value, contact: document.getElementById('supplier-contact').value }; try { if (id) await updateDoc(doc(suppliersCol, id), data); else await addDoc(suppliersCol, data); showToast(id ? 'Fournisseur mis à jour' : 'Fournisseur ajouté'); closeModal('supplier-modal'); } catch(error) { showToast('Erreur'); } }); document.getElementById('suppliers-list').addEventListener('click', async e => { const target = e.target.closest('button'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-supplier-btn')) { if (confirm('Supprimer ce fournisseur ?')) await deleteDoc(doc(suppliersCol, id)); } else if (target.classList.contains('edit-supplier-btn')) { const sup = allSuppliers.find(s => s.id === id); document.getElementById('supplier-id').value = id; document.getElementById('supplier-name').value = sup.name; document.getElementById('supplier-contact').value = sup.contact; openModal('supplier-modal'); } });
         const populateSupplierSelects = () => { const select = document.getElementById('po-supplier-select'); select.innerHTML = '<option value="">Choisir...</option>'; allSuppliers.forEach(s => select.innerHTML += `<option value="${s.id}">${s.name}</option>`); }; 
-        document.getElementById('add-purchase-order-btn').addEventListener('click', () => { document.getElementById('purchase-order-form').reset(); document.getElementById('po-id').value = ''; document.getElementById('po-modal-title').textContent = 'Nouvelle Commande Fournisseur'; currentPurchaseOrderItems = []; renderCurrentPurchaseOrderItems(); openModal('purchase-order-modal'); }); document.getElementById('cancel-purchase-order').addEventListener('click', () => closeModal('purchase-order-modal'));
+        
+        document.getElementById('add-purchase-order-btn').addEventListener('click', () => { 
+            document.getElementById('purchase-order-form').reset(); 
+            document.getElementById('po-id').value = ''; 
+            document.getElementById('po-modal-title').textContent = 'Nouvelle Commande Fournisseur'; 
+            // *** NEW: Reset payment status radio to default ***
+            document.querySelector('input[name="po-payment-status"][value="unpaid"]').checked = true;
+            // *** END NEW ***
+            currentPurchaseOrderItems = []; 
+            renderCurrentPurchaseOrderItems(); 
+            openModal('purchase-order-modal'); 
+        }); 
+        document.getElementById('cancel-purchase-order').addEventListener('click', () => closeModal('purchase-order-modal'));
         
         const updatePurchaseOrderTotal = () => {
             // Recalculate total based on currentPurchaseOrderItems prices (price per unit * quantity)
@@ -1165,7 +1230,7 @@
                 const li = document.createElement('div'); 
                 li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; 
                 // Display price per unit
-                li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name} <span class="font-semibold">(${item.price.toFixed(2)} Mad/unité)</span></span><button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; 
+                li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name} <span class="font-semibold">(${(item.price || 0).toFixed(2)} Mad/unité)</span></span><button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; 
                 list.appendChild(li); 
             }); 
             updatePurchaseOrderTotal(); 
@@ -1222,6 +1287,10 @@
                  return;
             }
             // *** FIN MODIFICATION ***
+            
+            // *** NEW: Get payment status ***
+            const paymentStatus = document.querySelector('input[name="po-payment-status"]:checked').value;
+            // *** END NEW ***
 
 
             let invoiceUrl = '';
@@ -1241,18 +1310,35 @@
                         supplierId,
                         items: currentPurchaseOrderItems,
                         totalCost: totalCost, // Utilise le total de l'input
-                        invoiceUrl: url 
+                        invoiceUrl: url,
+                        paymentStatus: paymentStatus // *** NEW: Add to data ***
                     };
                     console.log("Data to save:", data); // Debug log 5
 
                     if (poId) {
                         console.log("Updating existing PO:", poId); // Debug log 6a
+                         // Preserve existing statuses/dates not managed by the form
+                        if (existingPo) {
+                            data.status = existingPo.status || 'pending';
+                            data.createdAt = existingPo.createdAt || serverTimestamp(); // Keep original creation date
+                            if (existingPo.receivedAt) {
+                                data.receivedAt = existingPo.receivedAt; 
+                            }
+                            if (paymentStatus === 'paid' && !existingPo.paidAt) {
+                                data.paidAt = serverTimestamp(); // Add paidAt timestamp only if changing to paid
+                            } else if (existingPo.paidAt) {
+                                data.paidAt = existingPo.paidAt; // Preserve existing paidAt
+                            }
+                        }
                         await updateDoc(doc(purchaseOrdersCol, poId), data);
                         showToast('Commande fournisseur mise à jour');
                     } else {
                         console.log("Adding new PO"); // Debug log 6b
                         data.status = 'pending';
                         data.createdAt = serverTimestamp();
+                        if (paymentStatus === 'paid') {
+                             data.paidAt = serverTimestamp(); // Add paidAt timestamp if created as paid
+                        }
                         await addDoc(purchaseOrdersCol, data);
                         showToast('Commande fournisseur créée');
                     }
@@ -1341,6 +1427,12 @@
                 document.getElementById('po-modal-title').textContent = 'Modifier la Commande Fournisseur'; 
                 document.getElementById('po-id').value = poId; 
                 document.getElementById('po-supplier-select').value = purchaseOrder.supplierId; 
+                
+                // *** NEW: Set payment status radio ***
+                const paymentStatusValue = purchaseOrder.paymentStatus || 'unpaid'; // Default to unpaid if not set
+                document.querySelector(`input[name="po-payment-status"][value="${paymentStatusValue}"]`).checked = true;
+                // *** END NEW ***
+
                 // Ensure items have price (backward compatibility or just robustness)
                  currentPurchaseOrderItems = purchaseOrder.items.map(item => ({
                     ...item,
@@ -1362,6 +1454,11 @@
                  document.getElementById('po-id').value = ''; // Clear ID for new order
                  document.getElementById('po-modal-title').textContent = 'Nouvelle Commande Fournisseur (Relance)';
                  document.getElementById('po-supplier-select').value = poToReorder.supplierId;
+                 
+                 // *** NEW: Reset payment status on reorder ***
+                 document.querySelector('input[name="po-payment-status"][value="unpaid"]').checked = true;
+                 // *** END NEW ***
+                 
                  // Ensure items have price when reordering
                  currentPurchaseOrderItems = poToReorder.items.map(item => ({
                       ...item,
@@ -1370,6 +1467,21 @@
                  renderCurrentPurchaseOrderItems(); // Calcule et affiche le total auto
                  document.getElementById('po-invoice-file').value = ''; // Clear potential old invoice
                  openModal('purchase-order-modal');
+            } else if (target.classList.contains('pay-po-btn')) {
+                // *** NEW: Logic to mark as paid ***
+                if (confirm("Voulez-vous marquer cette commande comme 'Payé' ?")) {
+                    try {
+                        await updateDoc(doc(purchaseOrdersCol, poId), { 
+                            paymentStatus: 'paid',
+                            paidAt: serverTimestamp() // Optional: add a paid timestamp
+                        });
+                        showToast('Commande marquée comme payée !');
+                    } catch (error) {
+                        console.error("Erreur lors de la mise à jour du paiement:", error);
+                        showToast('Erreur lors de la mise à jour.');
+                    }
+                }
+                // *** END NEW ***
             }
         });
         
@@ -1816,7 +1928,16 @@
         const downloadCSV = (content, filename) => { const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", filename); link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
         document.getElementById('export-ingredients-btn').addEventListener('click', () => { let csv = "nom,quantite,unite,cout\n"; allIngredients.forEach(i => { csv += `${i.name},${i.quantity},${i.unit},${i.cost || 0}\n`; }); downloadCSV(csv, 'ingredients.csv'); });
         document.getElementById('export-products-btn').addEventListener('click', () => { let csv = "nom,prix,type,details\n"; allProducts.forEach(p => { let d = ''; if (p.type === 'Pizza' || p.type === 'Entrée' || p.type === 'Dessert') { if(p.recipe) d = `"${p.recipe.map(r => `${r.name}:${r.quantity}:${r.unit}`).join(';')}"`; } else { const l = allIngredients.find(i => i.id === p.linkedIngredientId); d = l ? l.name : 'NON LIÉ'; } csv += `${p.name},${p.price},${p.type},${d}\n`; }); downloadCSV(csv, 'produits.csv'); });
-        document.getElementById('export-orders-btn').addEventListener('click', () => { let csv = "date,produits,quantites,prix_total\n"; orderHistory.forEach(o => { const date = formatDateToDDMMYYYY(o.saleDate || o.createdAt); const p = o.items.map(i => i.name).join(';'); const q = o.items.map(i => i.quantity).join(';'); csv += `${date},"${p}","${q}",${o.totalPrice.toFixed(2)}\n`; }); downloadCSV(csv, 'historique_ventes.csv'); });
+        document.getElementById('export-orders-btn').addEventListener('click', () => { 
+            let csv = "date,produits,quantites,prix_total\n"; 
+            orderHistory.forEach(o => { 
+                const date = formatDateToDDMMYYYY(o.saleDate || o.createdAt); 
+                const p = o.items.map(i => i.name).join(';'); 
+                const q = o.items.map(i => i.quantity).join(';'); // Ligne corrigée
+                csv += `${date},"${p}","${q}",${o.totalPrice.toFixed(2)}\n`; 
+            }); 
+            downloadCSV(csv, 'historique_ventes.csv'); 
+        });
     
     </script>
 </body>
