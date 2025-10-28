@@ -117,7 +117,7 @@
                 </div>
 
 
-                 <!-- KPIs -->
+                <!-- KPIs -->
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes</h3>
@@ -227,75 +227,75 @@
             <div id="orders-content" class="tab-content">
                  <h2 class="text-2xl font-semibold text-gray-800 mb-4">Nouvelle Vente</h2>
                  <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                     <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-lg">
-                         <h3 class="text-lg font-medium mb-4">Ajouter des produits à la vente</h3>
-                         <form id="add-to-order-form" class="flex items-end gap-4">
-                             <div class="flex-grow">
-                                 <label for="order-product-select" class="block text-sm font-medium text-gray-700">Produit</label>
-                                 <select id="order-product-select" class="mt-1 block w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-gray-800 focus:border-gray-800"></select>
-                             </div>
-                             <div>
-                                 <label for="order-product-quantity" class="block text-sm font-medium text-gray-700">Quantité</label>
-                                 <input type="number" id="order-product-quantity" value="1" min="1" class="mt-1 block w-24 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-gray-800 focus:border-gray-800">
-                             </div>
-                             <button type="submit" class="bg-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-900 h-10">Ajouter</button>
-                         </form>
-                     </div>
-                     <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg">
-                         <h3 class="text-lg font-medium mb-4">Détail Vente</h3>
-                         <div class="mb-4">
-                            <label for="sale-date" class="block text-sm font-medium text-gray-700">Date de la vente</label>
-                            <input type="date" id="sale-date" class="mt-1 block w-full input-style">
-                        </div>
-                         <ul id="current-order-list" class="space-y-2 mb-4">
-                             <li id="order-placeholder" class="text-gray-500">La vente est vide.</li>
-                         </ul>
-                         <div class="border-t pt-4">
-                             <div class="flex justify-between items-center">
-                                 <label for="current-order-total-input" class="text-lg font-semibold text-gray-800">Total (Ajustable)</label>
-                                 <div class="flex items-center">
-                                    <input type="number" step="0.01" id="current-order-total-input" class="text-2xl font-bold text-gray-900 text-right w-40 input-style p-1" placeholder="0.00">
-                                    <span class="text-xl font-bold text-gray-900 ml-2">Mad</span>
-                                 </div>
-                             </div>
-                         </div>
-                         <button id="process-order-btn" class="w-full mt-4 bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
-                             Valider & Déduire du Stock
-                         </button>
-                     </div>
+                       <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-lg">
+                           <h3 class="text-lg font-medium mb-4">Ajouter des produits à la vente</h3>
+                           <form id="add-to-order-form" class="flex items-end gap-4">
+                               <div class="flex-grow">
+                                   <label for="order-product-select" class="block text-sm font-medium text-gray-700">Produit</label>
+                                   <select id="order-product-select" class="mt-1 block w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-gray-800 focus:border-gray-800"></select>
+                               </div>
+                               <div>
+                                   <label for="order-product-quantity" class="block text-sm font-medium text-gray-700">Quantité</label>
+                                   <input type="number" id="order-product-quantity" value="1" min="1" class="mt-1 block w-24 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-gray-800 focus:border-gray-800">
+                               </div>
+                               <button type="submit" class="bg-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-900 h-10">Ajouter</button>
+                           </form>
+                       </div>
+                       <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg">
+                           <h3 class="text-lg font-medium mb-4">Détail Vente</h3>
+                           <div class="mb-4">
+                               <label for="sale-date" class="block text-sm font-medium text-gray-700">Date de la vente</label>
+                               <input type="date" id="sale-date" class="mt-1 block w-full input-style">
+                           </div>
+                           <ul id="current-order-list" class="space-y-2 mb-4">
+                               <li id="order-placeholder" class="text-gray-500">La vente est vide.</li>
+                           </ul>
+                           <div class="border-t pt-4">
+                               <div class="flex justify-between items-center">
+                                   <label for="current-order-total-input" class="text-lg font-semibold text-gray-800">Total (Ajustable)</label>
+                                   <div class="flex items-center">
+                                       <input type="number" step="0.01" id="current-order-total-input" class="text-2xl font-bold text-gray-900 text-right w-40 input-style p-1" placeholder="0.00">
+                                       <span class="text-xl font-bold text-gray-900 ml-2">Mad</span>
+                                   </div>
+                               </div>
+                           </div>
+                           <button id="process-order-btn" class="w-full mt-4 bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                               Valider & Déduire du Stock
+                           </button>
+                       </div>
                  </div>
 
                  <!-- Section Historique -->
                  <div class="mt-12">
-                     <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
-                         <h2 class="text-2xl font-semibold text-gray-800">Historique</h2>
-                          <div class="flex items-center gap-2">
-                            <label for="history-date-filter" class="text-sm font-medium text-gray-700">Filtrer par date :</label>
-                            <input type="date" id="history-date-filter" class="input-style p-1 text-sm">
-                        </div>
-                         <div class="flex items-center gap-2 flex-wrap">
-                             <button id="declare-loss-btn" class="btn-secondary bg-yellow-400 hover:bg-yellow-500 text-yellow-900"><i class="fas fa-exclamation-triangle mr-2"></i>Déclarer une perte</button>
-                             <button id="import-api-sales-btn" class="btn-secondary bg-blue-400 hover:bg-blue-500 text-blue-900"><i class="fas fa-cloud-download-alt mr-2"></i>Importer Ventes (API)</button>
-                             <button id="import-orders-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer Ventes (CSV)</button>
-                             <button id="export-orders-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter Ventes</button>
-                         </div>
-                    </div>
-                     <!-- Ventes -->
-                     <h3 class="text-xl font-semibold text-gray-700 mb-3">Ventes</h3>
-                     <div id="order-history-list" class="space-y-4">
-                         <div id="order-history-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
-                             <i class="fas fa-history fa-2x text-gray-400 mb-2"></i>
-                             <p>Aucune vente dans l'historique.</p>
-                         </div>
-                     </div>
-                     <!-- Pertes -->
-                     <h3 class="text-xl font-semibold text-gray-700 mt-8 mb-3">Pertes</h3>
-                     <div id="loss-history-list" class="space-y-4">
-                         <div id="loss-history-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
-                             <i class="fas fa-box-open fa-2x text-gray-400 mb-2"></i>
-                             <p>Aucune perte déclarée.</p>
-                         </div>
-                     </div>
+                       <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
+                           <h2 class="text-2xl font-semibold text-gray-800">Historique</h2>
+                            <div class="flex items-center gap-2">
+                                <label for="history-date-filter" class="text-sm font-medium text-gray-700">Filtrer par date :</label>
+                                <input type="date" id="history-date-filter" class="input-style p-1 text-sm">
+                            </div>
+                           <div class="flex items-center gap-2 flex-wrap">
+                               <button id="declare-loss-btn" class="btn-secondary bg-yellow-400 hover:bg-yellow-500 text-yellow-900"><i class="fas fa-exclamation-triangle mr-2"></i>Déclarer une perte</button>
+                               <button id="import-api-sales-btn" class="btn-secondary bg-blue-400 hover:bg-blue-500 text-blue-900"><i class="fas fa-cloud-download-alt mr-2"></i>Importer Ventes (API)</button>
+                               <button id="import-orders-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer Ventes (CSV)</button>
+                               <button id="export-orders-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter Ventes</button>
+                           </div>
+                       </div>
+                       <!-- Ventes -->
+                       <h3 class="text-xl font-semibold text-gray-700 mb-3">Ventes</h3>
+                       <div id="order-history-list" class="space-y-4">
+                           <div id="order-history-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
+                               <i class="fas fa-history fa-2x text-gray-400 mb-2"></i>
+                               <p>Aucune vente dans l'historique.</p>
+                           </div>
+                       </div>
+                       <!-- Pertes -->
+                       <h3 class="text-xl font-semibold text-gray-700 mt-8 mb-3">Pertes</h3>
+                       <div id="loss-history-list" class="space-y-4">
+                           <div id="loss-history-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
+                               <i class="fas fa-box-open fa-2x text-gray-400 mb-2"></i>
+                               <p>Aucune perte déclarée.</p>
+                           </div>
+                       </div>
                  </div>
             </div>
         </main>
@@ -441,7 +441,11 @@
                 </div>
                 <div class="mt-6">
                     <h4 class="text-lg font-medium text-gray-800 mb-2">Articles</h4>
-                    <div id="po-items-list" class="space-y-2 mb-3"></div>
+                    <!-- MODIFICATION ICI: La liste sera remplie par JS avec des inputs -->
+                    <div id="po-items-list" class="space-y-2 mb-3">
+                        <!-- Le contenu sera généré par renderCurrentPurchaseOrderItems -->
+                    </div>
+                    <!-- FIN MODIFICATION -->
                     <div class="grid grid-cols-1 md:grid-cols-4 items-end gap-3">
                         <div class="md:col-span-2"><label class="block text-sm font-medium">Ingrédient</label><select id="po-ingredient-select" class="mt-1 w-full input-style"></select></div>
                         <div><label class="block text-sm font-medium">Quantité</label><input type="number" id="po-quantity" min="0" step="any" class="mt-1 w-full input-style"></div>
@@ -476,7 +480,7 @@
                             <label class="flex items-center"><input type="radio" name="loss-type" value="ingredient" class="h-4 w-4 text-gray-800 border-gray-300 focus:ring-gray-700">&nbsp;Ingrédient Brut</label>
                         </div>
                     </div>
-    
+                    
                     <div id="loss-product-section">
                         <label for="loss-product-select" class="block text-sm font-medium text-gray-700">Produit</label>
                         <select id="loss-product-select" required class="mt-1 w-full input-style"></select>
@@ -531,7 +535,7 @@
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
-       
+        
         // --- URL du Proxy ---
         // !!! REMPLACEZ PAR L'URL RÉELLE DE VOTRE PROXY DÉPLOYÉ SUR RENDER !!!
         // Par exemple: "https://solo-proxy.onrender.com"
@@ -776,15 +780,15 @@
                     // *** NEW: Actions logic updated ***
                     const actionsHtml = `
                     <div class="flex justify-between items-center mt-3 pt-3 border-t">
-                         <div>
-                             <button data-id="${po.id}" class="reorder-po-btn text-blue-500 hover:text-blue-800 text-sm font-medium mr-3"><i class="fas fa-redo mr-1"></i> Relancer</button>
-                             ${!isReceived ? `<button data-id="${po.id}" class="edit-po-btn text-gray-500 hover:text-gray-800 text-sm font-medium mr-3"><i class="fas fa-edit mr-1"></i> Modifier</button>` : ''}
-                             ${!isReceived ? `<button data-id="${po.id}" class="delete-po-btn text-red-500 hover:text-red-800 text-sm font-medium"><i class="fas fa-trash mr-1"></i> Supprimer</button>` : ''}
-                         </div>
-                         <div class="flex gap-2">
-                             ${!isPaid ? `<button data-id="${po.id}" class="pay-po-btn btn-secondary bg-green-100 hover:bg-green-200 text-green-800 text-sm py-1 px-3"><i class="fas fa-check mr-1"></i> Marquer Payé</button>` : ''}
-                             ${!isReceived ? `<button data-id="${po.id}" class="receive-po-btn btn-primary text-sm py-1 px-3">Réceptionner</button>` : ''}
-                         </div>
+                        <div>
+                            <button data-id="${po.id}" class="reorder-po-btn text-blue-500 hover:text-blue-800 text-sm font-medium mr-3"><i class="fas fa-redo mr-1"></i> Relancer</button>
+                            ${!isReceived ? `<button data-id="${po.id}" class="edit-po-btn text-gray-500 hover:text-gray-800 text-sm font-medium mr-3"><i class="fas fa-edit mr-1"></i> Modifier</button>` : ''}
+                            ${!isReceived ? `<button data-id="${po.id}" class="delete-po-btn text-red-500 hover:text-red-800 text-sm font-medium"><i class="fas fa-trash mr-1"></i> Supprimer</button>` : ''}
+                        </div>
+                        <div class="flex gap-2">
+                            ${!isPaid ? `<button data-id="${po.id}" class="pay-po-btn btn-secondary bg-green-100 hover:bg-green-200 text-green-800 text-sm py-1 px-3"><i class="fas fa-check mr-1"></i> Marquer Payé</button>` : ''}
+                            ${!isReceived ? `<button data-id="${po.id}" class="receive-po-btn btn-primary text-sm py-1 px-3">Réceptionner</button>` : ''}
+                        </div>
                     </div>`; 
                     // *** END NEW ***
                     
@@ -908,7 +912,7 @@
              const cost = currentRecipe.reduce((total, recipeItem) => {
                 const ingredient = allIngredients.find(ing => ing.id === recipeItem.id);
                 return total + ((ingredient?.cost || 0) * recipeItem.quantity);
-            }, 0);
+             }, 0);
             document.getElementById('current-recipe-cost').textContent = `${cost.toFixed(2)} Mad`;
         };
         
@@ -1284,18 +1288,53 @@
              document.getElementById('po-total-cost-input').value = total.toFixed(2); // Met à jour l'input
         };
         
+        // --- MODIFICATION: renderCurrentPurchaseOrderItems (Pour inclure les inputs) ---
         const renderCurrentPurchaseOrderItems = () => { 
             const list = document.getElementById('po-items-list'); 
-            list.innerHTML = ''; 
+            list.innerHTML = ''; // Vider la liste
+            
+            // Ajouter un en-tête si des articles sont présents
+            if (currentPurchaseOrderItems.length > 0) {
+                 list.innerHTML = `
+                    <div class="flex justify-between items-center text-sm font-medium text-gray-500 mb-1 px-2">
+                        <div class="flex-grow grid grid-cols-4 gap-2 items-center">
+                            <span class="col-span-2">Article</span>
+                            <span class="text-right">Quantité</span>
+                            <span class="text-right">Prix/Unité</span>
+                        </div>
+                        <span class="ml-2 w-6"></span> <!-- Espace pour le bouton supprimer -->
+                    </div>
+                `;
+            }
+
             currentPurchaseOrderItems.forEach((item, index) => { 
                 const li = document.createElement('div'); 
                 li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; 
-                // Display price per unit
-                li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name} <span class="font-semibold">(${(item.price || 0).toFixed(2)} Mad/unité)</span></span><button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; 
+                
+                li.innerHTML = `
+                    <div class="flex-grow grid grid-cols-4 gap-2 items-center">
+                        <span class="col-span-2 text-sm">${item.name} (${item.unit})</span>
+                        
+                        <label class="sr-only" for="po-item-qty-${index}">Quantité ${item.name}</label>
+                        <input type="number" step="any" min="0" value="${item.quantity}" data-index="${index}" data-field="quantity"
+                               id="po-item-qty-${index}"
+                               class="po-item-input w-full p-1 border border-gray-300 rounded-lg shadow-sm text-right">
+                        
+                        <label class="sr-only" for="po-item-price-${index}">Prix ${item.name}</label>
+                        <input type="number" step="any" min="0" value="${(item.price || 0).toFixed(2)}" data-index="${index}" data-field="price"
+                               id="po-item-price-${index}"
+                               class="po-item-input w-full p-1 border border-gray-300 rounded-lg shadow-sm text-right">
+                    </div>
+                    <button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700 ml-2 w-6 flex-shrink-0">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                `;
+                
                 list.appendChild(li); 
             }); 
             updatePurchaseOrderTotal(); 
-        }; 
+        };
+        // --- FIN MODIFICATION ---
         
         document.getElementById('add-po-item-btn').addEventListener('click', () => { 
             const select = document.getElementById('po-ingredient-select'); 
@@ -1323,6 +1362,26 @@
             quantityInput.value = ''; 
             priceInput.value = ''; 
         }); 
+        
+        // --- MODIFICATION: Listener pour les changements d'input dans la liste PO ---
+        document.getElementById('po-items-list').addEventListener('change', e => {
+            const input = e.target;
+            // Vérifier si c'est un de nos nouveaux inputs
+            if (input.classList.contains('po-item-input')) {
+                const index = parseInt(input.dataset.index, 10);
+                const field = input.dataset.field; // 'quantity' ou 'price'
+                const value = parseFloat(input.value);
+
+                if (index >= 0 && index < currentPurchaseOrderItems.length && field && !isNaN(value)) {
+                    // Mettre à jour le tableau
+                    currentPurchaseOrderItems[index][field] = value;
+                    
+                    // Mettre à jour le total
+                    updatePurchaseOrderTotal();
+                }
+            }
+        });
+        // --- FIN MODIFICATION ---
         
         document.getElementById('po-items-list').addEventListener('click', e => { const button = e.target.closest('.remove-po-item-btn'); if (button) { currentPurchaseOrderItems.splice(button.dataset.index, 1); renderCurrentPurchaseOrderItems(); } }); 
         
@@ -1496,9 +1555,9 @@
 
                 // Ensure items have price (backward compatibility or just robustness)
                  currentPurchaseOrderItems = purchaseOrder.items.map(item => ({
-                    ...item,
-                    price: Number(item.price) || 0 // Ensure price is a number, default to 0 if missing/invalid
-                }));
+                     ...item,
+                     price: Number(item.price) || 0 // Ensure price is a number, default to 0 if missing/invalid
+                 }));
                 renderCurrentPurchaseOrderItems(); // Calcule et affiche le total basé sur les items
                 
                 // *** MODIFICATION : Remplir l'input avec le total SAUVEGARDÉ (qui peut être manuel) ***
@@ -1522,8 +1581,8 @@
                  
                  // Ensure items have price when reordering
                  currentPurchaseOrderItems = poToReorder.items.map(item => ({
-                      ...item,
-                     price: Number(item.price) || 0 // Ensure price is a number
+                     ...item,
+                    price: Number(item.price) || 0 // Ensure price is a number
                  })); 
                  renderCurrentPurchaseOrderItems(); // Calcule et affiche le total auto
                  document.getElementById('po-invoice-file').value = ''; // Clear potential old invoice
@@ -1568,8 +1627,8 @@
                 return;
             }
              if (!PROXY_URL || PROXY_URL === "https://votre-proxy-url-ici.onrender.com") {
-                showToast("Erreur: L'URL du PROXY_URL n'est pas configurée dans le script.");
-                return;
+                 showToast("Erreur: L'URL du PROXY_URL n'est pas configurée dans le script.");
+                 return;
             }
 
 
@@ -1672,41 +1731,41 @@
                 const groupedSales = allSalesData.reduce((acc, item) => {
                     // ... (logique de regroupement et de matching produit - INCHANGÉE) ...
                      const billNo = item.billNo;
-                    if (!acc[billNo]) {
-                        acc[billNo] = {
-                            billNo: billNo,
-                            items: [],
-                            totalPrice: 0,
-                            saleDate: item.operDate ? new Date(item.operDate.replace(' ', 'T') + 'Z') : new Date() 
-                        };
-                        if (!isNaN(acc[billNo].saleDate.getTime())) {
+                     if (!acc[billNo]) {
+                         acc[billNo] = {
+                             billNo: billNo,
+                             items: [],
+                             totalPrice: 0,
+                             saleDate: item.operDate ? new Date(item.operDate.replace(' ', 'T') + 'Z') : new Date() 
+                         };
+                         if (!isNaN(acc[billNo].saleDate.getTime())) {
                              acc[billNo].saleDate.setUTCHours(12, 0, 0, 0);
-                        } else {
+                         } else {
                              console.warn(`Invalid operDate '${item.operDate}' for bill ${billNo}. Using current date.`);
                              acc[billNo].saleDate = new Date(); 
                              acc[billNo].saleDate.setUTCHours(12,0,0,0);
-                        }
-                    }
-                     const productNameLower = (item.goodsName || '').trim().toLowerCase(); 
-                     const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
-
-                     if (matchedProduct) {
-                        const quantity = parseFloat(item.numNum);
-                        const price = parseFloat(item.numPrice); 
-                        if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
-                            acc[billNo].items.push({
-                                id: matchedProduct.id, 
-                                name: matchedProduct.name, 
-                                quantity: quantity,
-                                price: price 
-                            });
-                            acc[billNo].totalPrice += price * quantity; 
-                        } else {
-                             console.warn(`Produit ${item.goodsName || 'N/A'} ignoré dans la facture ${billNo}: quantité ou prix invalide.`);
-                        }
-                     } else {
-                         console.warn(`Produit API "${item.goodsName || 'N/A'}" non trouvé dans la liste des produits Solo. Ignoré pour la facture ${billNo}.`);
+                         }
                      }
+                      const productNameLower = (item.goodsName || '').trim().toLowerCase(); 
+                      const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
+
+                      if (matchedProduct) {
+                         const quantity = parseFloat(item.numNum);
+                         const price = parseFloat(item.numPrice); 
+                         if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
+                             acc[billNo].items.push({
+                                 id: matchedProduct.id, 
+                                 name: matchedProduct.name, 
+                                 quantity: quantity,
+                                 price: price 
+                             });
+                             acc[billNo].totalPrice += price * quantity; 
+                         } else {
+                             console.warn(`Produit ${item.goodsName || 'N/A'} ignoré dans la facture ${billNo}: quantité ou prix invalide.`);
+                         }
+                      } else {
+                           console.warn(`Produit API "${item.goodsName || 'N/A'}" non trouvé dans la liste des produits Solo. Ignoré pour la facture ${billNo}.`);
+                      }
                     
                     return acc;
                 }, {});
@@ -1756,7 +1815,7 @@
                          const ing = allIngredients.find(i => i.id === ingId);
                          if (!ing || ing.quantity < qty) {
                              stockAvailable = false;
-                              const failedProdName = sale.items.find(i => {
+                             const failedProdName = sale.items.find(i => {
                                  const p = allProducts.find(pr => pr.id === i.id);
                                  return (p?.recipe?.some(r => r.id === ingId) || p?.linkedIngredientId === ingId);
                              })?.name || 'inconnu';
@@ -1785,19 +1844,19 @@
 
                 // --- Step 5: Commit Batch ---
                  if (salesImportedCount > 0) {
-                    statusText.textContent = `Enregistrement de ${salesImportedCount} vente(s)...`;
-                    await batch.commit();
-                    let successMsg = `${salesImportedCount} vente(s) importée(s) avec succès via API.`;
-                    if (salesSkippedCount > 0) {
-                         successMsg += ` ${salesSkippedCount} vente(s) ignorée(s) (stock insuffisant).`;
-                         console.warn("Ventes ignorées (stock):", failedStockChecks.join('\n'));
-                     }
-                    showToast(successMsg);
+                     statusText.textContent = `Enregistrement de ${salesImportedCount} vente(s)...`;
+                     await batch.commit();
+                     let successMsg = `${salesImportedCount} vente(s) importée(s) avec succès via API.`;
+                     if (salesSkippedCount > 0) {
+                          successMsg += ` ${salesSkippedCount} vente(s) ignorée(s) (stock insuffisant).`;
+                          console.warn("Ventes ignorées (stock):", failedStockChecks.join('\n'));
+                      }
+                     showToast(successMsg);
                  } else if (salesSkippedCount > 0) {
-                     showToast(`Aucune vente importée via API. ${salesSkippedCount} vente(s) ignorée(s) (stock insuffisant).`);
-                     console.warn("Ventes ignorées (stock):", failedStockChecks.join('\n'));
+                      showToast(`Aucune vente importée via API. ${salesSkippedCount} vente(s) ignorée(s) (stock insuffisant).`);
+                      console.warn("Ventes ignorées (stock):", failedStockChecks.join('\n'));
                  } else {
-                      showToast("Aucune vente valide trouvée à importer via API."); 
+                       showToast("Aucune vente valide trouvée à importer via API."); 
                  }
 
 
@@ -1806,13 +1865,13 @@
                  let userMessage = `Erreur: ${error.message}`;
                  // Adapter les messages d'erreur pour le contexte proxy
                   if (error.message.includes("authentification via proxy")) {
-                     userMessage = `Échec d'authentification proxy. Vérifiez les logs du proxy.`;
+                       userMessage = `Échec d'authentification proxy. Vérifiez les logs du proxy.`;
                  } else if (error.message.includes("Jeton non reçu du proxy")) {
-                      userMessage = "Le proxy n'a pas réussi à obtenir un jeton. Vérifiez les logs du proxy.";
+                       userMessage = "Le proxy n'a pas réussi à obtenir un jeton. Vérifiez les logs du proxy.";
                  } else if (error.message.includes("Proxy Ventes")) {
-                      userMessage = "Erreur lors de la récupération des ventes via le proxy.";
+                       userMessage = "Erreur lors de la récupération des ventes via le proxy.";
                  } else if (error instanceof TypeError && error.message.includes('fetch')) {
-                      userMessage = `Erreur réseau en contactant le proxy (${PROXY_URL}). Est-il déployé et l'URL est-elle correcte ?`;
+                       userMessage = `Erreur réseau en contactant le proxy (${PROXY_URL}). Est-il déployé et l'URL est-elle correcte ?`;
                  }
                 showToast(userMessage);
             } finally {
@@ -1821,7 +1880,7 @@
                 submitButton.disabled = false;
                  // Close modal only if there was some success or no data initially
                  if(salesImportedCount > 0 || (salesSkippedCount === 0 && salesImportedCount === 0 && allSalesData.length === 0)) { 
-                    closeModal('api-import-modal');
+                     closeModal('api-import-modal');
                  }
             }
         });
@@ -1831,9 +1890,9 @@
         const CSV_INSTRUCTIONS = { 
             ingredients: `<p>4 colonnes: <strong>nom,quantite,unite,cout</strong></p><pre>nom,quantite,unite,cout\nTomates,10,kg,2.5\n</pre>`, 
             products: `<p>4 colonnes: <strong>nom,prix,type,details</strong></p>
-                       <p>Pizza/Entrée/Dessert details: "NomIngrédient1:qty1:unit1;NomIngrédient2:qty2:unit2"</p>
-                       <p>Boisson/Autre details: "NomArticleStock:qtyConsommée"</p>
-                       <pre>Margherita,8.5,Pizza,"Pâte:1:p;Sauce:0.1:kg"\nCoca,2,Boisson,"Canette Coca:1"</pre>`, 
+                        <p>Pizza/Entrée/Dessert details: "NomIngrédient1:qty1:unit1;NomIngrédient2:qty2:unit2"</p>
+                        <p>Boisson/Autre details: "NomArticleStock:qtyConsommée"</p>
+                        <pre>Margherita,8.5,Pizza,"Pâte:1:p;Sauce:0.1:kg"\nCoca,2,Boisson,"Canette Coca:1"</pre>`, 
             orders: `<p>3 colonnes: <strong>date,produits,quantites</strong></p><p>Format date: JJ/MM/AAAA</p><pre>21/10/2025,"Margherita;Coca","2;1"</pre>` 
         }; 
 
@@ -1850,11 +1909,11 @@
             reader.onload = async (event) => { 
                 const lines = event.target.result.split('\n').filter(line => line.trim() !== ''); 
                 if (lines.length <= 1) { // Check if only header or empty
-                   showToast("Le fichier CSV est vide ou ne contient que l'en-tête.");
-                   closeModal('import-modal'); 
-                   document.getElementById('csv-file-input').value = ''; 
-                   document.getElementById('process-import-btn').disabled = false; 
-                   return;
+                     showToast("Le fichier CSV est vide ou ne contient que l'en-tête.");
+                     closeModal('import-modal'); 
+                     document.getElementById('csv-file-input').value = ''; 
+                     document.getElementById('process-import-btn').disabled = false; 
+                     return;
                 }
                 const header = lines.shift(); // Remove header line
                 try { 
@@ -1906,11 +1965,11 @@
                     
                     if (['Pizza', 'Entrée', 'Dessert'].includes(data.type)) { // Recipe product
                          data.recipe = details.trim().replace(/"/g, '').split(';').map(part => { 
-                            const [ingName, ingQty, ingUnit] = part.split(':'); 
+                             const [ingName, ingQty, ingUnit] = part.split(':'); 
                              if(!ingName || !ingQty || !ingUnit) throw new Error(`Format de recette incorrect pour ${name}`);
-                            const ing = allIngredients.find(i => i.name.toLowerCase() === ingName.trim().toLowerCase()); 
-                            if (!ing) throw new Error(`Ingrédient introuvable: ${ingName} pour le produit ${name}`); 
-                            return { id: ing.id, name: ing.name, quantity: parseFloat(ingQty), unit: ingUnit.trim() }; 
+                             const ing = allIngredients.find(i => i.name.toLowerCase() === ingName.trim().toLowerCase()); 
+                             if (!ing) throw new Error(`Ingrédient introuvable: ${ingName} pour le produit ${name}`); 
+                             return { id: ing.id, name: ing.name, quantity: parseFloat(ingQty), unit: ingUnit.trim() }; 
                          }); 
                          if (data.recipe.length === 0 || data.recipe.some(r => !r.id)) throw new Error(`Recette invalide ou vide pour ${name}`);
                     
@@ -1934,7 +1993,7 @@
                     batch.set(doc(collection(db, productsCol.path)), data); 
                  } catch(e) {
                      throw new Error(`Erreur à la ligne ${index + 2} (produits) : ${e.message}`);
-                }
+                 }
             }); 
             await batch.commit(); 
         }
@@ -1992,10 +2051,10 @@
 
                     // Apply deductions via batch update
                      for(const [ingId, qtyToDeduct] of deductions.entries()) {
-                          // Note: We don't check stock here during import, assuming historical data is correct
-                          // or stock adjustment isn't the primary goal of historical import.
-                          // If stock checking IS needed, you'd query the current stock first.
-                         batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qtyToDeduct) }); 
+                         // Note: We don't check stock here during import, assuming historical data is correct
+                         // or stock adjustment isn't the primary goal of historical import.
+                         // If stock checking IS needed, you'd query the current stock first.
+                        batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qtyToDeduct) }); 
                      }
 
                      // Use collection() and doc() to ensure a new document reference
@@ -2037,8 +2096,7 @@
             }); 
             downloadCSV(csv, 'historique_ventes.csv'); 
         });
-    
+        
     </script>
 </body>
 </html>
-
