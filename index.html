@@ -1753,10 +1753,20 @@
                          const quantity = parseFloat(item.numNum);
                          const price = parseFloat(item.numPrice); 
 								 // V V V AJOUTEZ CES LIGNES V V V
+		// V V V NOUVELLE LOGIQUE CORRIGÉE V V V
 						const priceAdd = parseFloat(item.numPriceAdd) || 0;
-						// On suppose que 'discount' est un pourcentage (ex: 90 pour 90%)
-						// S'il n'est pas fourni, on met 100 (donc 100/100 = 1)
-						const discountMultiplier = (parseFloat(item.discount) || 100) / 100;
+						
+						let discountPercent = parseFloat(item.discount);
+						
+						// Si 'discount' n'est pas un nombre (ex: undefined, null, ""),
+						// on considère qu'il n'y a pas de rabais (donc on paie 100%).
+						if (isNaN(discountPercent)) {
+							discountPercent = 100;
+						}
+						
+						// On convertit le pourcentage en multiplicateur
+						const discountMultiplier = discountPercent / 100;
+						// ^ ^ ^ FIN DE LA NOUVELLE LOGIQUE ^ ^ ^
 						// ^ ^ ^ FIN DES AJOUTS ^ ^ ^
                          if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
                              acc[billNo].items.push({
