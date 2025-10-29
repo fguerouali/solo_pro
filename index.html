@@ -1487,6 +1487,7 @@
             statusText.textContent = 'Authentification...';
             submitButton.disabled = true;
             let salesImportedCount = 0, salesSkippedCount = 0, allSalesData = [];
+            let errorOccurred = false; // Flag to check if an error happened
 
             try {
                 // Auth
@@ -1512,22 +1513,24 @@
                 statusText.textContent = `Traitement ${allSalesData.length} articles...`;
                 if (allSalesData.length === 0) throw new Error("Aucune vente trouvée via API.");
 
-                // Process Sales - MODIFIED PRICE CALCULATION
+                // Process Sales - CORRECTION PRIX ET HEURE
                 const groupedSales = allSalesData.reduce((acc, item) => {
                     const billNo = item.billNo;
+                    // Initialisation de la vente groupée (si elle n'existe pas)
                     if (!acc[billNo]) {
-                         // Heure: Utilisation de operDate
+                         // Heure: Utilisation de operDate et gestion format
                          let saleDateTime = new Date(); // Fallback
                          if(item.operDate) {
-                              const parts = item.operDate.split(/[\s:]+/); // Format "YYYY-MM-DD HH:MM:SS" ou "YYYY MM DD HH:MM:SS"
-                              if (parts.length === 6) {
-                                  // Recomposer en format ISO-like YYYY-MM-DDTHH:MM:SS
-                                  const isoLikeString = `${parts[0]}-${parts[1]}-${parts[2]}T${parts[3]}:${parts[4]}:${parts[5]}`;
-                                  const parsedDate = new Date(isoLikeString);
+                              // Essayer de parser "YYYY-MM-DD HH:MM:SS"
+                              const dateTimeParts = item.operDate.match(/^(\d{4})-(\d{2})-(\d{2})\s(\d{2}):(\d{2}):(\d{2})$/);
+                              if (dateTimeParts) {
+                                  const [, year, month, day, hours, minutes, seconds] = dateTimeParts.map(Number);
+                                  // Créer l'objet Date en utilisant les composants locaux (mois 0-indexé)
+                                  const parsedDate = new Date(year, month - 1, day, hours, minutes, seconds);
                                   if (!isNaN(parsedDate.getTime())) {
                                       saleDateTime = parsedDate;
                                   } else {
-                                     console.warn(`Invalid operDate format '${item.operDate}' for bill ${billNo}. Using current date/time.`);
+                                     console.warn(`Invalid date components parsed from operDate '${item.operDate}' for bill ${billNo}. Using current date/time.`);
                                   }
                               } else {
                                   console.warn(`Unexpected operDate format '${item.operDate}' for bill ${billNo}. Using current date/time.`);
@@ -1536,13 +1539,15 @@
                         acc[billNo] = { billNo, items: [], totalPrice: 0, saleDate: saleDateTime };
                     }
 
+                    // Trouver le produit correspondant
                     const productNameLower = (item.goodsName || '').trim().toLowerCase();
                     const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
 
                     if (matchedProduct) {
                         const quantity = parseFloat(item.numNum);
-                        const price = parseFloat(item.numPrice);
-                        const discountPercent = parseFloat(item.discount) || 0; // Discount en pourcentage (ex: 100 = 100% off)
+                        const price = parseFloat(item.numPrice); // Prix unitaire AVANT remise
+                        // Discount = pourcentage de réduction (0 = 0%, 100 = 100%)
+                        const discountPercent = parseFloat(item.discount) || 0;
 
                         if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
                              // Calculer le prix final de l'article avec la remise
@@ -1564,7 +1569,7 @@
                     }
                     return acc;
                 }, {});
-                // END MODIFIED PRICE CALCULATION
+                // FIN CORRECTION PRIX ET HEURE
 
                 const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
                 if (salesToSave.length === 0) throw new Error("Aucune vente valide à importer.");
@@ -1616,6 +1621,7 @@
                  } else throw new Error("Aucune vente valide trouvée après traitement.");
 
             } catch (error) {
+                errorOccurred = true; // Set the error flag
                 console.error("Erreur Import API:", error);
                 let userMsg = `Erreur: ${error.message}`;
                 if (error.message.includes('fetch')) userMsg = `Erreur réseau proxy (${PROXY_URL}).`;
@@ -1624,7 +1630,10 @@
                 loader.classList.add('hidden');
                 statusText.textContent = '';
                 submitButton.disabled = false;
-                if(salesImportedCount > 0 || (salesSkippedCount === 0 && salesImportedCount === 0 && allSalesData.length === 0)) closeModal('api-import-modal');
+                // Fermer la modale seulement s'il n'y a PAS eu d'erreur OU si aucune donnée n'a été trouvée initialement
+                if (!errorOccurred || (allSalesData.length === 0 && !errorOccurred)) {
+                     closeModal('api-import-modal');
+                }
             }
         });
 
@@ -1661,8 +1670,45 @@
             reader.readAsText(file);
         });
 
-        async function importIngredients(lines) { /* ... (inchangé) ... */ }
-        async function importProducts(lines) { /* ... (inchangé) ... */ }
+        async function importIngredients(lines) {
+             const batch = writeBatch(db);
+             lines.forEach((line, index) => {
+                 try {
+                     const [name, quantity, unit, cost] = line.trim().split(',');
+                     if (name && quantity && unit) {
+                         batch.set(doc(collection(db, ingredientsCol.path)), { name: name.trim(), quantity: parseFloat(quantity), unit: unit.trim(), cost: parseFloat(cost) || 0, createdAt: serverTimestamp() });
+                     } else { console.warn(`Ligne ingrédient ignorée: L${index + 2}`, line); }
+                 } catch(e) { throw new Error(`Erreur L${index + 2} (ingrédients): ${e.message}`); }
+             });
+             await batch.commit();
+        }
+
+        async function importProducts(lines) {
+             const batch = writeBatch(db);
+             lines.forEach((line, index) => {
+                 try {
+                     const values = line.trim().split(',');
+                     const name = values[0], price = values[1], type = values[2], details = values.slice(3).join(',');
+                     if (!name || !price || !type || !details) { console.warn(`Ligne produit ignorée: L${index + 2}`, line); return; };
+                     const data = { name: name.trim(), price: parseFloat(price), type: type.trim(), createdAt: serverTimestamp() };
+                     if (['Pizza', 'Entrée', 'Dessert'].includes(data.type)) {
+                         data.recipe = details.trim().replace(/"/g, '').split(';').map(part => {
+                             const [ingName, ingQty, ingUnit] = part.split(':'); if(!ingName || !ingQty || !ingUnit) throw new Error(`Format recette incorrect: ${name}`);
+                             const ing = allIngredients.find(i => i.name.toLowerCase() === ingName.trim().toLowerCase()); if (!ing) throw new Error(`Ingrédient introuvable: ${ingName} pour ${name}`);
+                             return { id: ing.id, name: ing.name, quantity: parseFloat(ingQty), unit: ingUnit.trim() };
+                         });
+                         if (data.recipe.length === 0 || data.recipe.some(r => !r.id)) throw new Error(`Recette invalide: ${name}`);
+                     } else {
+                         const parts = details.trim().replace(/"/g, '').split(':'); const ingName = parts[0]; const ingQty = parseFloat(parts[1]);
+                         if (!ingName || isNaN(ingQty) || ingQty <= 0) throw new Error(`Format lien incorrect: ${name}. Attendu: "NomArticleStock:Qty"`);
+                         const linked = allIngredients.find(i => i.name.toLowerCase() === ingName.trim().toLowerCase()); if (!linked) throw new Error(`Article stock introuvable: ${ingName} pour ${name}`);
+                         data.linkedIngredientId = linked.id; data.linkedIngredientQuantity = ingQty;
+                     }
+                     batch.set(doc(collection(db, productsCol.path)), data);
+                 } catch(e) { throw new Error(`Erreur L${index + 2} (produits): ${e.message}`); }
+             });
+             await batch.commit();
+         }
 
         // MODIFICATION: Import CSV Ventes avec heure
         async function importOrders(lines) {
