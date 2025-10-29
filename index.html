@@ -617,7 +617,7 @@
             return today.toISOString().split('T')[0]; // Format YYYY-MM-DD
         };
 
-        // MODIFICATION: Helper pour l'heure actuelle
+        // Helper pour l'heure actuelle
         const getCurrentTimeString = () => {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
@@ -625,7 +625,7 @@
             return `${hours}:${minutes}`;
         };
 
-        // MODIFICATION: Helper pour formater date ET heure
+        // Helper pour formater date ET heure
         const formatDateTimeToDDMMYYYYHHMM = (date) => {
             if (!date) return 'Date inconnue';
             const d = date.seconds ? new Date(date.seconds * 1000) : date;
@@ -777,8 +777,37 @@
         }
 
         const productCost = calculateProductCost(product); card.innerHTML = `<div class="p-6"><div class="flex justify-between items-start"><div><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p></div><span class="text-gray-400 text-xl">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div><p class="text-gray-800 font-bold text-2xl text-right mt-4">${product.price.toFixed(2)} Mad</p></div><div class="bg-gray-50 px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
-        // MODIFICATION: Affichage heure historique
-        const renderOrderHistory = (history) => { const container = document.getElementById('order-history-list'); const placeholder = document.getElementById('order-history-placeholder'); container.innerHTML = ''; if (history.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { history.forEach(order => { const card = document.createElement('div'); card.className = 'bg-white p-4 rounded-xl shadow-md'; const displayDateTime = formatDateTimeToDDMMYYYYHHMM(order.saleDate || order.createdAt); const itemsHtml = order.items.map(item => `<li>${item.quantity} x ${item.name}</li>`).join(''); card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-gray-700">Vente du ${displayDateTime}</p><ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul></div><div class="flex items-center gap-4 text-right"><p class="font-bold text-lg text-gray-800">${order.totalPrice.toFixed(2)} Mad</p><button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; container.appendChild(card); }); } };
+        // MODIFICATION: Affichage heure historique + billNo
+        const renderOrderHistory = (history) => {
+            const container = document.getElementById('order-history-list');
+            const placeholder = document.getElementById('order-history-placeholder');
+            container.innerHTML = '';
+            if (history.length === 0) {
+                container.innerHTML = '';
+                container.appendChild(placeholder);
+            } else {
+                history.forEach(order => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-4 rounded-xl shadow-md';
+                    const displayDateTime = formatDateTimeToDDMMYYYYHHMM(order.saleDate || order.createdAt);
+                    const itemsHtml = order.items.map(item => `<li>${item.quantity} x ${item.name}</li>`).join('');
+                    // Ajout de billNo s'il existe
+                    const billNoHtml = order.billNo ? `<span class="text-xs text-gray-500 ml-2">(N° ${order.billNo})</span>` : '';
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-bold text-gray-700">Vente du ${displayDateTime}${billNoHtml}</p>
+                                <ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul>
+                            </div>
+                            <div class="flex items-center gap-4 text-right">
+                                <p class="font-bold text-lg text-gray-800">${order.totalPrice.toFixed(2)} Mad</p>
+                                <button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>`;
+                    container.appendChild(card);
+                });
+            }
+        };
         const renderSuppliers = () => { const container = document.getElementById('suppliers-list'); const placeholder = document.getElementById('suppliers-placeholder'); container.innerHTML = ''; if (allSuppliers.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allSuppliers.forEach(sup => { const div = document.createElement('div'); div.className = "bg-white p-3 rounded-lg shadow-sm flex justify-between items-center"; div.innerHTML = `<div><p class="font-semibold">${sup.name}</p><p class="text-sm text-gray-500">${sup.contact || ''}</p></div><div><button data-id="${sup.id}" class="edit-supplier-btn text-gray-400 hover:text-gray-800 mr-2"><i class="fas fa-edit"></i></button><button data-id="${sup.id}" class="delete-supplier-btn text-gray-400 hover:text-red-600"><i class="fas fa-trash"></i></button></div>`; container.appendChild(div); }); } };
         const renderPurchaseOrders = (purchaseOrders) => {
             const container = document.getElementById('purchase-orders-list');
@@ -1499,7 +1528,7 @@
                 statusText.textContent = 'Récupération ventes...';
 
                 // Fetch Sales
-                let currentPage = 1, pageSize = 100, hasMorePages = true;
+                let currentPage = 1, pageSize = 10, hasMorePages = true; // Changed pageSize to 10
                 while(hasMorePages) {
                     const proxySalesUrl = `${PROXY_URL}/api/sales?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${startDate}&endDate=${endDate}&token=${encodeURIComponent(token)}`;
                     const salesResponse = await fetch(proxySalesUrl);
@@ -1507,13 +1536,13 @@
                     if (!salesResponse.ok) throw new Error(`Erreur Proxy Ventes (P${currentPage}): ${salesResult?.message || salesResponse.status}`);
                     if (salesResult.code !== 200 || !salesResult.data) throw new Error(`Erreur Proxy Ventes (P${currentPage}): ${salesResult.msg || 'Données invalides'}`);
                     allSalesData = allSalesData.concat(salesResult.data);
-                    if (!salesResult.data || salesResult.data.length < pageSize || currentPage > 50) hasMorePages = false;
+                    if (!salesResult.data || salesResult.data.length < pageSize || currentPage > 50) hasMorePages = false; // Safety break > 50 pages
                     else currentPage++;
                 }
                 statusText.textContent = `Traitement ${allSalesData.length} articles...`;
                 if (allSalesData.length === 0) throw new Error("Aucune vente trouvée via API.");
 
-                // Process Sales - CORRECTION PRIX ET HEURE
+                // Process Sales - CORRECTION PRIX (discount 100 = pas de reduc) ET HEURE + AJOUT BILLNO
                 const groupedSales = allSalesData.reduce((acc, item) => {
                     const billNo = item.billNo;
                     // Initialisation de la vente groupée (si elle n'existe pas)
@@ -1536,7 +1565,7 @@
                                   console.warn(`Unexpected operDate format '${item.operDate}' for bill ${billNo}. Using current date/time.`);
                               }
                          }
-                        acc[billNo] = { billNo, items: [], totalPrice: 0, saleDate: saleDateTime };
+                        acc[billNo] = { billNo: billNo, items: [], totalPrice: 0, saleDate: saleDateTime }; // Ajout de billNo ici
                     }
 
                     // Trouver le produit correspondant
@@ -1546,12 +1575,12 @@
                     if (matchedProduct) {
                         const quantity = parseFloat(item.numNum);
                         const price = parseFloat(item.numPrice); // Prix unitaire AVANT remise
-                        // Discount = pourcentage de réduction (0 = 0%, 100 = 100%)
-                        const discountPercent = parseFloat(item.discount) || 0;
+                        // Discount = pourcentage du prix PAYÉ (100 = 100% payé, 80 = 80% payé donc 20% reduc)
+                        const discountMultiplier = (parseFloat(item.discount) || 100.0) / 100.0; // Default to 100 if missing/invalid
 
                         if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
                              // Calculer le prix final de l'article avec la remise
-                             const finalItemPrice = price * (1 - (discountPercent / 100.0));
+                             const finalItemPrice = price * discountMultiplier; // Correction ici
 
                             acc[billNo].items.push({
                                 id: matchedProduct.id,
@@ -1569,7 +1598,7 @@
                     }
                     return acc;
                 }, {});
-                // FIN CORRECTION PRIX ET HEURE
+                // FIN CORRECTION PRIX ET HEURE + AJOUT BILLNO
 
                 const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
                 if (salesToSave.length === 0) throw new Error("Aucune vente valide à importer.");
@@ -1601,8 +1630,14 @@
                      }
                      if (stockAvailable) {
                          for (const [ingId, qty] of tempDeductions.entries()) batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
-                         // Enregistrer la vente avec le totalPrice calculé (somme des prix finaux * qté)
-                         batch.set(doc(collection(db, ordersCol.path)), { items: sale.items, totalPrice: sale.totalPrice, createdAt: serverTimestamp(), saleDate: sale.saleDate });
+                         // Enregistrer la vente avec le totalPrice calculé ET billNo
+                         batch.set(doc(collection(db, ordersCol.path)), {
+                             billNo: sale.billNo, // Ajout de billNo
+                             items: sale.items,
+                             totalPrice: sale.totalPrice,
+                             createdAt: serverTimestamp(),
+                             saleDate: sale.saleDate
+                         });
                          salesImportedCount++;
                      } else salesSkippedCount++;
                  }
@@ -1682,7 +1717,6 @@
              });
              await batch.commit();
         }
-
         async function importProducts(lines) {
              const batch = writeBatch(db);
              lines.forEach((line, index) => {
