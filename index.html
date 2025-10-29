@@ -1542,7 +1542,7 @@
                 statusText.textContent = `Traitement ${allSalesData.length} articles...`;
                 if (allSalesData.length === 0) throw new Error("Aucune vente trouvée via API.");
 
-                // --- NOUVELLE LOGIQUE GROUPEMENT + PRIX CORRECT ---
+                // Process Sales - CORRECTION PRIX (discount 100 = pas de reduc) ET HEURE + AJOUT BILLNO
                 const groupedSales = allSalesData.reduce((acc, item) => {
                     const billNo = item.billNo;
                     // Initialisation de la vente groupée (si elle n'existe pas)
@@ -1550,40 +1550,46 @@
                          // Heure: Utilisation de operDate et gestion format
                          let saleDateTime = new Date(); // Fallback
                          if(item.operDate) {
+                              // Essayer de parser "YYYY-MM-DD HH:MM:SS"
                               const dateTimeParts = item.operDate.match(/^(\d{4})-(\d{2})-(\d{2})\s(\d{2}):(\d{2}):(\d{2})$/);
                               if (dateTimeParts) {
                                   const [, year, month, day, hours, minutes, seconds] = dateTimeParts.map(Number);
+                                  // Créer l'objet Date en utilisant les composants locaux (mois 0-indexé)
                                   const parsedDate = new Date(year, month - 1, day, hours, minutes, seconds);
-                                  if (!isNaN(parsedDate.getTime())) saleDateTime = parsedDate;
-                                  else console.warn(`Invalid operDate components '${item.operDate}' for bill ${billNo}.`);
-                              } else console.warn(`Unexpected operDate format '${item.operDate}' for bill ${billNo}.`);
+                                  if (!isNaN(parsedDate.getTime())) {
+                                      saleDateTime = parsedDate;
+                                  } else {
+                                     console.warn(`Invalid date components parsed from operDate '${item.operDate}' for bill ${billNo}. Using current date/time.`);
+                                  }
+                              } else {
+                                  console.warn(`Unexpected operDate format '${item.operDate}' for bill ${billNo}. Using current date/time.`);
+                              }
                          }
-                        acc[billNo] = { billNo: billNo, items: [], totalPrice: 0, saleDate: saleDateTime };
+                        acc[billNo] = { billNo: billNo, items: [], totalPrice: 0, saleDate: saleDateTime }; // Ajout de billNo ici
                     }
 
-                    // Trouver le produit
+                    // Trouver le produit correspondant
                     const productNameLower = (item.goodsName || '').trim().toLowerCase();
                     const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
 
                     if (matchedProduct) {
                         const quantity = parseFloat(item.numNum);
                         const price = parseFloat(item.numPrice); // Prix unitaire AVANT remise
-                        // Discount = pourcentage du prix PAYÉ (100 = 100% payé, 80 = 80% payé)
-                        const discountMultiplier = (parseFloat(item.discount) || 100.0) / 100.0; // Default 100 if missing
+                        // Discount = pourcentage du prix PAYÉ (100 = 100% payé, 80 = 80% payé donc 20% reduc)
+                        const discountMultiplier = (parseFloat(item.discount) || 100.0) / 100.0; // Default to 100 if missing/invalid
 
                         if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
-                             // Calculer le prix final pour cette LIGNE (prix unitaire après remise * quantité)
-                             const finalItemLinePrice = price * discountMultiplier * quantity; // Formule correcte
+                             // Calculer le prix final de l'article avec la remise
+                             const finalItemPrice = price * discountMultiplier; // Correction ici
 
-                            // Stocker l'item pour référence (avec prix unitaire APRES remise)
                             acc[billNo].items.push({
                                 id: matchedProduct.id,
                                 name: matchedProduct.name,
                                 quantity,
-                                price: price * discountMultiplier // Prix unitaire APRÈS remise
+                                price: finalItemPrice // Stocker le prix APRÈS remise par article
                             });
-                             // Ajouter le prix total de CETTE LIGNE au total de la facture
-                             acc[billNo].totalPrice += finalItemLinePrice;
+                             // Ajouter le prix total de CET article (après remise * quantité) au total de la facture
+                             acc[billNo].totalPrice += (finalItemPrice * quantity);
                         } else {
                             console.warn(`Produit ${item.goodsName || 'N/A'} ignoré (fact ${billNo}): qté/prix invalide.`);
                         }
@@ -1592,8 +1598,7 @@
                     }
                     return acc;
                 }, {});
-                // --- FIN NOUVELLE LOGIQUE ---
-
+                // FIN CORRECTION PRIX ET HEURE + AJOUT BILLNO
 
                 const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
                 if (salesToSave.length === 0) throw new Error("Aucune vente valide à importer.");
@@ -1669,6 +1674,7 @@
 
 
         // --- IMPORT/EXPORT CSV ---
+        // MODIFICATION: Format date CSV (ajout heure)
         const CSV_INSTRUCTIONS = {
             ingredients: `<p>4 colonnes: <strong>nom,quantite,unite,cout</strong></p><pre>nom,quantite,unite,cout\nTomates,10,kg,2.5\n</pre>`,
             products: `<p>4 colonnes: <strong>nom,prix,type,details</strong></p><p>Pizza/Entrée/Dessert: "Ing1:qty1:unit1;Ing2:qty2:unit2"</p><p>Boisson/Autre: "ArticleStock:qtyConsommée"</p><pre>Margherita,8.5,Pizza,"Pâte:1:p;Sauce:0.1:kg"\nCoca,2,Boisson,"Canette Coca:1"</pre>`,
@@ -1814,4 +1820,3 @@
     </script>
 </body>
 </html>
-
