@@ -638,6 +638,16 @@
             const minutes = String(d.getMinutes()).padStart(2, '0');
             return `${day}/${month}/${year} ${hours}:${minutes}`;
         };
+        // Helper simple pour juste la date
+         const formatDateToDDMMYYYY = (date) => {
+            if (!date) return 'Date inconnue';
+            const d = date.seconds ? new Date(date.seconds * 1000) : date;
+            if (isNaN(d.getTime())) return 'Date invalide';
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        };
 
         const toDate = (timestamp) => {
             if (!timestamp) return null;
@@ -1502,17 +1512,16 @@
                 statusText.textContent = `Traitement ${allSalesData.length} articles...`;
                 if (allSalesData.length === 0) throw new Error("Aucune vente trouvée via API.");
 
-                // Process Sales (Use numCash for totalPrice)
+                // Process Sales - MODIFIED PRICE CALCULATION
                 const groupedSales = allSalesData.reduce((acc, item) => {
-                     const billNo = item.billNo;
-                     if (!acc[billNo]) {
-                         // MODIFICATION: Utilisation de operDate pour saleDate (avec fallback)
+                    const billNo = item.billNo;
+                    if (!acc[billNo]) {
+                         // Heure: Utilisation de operDate
                          let saleDateTime = new Date(); // Fallback
                          if(item.operDate) {
-                              // Tenter de parser le format "YYYY MM DD HH:MM:SS"
-                              const parts = item.operDate.split(/[\s:]+/); // Sépare par espace ou ':'
+                              const parts = item.operDate.split(/[\s:]+/); // Format "YYYY-MM-DD HH:MM:SS" ou "YYYY MM DD HH:MM:SS"
                               if (parts.length === 6) {
-                                  // Recomposer en format ISO-like pour le constructeur Date
+                                  // Recomposer en format ISO-like YYYY-MM-DDTHH:MM:SS
                                   const isoLikeString = `${parts[0]}-${parts[1]}-${parts[2]}T${parts[3]}:${parts[4]}:${parts[5]}`;
                                   const parsedDate = new Date(isoLikeString);
                                   if (!isNaN(parsedDate.getTime())) {
@@ -1524,24 +1533,38 @@
                                   console.warn(`Unexpected operDate format '${item.operDate}' for bill ${billNo}. Using current date/time.`);
                               }
                          }
+                        acc[billNo] = { billNo, items: [], totalPrice: 0, saleDate: saleDateTime };
+                    }
 
-                         acc[billNo] = {
-                             billNo: billNo, items: [],
-                             totalPrice: parseFloat(item.numCash) || 0, // Utilise numCash
-                             saleDate: saleDateTime
-                         };
-                     }
-                      const productNameLower = (item.goodsName || '').trim().toLowerCase();
-                      const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
-                      if (matchedProduct) {
-                         const quantity = parseFloat(item.numNum);
-                         const price = parseFloat(item.numPrice);
-                         if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
-                             acc[billNo].items.push({ id: matchedProduct.id, name: matchedProduct.name, quantity, price });
-                         } else console.warn(`Produit ${item.goodsName || 'N/A'} ignoré (fact ${billNo}): qté/prix invalide.`);
-                      } else console.warn(`Produit API "${item.goodsName || 'N/A'}" (fact ${billNo}) non trouvé.`);
+                    const productNameLower = (item.goodsName || '').trim().toLowerCase();
+                    const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
+
+                    if (matchedProduct) {
+                        const quantity = parseFloat(item.numNum);
+                        const price = parseFloat(item.numPrice);
+                        const discountPercent = parseFloat(item.discount) || 0; // Discount en pourcentage (ex: 100 = 100% off)
+
+                        if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
+                             // Calculer le prix final de l'article avec la remise
+                             const finalItemPrice = price * (1 - (discountPercent / 100.0));
+
+                            acc[billNo].items.push({
+                                id: matchedProduct.id,
+                                name: matchedProduct.name,
+                                quantity,
+                                price: finalItemPrice // Stocker le prix APRÈS remise par article
+                            });
+                             // Ajouter le prix total de CET article (après remise * quantité) au total de la facture
+                             acc[billNo].totalPrice += (finalItemPrice * quantity);
+                        } else {
+                            console.warn(`Produit ${item.goodsName || 'N/A'} ignoré (fact ${billNo}): qté/prix invalide.`);
+                        }
+                    } else {
+                        console.warn(`Produit API "${item.goodsName || 'N/A'}" (fact ${billNo}) non trouvé.`);
+                    }
                     return acc;
                 }, {});
+                // END MODIFIED PRICE CALCULATION
 
                 const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
                 if (salesToSave.length === 0) throw new Error("Aucune vente valide à importer.");
@@ -1573,6 +1596,7 @@
                      }
                      if (stockAvailable) {
                          for (const [ingId, qty] of tempDeductions.entries()) batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
+                         // Enregistrer la vente avec le totalPrice calculé (somme des prix finaux * qté)
                          batch.set(doc(collection(db, ordersCol.path)), { items: sale.items, totalPrice: sale.totalPrice, createdAt: serverTimestamp(), saleDate: sale.saleDate });
                          salesImportedCount++;
                      } else salesSkippedCount++;
@@ -1668,7 +1692,7 @@
                         const prod = allProducts.find(p => p.name.toLowerCase() === name.toLowerCase());
                         if (!prod) throw new Error(`Produit introuvable: ${name}`);
                         items.push({ id: prod.id, name: prod.name, quantity: qty, price: prod.price });
-                        total += prod.price * qty;
+                        total += prod.price * qty; // Le total CSV est basé sur le prix standard, pas de remise ici
                         if (prod.recipe?.length > 0) {
                             for (const r of prod.recipe) deductions.set(r.id, (deductions.get(r.id) || 0) + r.quantity * qty);
                         } else if(prod.linkedIngredientId) {
@@ -1686,7 +1710,21 @@
 
         const downloadCSV = (content, filename) => { const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", filename); link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
         document.getElementById('export-ingredients-btn').addEventListener('click', () => { let csv = "nom,quantite,unite,cout\n"; allIngredients.forEach(i => { csv += `${i.name},${i.quantity},${i.unit},${i.cost || 0}\n`; }); downloadCSV(csv, 'ingredients.csv'); });
-        document.getElementById('export-products-btn').addEventListener('click', () => { /* ... (inchangé) ... */ });
+        document.getElementById('export-products-btn').addEventListener('click', () => {
+             let csv = "nom,prix,type,details\n";
+             allProducts.forEach(p => {
+                 let d = '';
+                 if (p.type === 'Pizza' || p.type === 'Entrée' || p.type === 'Dessert') {
+                     if(p.recipe) d = `"${p.recipe.map(r => `${r.name}:${r.quantity}:${r.unit}`).join(';')}"`;
+                 } else { // Linked product
+                     const l = allIngredients.find(i => i.id === p.linkedIngredientId);
+                     const q = p.linkedIngredientQuantity || 1;
+                     d = l ? `"${l.name}:${q}"` : '"NON LIÉ:1"';
+                 }
+                 csv += `${p.name},${p.price},${p.type},${d}\n`;
+             });
+             downloadCSV(csv, 'produits.csv');
+         });
         // MODIFICATION: Export CSV Ventes avec heure
         document.getElementById('export-orders-btn').addEventListener('click', () => {
             let csv = "date_heure,produits,quantites,prix_total\n"; // Changement en-tête
