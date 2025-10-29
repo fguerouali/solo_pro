@@ -1752,6 +1752,12 @@
                       if (matchedProduct) {
                          const quantity = parseFloat(item.numNum);
                          const price = parseFloat(item.numPrice); 
+								 // V V V AJOUTEZ CES LIGNES V V V
+						const priceAdd = parseFloat(item.numPriceAdd) || 0;
+						// On suppose que 'discount' est un pourcentage (ex: 90 pour 90%)
+						// S'il n'est pas fourni, on met 100 (donc 100/100 = 1)
+						const discountMultiplier = (parseFloat(item.discount) || 100) / 100;
+						// ^ ^ ^ FIN DES AJOUTS ^ ^ ^
                          if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
                              acc[billNo].items.push({
                                  id: matchedProduct.id, 
@@ -1759,7 +1765,10 @@
                                  quantity: quantity,
                                  price: price 
                              });
-                             acc[billNo].totalPrice += price * quantity; 
+		// V V V MODIFIEZ CETTE LIGNE V V V
+							// Original : acc[billNo].totalPrice += price * quantity;
+							acc[billNo].totalPrice += (price * quantity + priceAdd) * discountMultiplier;
+							// ^ ^ ^ FIN DE LA MODIFICATION ^ ^ ^
                          } else {
                              console.warn(`Produit ${item.goodsName || 'N/A'} ignoré dans la facture ${billNo}: quantité ou prix invalide.`);
                          }
