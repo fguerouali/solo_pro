@@ -1542,7 +1542,7 @@
                 statusText.textContent = `Traitement ${allSalesData.length} articles...`;
                 if (allSalesData.length === 0) throw new Error("Aucune vente trouvée via API.");
 
-                // Process Sales - CORRECTION PRIX (discount 100 = 100% payé) ET HEURE + AJOUT BILLNO
+                // Process Sales - CORRECTION GROUPEMENT + PRIX (discount 100 = 100% payé) + HEURE + BILLNO
                 const groupedSales = allSalesData.reduce((acc, item) => {
                     const billNo = item.billNo;
                     // Initialisation de la vente groupée (si elle n'existe pas)
@@ -1579,17 +1579,18 @@
                         const discountMultiplier = (parseFloat(item.discount) || 100.0) / 100.0; // Default to 100 if missing/invalid
 
                         if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
-                             // Calculer le prix final de l'article avec la remise
-                             const finalItemPrice = price * discountMultiplier; // CORRECTION ICI
+                             // Calculer le prix final pour cette ligne (prix unitaire après remise * quantité)
+                             const finalItemLinePrice = price * discountMultiplier * quantity; // CORRECTION ICI
 
+                            // Stocker l'item pour référence (on garde le prix unitaire après remise pour l'item)
                             acc[billNo].items.push({
                                 id: matchedProduct.id,
                                 name: matchedProduct.name,
                                 quantity,
-                                price: finalItemPrice // Stocker le prix APRÈS remise par article
+                                price: price * discountMultiplier // Prix unitaire APRÈS remise
                             });
-                             // Ajouter le prix total de CET article (après remise * quantité) au total de la facture
-                             acc[billNo].totalPrice += (finalItemPrice * quantity);
+                             // Ajouter le prix total de CETTE LIGNE au total de la facture
+                             acc[billNo].totalPrice += finalItemLinePrice; // CORRECTION ICI
                         } else {
                             console.warn(`Produit ${item.goodsName || 'N/A'} ignoré (fact ${billNo}): qté/prix invalide.`);
                         }
@@ -1598,7 +1599,7 @@
                     }
                     return acc;
                 }, {});
-                // FIN CORRECTION PRIX ET HEURE + AJOUT BILLNO
+                // FIN CORRECTION GROUPEMENT, PRIX, HEURE, BILLNO
 
 
                 const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
