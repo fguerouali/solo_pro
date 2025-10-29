@@ -1542,7 +1542,7 @@
                 statusText.textContent = `Traitement ${allSalesData.length} articles...`;
                 if (allSalesData.length === 0) throw new Error("Aucune vente trouvée via API.");
 
-                // Process Sales - CORRECTION PRIX (discount 100 = pas de reduc) ET HEURE + AJOUT BILLNO
+                // Process Sales - CORRECTION PRIX (discount 100 = 100% payé) ET HEURE + AJOUT BILLNO
                 const groupedSales = allSalesData.reduce((acc, item) => {
                     const billNo = item.billNo;
                     // Initialisation de la vente groupée (si elle n'existe pas)
@@ -1580,7 +1580,7 @@
 
                         if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
                              // Calculer le prix final de l'article avec la remise
-                             const finalItemPrice = price * discountMultiplier; // Correction ici
+                             const finalItemPrice = price * discountMultiplier; // CORRECTION ICI
 
                             acc[billNo].items.push({
                                 id: matchedProduct.id,
@@ -1599,6 +1599,7 @@
                     return acc;
                 }, {});
                 // FIN CORRECTION PRIX ET HEURE + AJOUT BILLNO
+
 
                 const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
                 if (salesToSave.length === 0) throw new Error("Aucune vente valide à importer.");
