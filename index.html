@@ -610,15 +610,18 @@
             return `${year}-${month}-${day}`;
         };
 
-        const formatDateToDDMMYYYY = (date) => {
-            if (!date) return 'Date inconnue';
-            const d = date.seconds ? new Date(date.seconds * 1000) : date;
-            if (isNaN(d.getTime())) return 'Date invalide';
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = d.getFullYear();
-            return `${day}/${month}/${year}`;
-        };
+		const formatDateToDDMMYYYY = (date) => {
+		            if (!date) return 'Date inconnue';
+		            const d = date.seconds ? new Date(date.seconds * 1000) : date;
+		            if (isNaN(d.getTime())) return 'Date invalide';
+		            const day = String(d.getDate()).padStart(2, '0');
+		            const month = String(d.getMonth() + 1).padStart(2, '0');
+		            const year = d.getFullYear();
+					// Ajout de l'heure et des minutes
+		            const hours = String(d.getHours()).padStart(2, '0');
+		            const minutes = String(d.getMinutes()).padStart(2, '0');
+		            return `${day}/${month}/${year} à ${hours}h${minutes}`;
+		        };
 
         const toDate = (timestamp) => {
             if (!timestamp) return null;
@@ -1733,18 +1736,28 @@
                      const billNo = item.billNo;
                      if (!acc[billNo]) {
                          acc[billNo] = {
-                             billNo: billNo,
-                             items: [],
-                             totalPrice: 0,
-                             saleDate: item.operDate ? new Date(item.operDate.replace(' ', 'T') + 'Z') : new Date() 
-                         };
-                         if (!isNaN(acc[billNo].saleDate.getTime())) {
-                             acc[billNo].saleDate.setUTCHours(12, 0, 0, 0);
-                         } else {
-                             console.warn(`Invalid operDate '${item.operDate}' for bill ${billNo}. Using current date.`);
-                             acc[billNo].saleDate = new Date(); 
-                             acc[billNo].saleDate.setUTCHours(12,0,0,0);
-                         }
+// ... (code précédent)
+                             billNo: billNo,
+                             items: [],
+                             totalPrice: 0,
+                             saleDate: null // On initialise à null
+                         };
+
+                         // On essaie de parser la date de l'API (qui contient l'heure)
+                         if (item.operDate) {
+                             const tempDate = new Date(item.operDate.replace(' ', 'T') + 'Z');
+                             // Si la date est valide, on l'utilise (avec l'heure)
+                             if (!isNaN(tempDate.getTime())) {
+                                 acc[billNo].saleDate = tempDate;
+                             } else {
+                                 console.warn(`Invalid operDate '${item.operDate}' for bill ${billNo}. Using current date and time.`);
+                             }
+                         }
+                         // Si la date API est absente ou invalide, on prend la date et l'heure actuelles
+                         if (!acc[billNo].saleDate) {
+                             acc[billNo].saleDate = new Date();
+                         }
+// ... (suite du code)
                      }
                       const productNameLower = (item.goodsName || '').trim().toLowerCase(); 
                       const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
