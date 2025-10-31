@@ -1804,18 +1804,34 @@ const renderOrderHistory = (history) => {
 						const discountMultiplier = discountPercent / 100;
 						// ^ ^ ^ FIN DE LA NOUVELLE LOGIQUE ^ ^ ^
 						// ^ ^ ^ FIN DES AJOUTS ^ ^ ^
-                         if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
-                             acc[billNo].items.push({
-                                 id: matchedProduct.id, 
-                                 name: matchedProduct.name, 
-                                 quantity: quantity,
-                                 price: price 
-                             });
-		// V V V MODIFIEZ CETTE LIGNE V V V
-							// Original : acc[billNo].totalPrice += price * quantity;
-							acc[billNo].totalPrice += (price * quantity + priceAdd) * discountMultiplier;
-							// ^ ^ ^ FIN DE LA MODIFICATION ^ ^ ^
-                         } else {
+                        // ... (code pour priceAdd et discountMultiplier) ...
+
+                        // V V V MODIFICATION POUR GÉRER numBack V V V
+                        
+                        // 1. On récupère la nouvelle variable numBack
+                        const numBack = parseFloat(item.numBack);
+
+                         if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
+                             acc[billNo].items.push({
+                                 id: matchedProduct.id, 
+                                 name: matchedProduct.name, 
+                                 quantity: quantity,
+                                 price: price 
+                             });
+
+                            // 2. On calcule le prix de l'article avant remise
+                            let itemTotalBeforeDiscount = (price * quantity + priceAdd);
+
+                            // 3. Si numBack est 0 (remboursé), on met son prix à 0
+                            if (numBack === 0) {
+                                itemTotalBeforeDiscount = 0;
+                            }
+                            
+                            // 4. On ajoute le prix (0 ou le prix normal) au total de la facture, après remise
+							acc[billNo].totalPrice += itemTotalBeforeDiscount * discountMultiplier;
+
+                         } else {
+                        // ...
                              console.warn(`Produit ${item.goodsName || 'N/A'} ignoré dans la facture ${billNo}: quantité ou prix invalide.`);
                          }
                       } else {
