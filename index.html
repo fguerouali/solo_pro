@@ -1823,7 +1823,7 @@ const renderOrderHistory = (history) => {
                             let itemTotalBeforeDiscount = (price * quantity + priceAdd);
 
                             // 3. Si numBack est 0 (remboursé), on met son prix à 0
-                            if (numBack === 0) {
+                            if (numBack === 1) {
                                 itemTotalBeforeDiscount = 0;
                             }
                             
