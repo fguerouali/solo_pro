@@ -948,21 +948,27 @@ card.innerHTML = `<div class="flex justify-between items-start">
         };
         const renderLossHistory = () => { const container = document.getElementById('loss-history-list'); const placeholder = document.getElementById('loss-history-placeholder'); container.innerHTML = ''; if (allLosses.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allLosses.forEach(loss => { const card = document.createElement('div'); card.className = 'bg-yellow-50 p-4 rounded-xl shadow-md border-l-4 border-yellow-400'; const date = loss.createdAt ? new Date(loss.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue'; const reasonHtml = loss.reason ? `<p class="text-sm text-gray-500 italic mt-1">"${loss.reason}"</p>` : ''; card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-yellow-800">Perte du ${date}</p><p class="text-gray-700 mt-2"><span class="font-semibold">${loss.quantity} ${loss.unit || ''}</span> de <span class="font-semibold">${loss.itemName}</span></p>${reasonHtml}</div><div class="flex items-center gap-4 text-right"><button data-id="${loss.id}" class="delete-loss-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; container.appendChild(card); }); } };
 		// V V V **BLOC MANQUANT À AJOUTER** V V V
+   // V V V **BLOC CORRIGÉ** V V V
         const renderTopProducts = (topProducts) => {
             const container = document.getElementById('top-products-list');
-            const placeholder = document.getElementById('top-products-placeholder');
-            container.innerHTML = ''; // Vider la liste précédente
+            // Vider le conteneur à chaque fois
+            container.innerHTML = ''; 
 
             if (topProducts.length === 0) {
-                container.appendChild(placeholder); // Remettre le placeholder s'il n'y a pas de données
+                // Si c'est vide, on recrée le message "placeholder"
+                container.innerHTML = `
+                    <div id="top-products-placeholder" class="text-center col-span-full py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
+                        <i class="fas fa-chart-pie fa-2x text-gray-400 mb-2"></i>
+                        <p>Aucune donnée de vente pour la période sélectionnée.</p>
+                    </div>
+                `;
             } else {
+                // S'il y a des produits, on crée les cartes
                 topProducts.forEach((product, index) => {
                     const card = document.createElement('div');
-                    // Appliquer un style de carte simple
                     card.className = 'bg-white p-4 rounded-2xl shadow-lg flex justify-between items-center';
-                    
+                    
                     const rank = index + 1;
-                    // Ajouter un peu de style pour le classement
                     let rankColor = 'text-gray-500';
                     if (rank === 1) rankColor = 'text-yellow-500'; // Or
                     if (rank === 2) rankColor = 'text-gray-400'; // Argent
@@ -982,6 +988,7 @@ card.innerHTML = `<div class="flex justify-between items-start">
                 });
             }
         };
+    	// ^ ^ ^ **FIN DU BLOC CORRIGÉ** ^ ^ ^
         // ^ ^ ^ **FIN DU BLOC MANQUANT** ^ ^ ^
         
         // --- KPI FILTERS ---
