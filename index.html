@@ -1,698 +1,727 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>solo - Gestion Pizzeria</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #cccccc; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #aaaaaa; }
-        
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        
-        .tab-link.active { 
-            border-color: #1f2937; /* gray-800 */
-            color: #1f2937; /* gray-800 */
-            font-weight: 600;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>solo - Gestion Pizzeria</title>
 
-        .low-stock { background-color: #fee2e2 !important; }
-        .low-stock-text { color: #b91c1c; font-weight: 600; }
-        
-        .modal { display: none; }
-        .modal.flex { display: flex; }
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-        .header-font { font-family: 'Poppins', sans-serif; font-weight: 800; }
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 
-        .btn-primary { @apply bg-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-900 transition-all transform hover:scale-105; }
-        .btn-secondary { @apply bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-all; }
-        .input-style { @apply p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-gray-800 focus:border-gray-800; }
-        
-        .kpi-filter-btn.active {
-            @apply bg-gray-800 text-white shadow-inner;
-        }
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 
-        /* Spinner Styles */
-        .loader {
-            border: 4px solid #f3f3f3; /* Light grey */
-            border-top: 4px solid #3498db; /* Blue */
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-            display: inline-block; /* Or block, depending on layout */
-            margin: 0 auto; /* Center if block */
-        }
+  <style>
+    body{font-family:'Inter',sans-serif;background-color:#f8f9fa}
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:8px}
+    ::-webkit-scrollbar-track{background:#f1f1f1}
+    ::-webkit-scrollbar-thumb{background:#ccc;border-radius:4px}
+    ::-webkit-scrollbar-thumb:hover{background:#aaa}
+
+    /* Tabs */
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .tab-link{
+      white-space:nowrap;padding:.75rem 1rem;border-bottom:2px solid transparent;
+      font-weight:500;font-size:.875rem;color:#6b7280; /* gray-500 */
+      transition:color .15s ease,border-color .15s ease;
+    }
+    .tab-link:hover{color:#374151;border-color:#d1d5db} /* gray-700 / gray-300 */
+    .tab-link.active{
+      border-color:#1f2937;color:#1f2937;font-weight:600; /* gray-800 */
+    }
+
+    /* Badges / alerts */
+    .low-stock{background-color:#fee2e2!important}
+    .low-stock-text{color:#b91c1c;font-weight:600}
+
+    /* Modals */
+    .modal{display:none}
+    .modal.flex{display:flex}
+
+    /* Titles */
+    .header-font{font-family:'Poppins',sans-serif;font-weight:800}
+
+    /* Buttons (remplace @apply) */
+    .btn-primary{
+      background:#1f2937;color:#fff;font-weight:700;padding:.5rem 1rem;border-radius:.5rem;
+      box-shadow:0 1px 2px rgba(0,0,0,.06);transition:all .15s ease;
+    }
+    .btn-primary:hover{background:#111827;transform:scale(1.05)}
+    .btn-secondary{
+      background:#e5e7eb;color:#1f2937;font-weight:700;padding:.5rem 1rem;border-radius:.5rem;
+      transition:all .15s ease;
+    }
+    .btn-secondary:hover{background:#d1d5db}
+
+    .kpi-filter-btn.active{background:#1f2937;color:#fff;box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}
+
+    /* Inputs (remplace @apply) */
+    .input-style{
+      padding:.5rem;border:1px solid #d1d5db;border-radius:.5rem;box-shadow:0 1px 2px rgba(0,0,0,.02);
+      outline:0;transition:border-color .15s ease, box-shadow .15s ease;
+    }
+    .input-style:focus{border-color:#1f2937;box-shadow:0 0 0 3px rgba(31,41,55,.15)}
+
+    /* Spinner */
+    .loader{
+      border:4px solid #f3f3f3;border-top:4px solid #3498db;border-radius:50%;
+      width:24px;height:24px;animation:spin 1s linear infinite;display:inline-block;margin:0 auto;
+    }
+    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+  </style>
 </head>
+
 <body class="text-gray-800">
+  <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+    <header class="mb-8 text-center">
+      <h1 class="header-font text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight">solo</h1>
+      <p class="text-gray-500 uppercase tracking-widest mt-1 text-sm">Pizzeria Napoletana</p>
+    </header>
 
-    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
-                <header class="mb-8 text-center">
-            <h1 class="header-font text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight">
-                solo
-            </h1>
-            <p class="text-gray-500 uppercase tracking-widest mt-1 text-sm">Pizzeria Napoletana</p>
-        </header>
+    <!-- Tabs -->
+    <div class="mb-8">
+      <div class="border-b border-gray-200">
+        <nav class="-mb-px flex space-x-4 justify-center flex-wrap" aria-label="Tabs">
+          <button class="tab-link active" data-tab="dashboard"><i class="fas fa-chart-line mr-2"></i>Tableau de Bord</button>
+          <button class="tab-link" data-tab="ingredients"><i class="fas fa-box mr-2"></i>Stock</button>
+          <button class="tab-link" data-tab="products"><i class="fas fa-utensils mr-2"></i>Produits</button>
+          <button class="tab-link" data-tab="purchases"><i class="fas fa-truck mr-2"></i>Achats</button>
+          <button class="tab-link" data-tab="orders"><i class="fas fa-receipt mr-2"></i>Ventes & Pertes</button>
+          <button class="tab-link" data-tab="hr"><i class="fas fa-users mr-2"></i>RH</button>
+        </nav>
+      </div>
+    </div>
 
-                <div class="mb-8">
-            <div class="border-b border-gray-200">
-                <nav class="-mb-px flex space-x-4 justify-center flex-wrap" aria-label="Tabs">
-                    <button class="tab-link active" data-tab="dashboard"><i class="fas fa-chart-line mr-2"></i>Tableau de Bord</button>
-                    <button class="tab-link" data-tab="ingredients"><i class="fas fa-box mr-2"></i>Stock</button>
-                    <button class="tab-link" data-tab="products"><i class="fas fa-utensils mr-2"></i>Produits</button>
-                    <button class="tab-link" data-tab="purchases"><i class="fas fa-truck mr-2"></i>Achats</button>
-                    <button class="tab-link" data-tab="orders"><i class="fas fa-receipt mr-2"></i>Ventes & Pertes</button>
-                                        <button class="tab-link" data-tab="hr"><i class="fas fa-users mr-2"></i>RH</button>
-                </nav>
-            </div>
-        </div>
+    <main>
+      <!-- Dashboard -->
+      <div id="dashboard-content" class="tab-content active">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h2 class="text-2xl font-semibold text-gray-800">Indicateurs de Performance</h2>
+            <p id="kpi-filter-label" class="text-sm text-gray-500">Période : Tout le temps</p>
+          </div>
+          <button id="toggle-kpi-filters-btn" class="btn-secondary">
+            <i class="fas fa-filter mr-2"></i>Filtrer
+          </button>
+        </div>
 
-                <main>
-                        <div id="dashboard-content" class="tab-content active">
-                                 <div class="flex justify-between items-center mb-4">
-                    <div>
-                         <h2 class="text-2xl font-semibold text-gray-800">Indicateurs de Performance</h2>
-                         <p id="kpi-filter-label" class="text-sm text-gray-500">Période : Tout le temps</p>
-                    </div>
-                    <button id="toggle-kpi-filters-btn" class="btn-secondary"><i class="fas fa-filter mr-2"></i>Filtrer</button>
-                </div>
+        <div id="kpi-filter-container" class="hidden mb-6 bg-white p-4 rounded-2xl shadow-lg">
+          <div class="flex flex-wrap items-center justify-center gap-2 md:gap-4">
+            <div class="flex gap-2">
+              <button data-filter="today" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Aujourd'hui</button>
+              <button data-filter="yesterday" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Hier</button>
+              <button data-filter="week" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Cette semaine</button>
+              <button data-filter="month" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Ce mois</button>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="date" id="kpi-start-date" class="input-style p-1 text-sm"/>
+              <span>à</span>
+              <input type="date" id="kpi-end-date" class="input-style p-1 text-sm"/>
+              <button id="kpi-filter-range-btn" class="btn-primary py-1 px-3 text-sm">Appliquer</button>
+            </div>
+            <button id="kpi-reset-filter-btn" class="text-gray-500 hover:text-gray-800 text-sm font-medium">Réinitialiser</button>
+          </div>
+        </div>
 
-                                <div id="kpi-filter-container" class="hidden mb-6 bg-white p-4 rounded-2xl shadow-lg">
-                    <div class="flex flex-wrap items-center justify-center gap-2 md:gap-4">
-                                                <div class="flex gap-2">
-                             <button data-filter="today" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Aujourd'hui</button>
-							 <button data-filter="yesterday" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Hier</button>
-                             <button data-filter="week" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Cette semaine</button>
-                             <button data-filter="month" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Ce mois</button>
-                        </div>
-                                                <div class="flex items-center gap-2">
-                            <input type="date" id="kpi-start-date" class="input-style p-1 text-sm">
-                            <span>à</span>
-                            <input type="date" id="kpi-end-date" class="input-style p-1 text-sm">
-                            <button id="kpi-filter-range-btn" class="btn-primary py-1 px-3 text-sm">Appliquer</button>
-                        </div>
-                        <button id="kpi-reset-filter-btn" class="text-gray-500 hover:text-gray-800 text-sm font-medium">Réinitialiser</button>
-                    </div>
-                </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 mb-8">
+          <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes</h3>
+            <p id="kpi-total-sales" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+          </div>
+          <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Achats (Reçus)</h3>
+            <p id="kpi-total-purchases" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+          </div>
+          <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Achats (Non Payés)</h3>
+            <p id="kpi-unpaid-purchases" class="text-3xl font-bold text-red-600 mt-1">0.00 Mad</p>
+          </div>
+          <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Salaires</h3>
+            <p id="kpi-total-salaries" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+          </div>
+          <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Pertes</h3>
+            <p id="kpi-total-losses" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+          </div>
+          <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes (Nbre)</h3>
+            <p id="kpi-total-orders" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+          </div>
+        </div>
 
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Alertes de Stock</h2>
+        <div id="low-stock-alerts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div id="low-stock-placeholder" class="text-center col-span-full py-10 text-gray-500">
+            <i class="fas fa-check-circle fa-2x text-green-500 mb-2"></i>
+            <p>Aucune alerte de stock bas pour le moment.</p>
+          </div>
+        </div>
 
-                                                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 mb-8">
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes</h3>
-                        <p id="kpi-total-sales" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Achats (Reçus)</h3>
-                        <p id="kpi-total-purchases" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Achats (Non Payés)</h3>
-                        <p id="kpi-unpaid-purchases" class="text-3xl font-bold text-red-600 mt-1">0.00 Mad</p>
-                    </div>
-                                        <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Salaires</h3>
-                        <p id="kpi-total-salaries" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Pertes</h3>
-                        <p id="kpi-total-losses" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes (Nbre)</h3>
-                        <p id="kpi-total-orders" class="text-3xl font-bold text-gray-900 mt-1">0</p>
-                    </div>
-                </div>
-                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Alertes de Stock</h2>
-                <div id="low-stock-alerts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <div id="low-stock-placeholder" class="text-center col-span-full py-10 text-gray-500">
-                        <i class="fas fa-check-circle fa-2x text-green-500 mb-2"></i><p>Aucune alerte de stock bas pour le moment.</p>
-                    </div>
-                </div>
-                
-                <h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-800">Top 5 Produits Vendus</h2>
-                <div id="top-products-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div id="top-products-placeholder" class="text-center col-span-full py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
-                        <i class="fas fa-chart-pie fa-2x text-gray-400 mb-2"></i>
-                        <p>Aucune donnée de vente pour la période sélectionnée.</p>
-                    </div>
-                </div>
-            </div>
+        <h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-800">Top 5 Produits Vendus</h2>
+        <div id="top-products-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div id="top-products-placeholder" class="text-center col-span-full py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
+            <i class="fas fa-chart-pie fa-2x text-gray-400 mb-2"></i>
+            <p>Aucune donnée de vente pour la période sélectionnée.</p>
+          </div>
+        </div>
+      </div>
 
-                        <div id="ingredients-content" class="tab-content">
-                            </div>
+      <div id="ingredients-content" class="tab-content"></div>
+      <div id="products-content" class="tab-content"></div>
+      <div id="purchases-content" class="tab-content"></div>
+      <div id="orders-content" class="tab-content"></div>
 
-                        <div id="products-content" class="tab-content">
-                            </div>
-            
-                        <div id="purchases-content" class="tab-content">
-                            </div>
+      <!-- RH -->
+      <div id="hr-content" class="tab-content">
+        <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
+          <h2 class="text-2xl font-semibold text-gray-800">Gestion des Salariés</h2>
+          <div class="flex gap-2">
+            <button id="pay-salaries-btn" class="btn-secondary bg-green-100 hover:bg-green-200 text-green-800">
+              <i class="fas fa-money-bill-wave mr-2"></i>Payer Salaires ce Mois
+            </button>
+            <button id="add-employee-btn" class="btn-primary">
+              <i class="fas fa-user-plus mr-2"></i>Ajouter Salarié
+            </button>
+          </div>
+        </div>
 
-                        <div id="orders-content" class="tab-content">
-                            </div>
-            
-                        <div id="hr-content" class="tab-content">
-                <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
-                    <h2 class="text-2xl font-semibold text-gray-800">Gestion des Salariés</h2>
-                    <div class="flex gap-2">
-                        <button id="pay-salaries-btn" class="btn-secondary bg-green-100 hover:bg-green-200 text-green-800"><i class="fas fa-money-bill-wave mr-2"></i>Payer Salaires ce Mois</button>
-                        <button id="add-employee-btn" class="btn-primary"><i class="fas fa-user-plus mr-2"></i>Ajouter Salarié</button>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-lg">
-                    <table id="hr-table" class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date d'embauche</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salaire Mensuel</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paiement (Ce mois)</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="employees-list" class="bg-white divide-y divide-gray-200">
-                                                    </tbody>
-                    </table>
-                    <div id="hr-placeholder" class="hidden text-center py-10 text-gray-500">
-                        <p>Aucun salarié. Ajoutez-en un pour commencer !</p>
-                    </div>
-                </div>
-            </div>
-                    </main>
-    </div>
+        <div class="bg-white p-6 rounded-2xl shadow-lg">
+          <table id="hr-table" class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date d'embauche</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salaire Mensuel</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paiement (Ce mois)</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="employees-list" class="bg-white divide-y divide-gray-200"></tbody>
+          </table>
+          <div id="hr-placeholder" class="hidden text-center py-10 text-gray-500">
+            <p>Aucun salarié. Ajoutez-en un pour commencer !</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 
-            
-        <div id="employee-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
-            <h3 id="employee-modal-title" class="text-xl font-semibold mb-4 text-gray-800">Ajouter un Salarié</h3>
-            <form id="employee-form">
-                <input type="hidden" id="employee-id">
-                <div class="space-y-4">
-                    <div><label for="employee-name" class="block text-sm font-medium text-gray-700">Nom Complet</label><input type="text" id="employee-name" required class="mt-1 w-full input-style"></div>
-                    <div><label for="employee-hire-date" class="block text-sm font-medium text-gray-700">Date d'embauche</label><input type="date" id="employee-hire-date" required class="mt-1 w-full input-style"></div>
-                    <div><label for="employee-salary" class="block text-sm font-medium text-gray-700">Salaire Mensuel (Mad)</label><input type="number" id="employee-salary" min="0" step="any" required class="mt-1 w-full input-style"></div>
-                </div>
-                <div class="mt-6 flex justify-end space-x-3"><button type="button" class="btn-secondary" id="cancel-employee">Annuler</button><button type="submit" class="btn-primary">Sauvegarder</button></div>
-            </form>
-        </div>
-    </div>
+  <!-- Modals -->
+  <div id="employee-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+      <h3 id="employee-modal-title" class="text-xl font-semibold mb-4 text-gray-800">Ajouter un Salarié</h3>
+      <form id="employee-form">
+        <input type="hidden" id="employee-id"/>
+        <div class="space-y-4">
+          <div>
+            <label for="employee-name" class="block text-sm font-medium text-gray-700">Nom Complet</label>
+            <input type="text" id="employee-name" required class="mt-1 w-full input-style"/>
+          </div>
+          <div>
+            <label for="employee-hire-date" class="block text-sm font-medium text-gray-700">Date d'embauche</label>
+            <input type="date" id="employee-hire-date" required class="mt-1 w-full input-style"/>
+          </div>
+          <div>
+            <label for="employee-salary" class="block text-sm font-medium text-gray-700">Salaire Mensuel (Mad)</label>
+            <input type="number" id="employee-salary" min="0" step="any" required class="mt-1 w-full input-style"/>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end space-x-3">
+          <button type="button" class="btn-secondary" id="cancel-employee">Annuler</button>
+          <button type="submit" class="btn-primary">Sauvegarder</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-    <div id="absence-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
-            <h3 id="absence-modal-title" class="text-xl font-semibold mb-4 text-gray-800">Déclarer une Absence</h3>
-            <form id="absence-form">
-                <input type="hidden" id="absence-employee-id">
-                <input type="hidden" id="absence-employee-name">
-                <p class="mb-4">Salarié : <strong id="absence-modal-name-display"></strong></p>
-                <div class="space-y-4">
-                    <div><label for="absence-date" class="block text-sm font-medium text-gray-700">Date de l'absence</label><input type="date" id="absence-date" required class="mt-1 w-full input-style"></div>
-                    <div><label for="absence-reason" class="block text-sm font-medium text-gray-700">Raison (optionnel)</label><input type="text" id="absence-reason" class="mt-1 w-full input-style"></div>
-                </div>
-                <div class="mt-6 flex justify-end space-x-3"><button type="button" class="btn-secondary" id="cancel-absence">Annuler</button><button type="submit" class="btn-primary">Enregistrer Absence</button></div>
-            </form>
-        </div>
-    </div>
-    
-    <div id="salary-payment-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Confirmer Paiement des Salaires</h3>
-            <p class="text-sm text-gray-600">Vous êtes sur le point de marquer les salaires suivants comme "Payé" pour le mois en cours (<span id="payment-month-year"></span>). Cette action est irréversible.</p>
-            <div id="unpaid-employees-list" class="mt-4 mb-4 space-y-2 max-h-48 overflow-y-auto">
-                            </div>
-            <p class="font-bold text-lg text-right">Total à Payer: <span id="payment-total-amount" class="text-blue-600">0.00 Mad</span></p>
-            <div class="mt-6 flex justify-end space-x-3">
-                <button type="button" class="btn-secondary" id="cancel-payment">Annuler</button>
-                <button type="button" class="btn-primary bg-green-600 hover:bg-green-700" id="confirm-payment-btn">Confirmer & Payer</button>
-            </div>
-        </div>
-    </div>
-        <div id="toast" class="hidden fixed bottom-5 right-5 bg-gray-900 text-white py-2 px-5 rounded-lg shadow-lg">
-        <p id="toast-message"></p>
-    </div>
+  <div id="absence-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+      <h3 id="absence-modal-title" class="text-xl font-semibold mb-4 text-gray-800">Déclarer une Absence</h3>
+      <form id="absence-form">
+        <input type="hidden" id="absence-employee-id"/>
+        <input type="hidden" id="absence-employee-name"/>
+        <p class="mb-4">Salarié : <strong id="absence-modal-name-display"></strong></p>
+        <div class="space-y-4">
+          <div>
+            <label for="absence-date" class="block text-sm font-medium text-gray-700">Date de l'absence</label>
+            <input type="date" id="absence-date" required class="mt-1 w-full input-style"/>
+          </div>
+          <div>
+            <label for="absence-reason" class="block text-sm font-medium text-gray-700">Raison (optionnel)</label>
+            <input type="text" id="absence-reason" class="mt-1 w-full input-style"/>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end space-x-3">
+          <button type="button" class="btn-secondary" id="cancel-absence">Annuler</button>
+          <button type="submit" class="btn-primary">Enregistrer Absence</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-        <style>
-        .tab-link { @apply whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors; }
-    </style>
+  <div id="salary-payment-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+      <h3 class="text-xl font-semibold mb-4 text-gray-800">Confirmer Paiement des Salaires</h3>
+      <p class="text-sm text-gray-600">
+        Vous êtes sur le point de marquer les salaires suivants comme "Payé" pour le mois en cours
+        (<span id="payment-month-year"></span>). Cette action est irréversible.
+      </p>
+      <div id="unpaid-employees-list" class="mt-4 mb-4 space-y-2 max-h-48 overflow-y-auto"></div>
+      <p class="font-bold text-lg text-right">Total à Payer: <span id="payment-total-amount" class="text-blue-600">0.00 Mad</span></p>
+      <div class="mt-6 flex justify-end space-x-3">
+        <button type="button" class="btn-secondary" id="cancel-payment">Annuler</button>
+        <button type="button" class="btn-primary" style="background:#16a34a" id="confirm-payment-btn">Confirmer & Payer</button>
+      </div>
+    </div>
+  </div>
 
-    <script type="module">
-        // --- IMPORTS FIREBASE ---
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, serverTimestamp, writeBatch, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+  <!-- Toast -->
+  <div id="toast" class="hidden fixed bottom-5 right-5 bg-gray-900 text-white py-2 px-5 rounded-lg shadow-lg">
+    <p id="toast-message"></p>
+  </div>
 
-        // --- CONFIGURATION ---
-        const firebaseConfigFromUser = {
-            apiKey: "AIzaSyCzUX90zSN2zG9O97g7TNyTmTSNte9OT-E",
-            authDomain: "solopro-6521a.firebaseapp.com",
-            projectId: "solopro-6521a",
-            storageBucket: "solopro-6521a.appspot.com",
-            messagingSenderId: "126450282941",
-            appId: "1:126450282941:web:10e5255e6ee7c75fa8e2d4"
-        };
+  <script type="module">
+    // --- Firebase ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getStorage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
-        
-        // --- URL du Proxy ---
-        const PROXY_URL = "https://solo-proxy.onrender.com"; // <= MODIFIEZ CETTE LIGNE
+    // --- CONFIG ---
+    const firebaseConfigFromUser = {
+      apiKey: "AIzaSyCzUX90zSN2zG9O97g7TNyTmTSNte9OT-E",
+      authDomain: "solopro-6521a.firebaseapp.com",
+      projectId: "solopro-6521a",
+      storageBucket: "solopro-6521a.appspot.com",
+      messagingSenderId: "126450282941",
+      appId: "1:126450282941:web:10e5255e6ee7c75fa8e2d4"
+    };
 
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
 
-        // --- INITIALISATION FIREBASE ---
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
+    // Proxy (placeholder)
+    const PROXY_URL = "https://solo-proxy.onrender.com";
 
-        // --- COLLECTIONS REFS ---
-        let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol;
-        // V V V **NOUVELLES COLLECTIONS RH** V V V
-        let employeesCol, absencesCol, salaryPaymentsCol;
+    // --- INIT ---
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
 
-        // --- ETAT GLOBAL ---
-        let allIngredients = [];
-        let allProducts = [];
-        let orderHistory = [];
-        let allSuppliers = [];
-        let allLosses = [];
-        let allPurchaseOrders = [];
-        // V V V **NOUVEAUX ETATS RH** V V V
-        let allEmployees = [];
-        let allAbsences = [];
-        let allSalaryPayments = [];
-        
-        let currentRecipe = [];
-        let currentOrder = [];
-        let currentPurchaseOrderItems = [];
-        let importType = '';
+    // Collections
+    let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol;
+    let employeesCol, absencesCol, salaryPaymentsCol;
 
-        // --- SEUILS ---
-        const LOW_STOCK_THRESHOLD = 10;
-        
-        // --- AUTHENTIFICATION ---
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                ingredientsCol = collection(db, `artifacts/${appId}/public/data/ingredients`);
-                productsCol = collection(db, `artifacts/${appId}/public/data/products`);
-                ordersCol = collection(db, `artifacts/${appId}/public/data/orders`);
-                suppliersCol = collection(db, `artifacts/${appId}/public/data/suppliers`);
-                purchaseOrdersCol = collection(db, `artifacts/${appId}/public/data/purchaseOrders`);
-                lossesCol = collection(db, `artifacts/${appId}/public/data/losses`);
-                // V V V **INITIALISATION COLLECTIONS RH** V V V
-                employeesCol = collection(db, `artifacts/${appId}/public/data/employees`);
-                absencesCol = collection(db, `artifacts/${appId}/public/data/absences`);
-                salaryPaymentsCol = collection(db, `artifacts/${appId}/public/data/salaryPayments`);
-                
-                listenToAllCollections();
-                document.getElementById('sale-date').value = getTodayDateString();
-                document.getElementById('api-start-date').value = getTodayDateString();
-                document.getElementById('api-end-date').value = getTodayDateString();
-                document.getElementById('absence-date').value = getTodayDateString(); // Défaut pour absence
-            } else {
-                try {
-                    if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
-                    else await signInAnonymously(auth);
-                } catch (error) { console.error("Auth failed:", error); }
-            }
-        });
-        
-        function listenToAllCollections() {
-            onSnapshot(suppliersCol, snapshot => { allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSuppliers(); populateSupplierSelects(); });
-            onSnapshot(purchaseOrdersCol, snapshot => { allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderPurchaseOrders(allPurchaseOrders); updateAndRenderKPIs(); });
-            onSnapshot(ingredientsCol, snapshot => { allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allIngredients.sort((a,b) => a.name.localeCompare(b.name)); renderIngredients(); updateAndRenderKPIs(); populateIngredientSelects(); renderProducts(); });
-            onSnapshot(productsCol, snapshot => { allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allProducts.sort((a,b) => a.name.localeCompare(b.name)); renderProducts(); populateProductSelects(); updateAndRenderKPIs(); });
-            onSnapshot(ordersCol, snapshot => { orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0)); renderOrderHistory(orderHistory); updateAndRenderKPIs(); });
-            onSnapshot(lossesCol, snapshot => { allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderLossHistory(); updateAndRenderKPIs(); });
-            
-            // V V V **LISTENERS POUR RH** V V V
-            onSnapshot(employeesCol, snapshot => { allEmployees = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allEmployees.sort((a,b) => a.name.localeCompare(b.name)); renderEmployees(); updateAndRenderKPIs(); });
-            onSnapshot(absencesCol, snapshot => { allAbsences = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); /* (Optionnel) on pourrait rafraîchir renderEmployees() */ });
-            onSnapshot(salaryPaymentsCol, snapshot => { allSalaryPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderEmployees(); /* Rafraîchit la liste RH pour le statut paiement */ });
-        }
-        
-        // --- HELPERS ---
-        const showToast = (message) => { const toast = document.getElementById('toast'); document.getElementById('toast-message').textContent = message; toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), 3000); };
-        const openModal = (id) => document.getElementById(id).classList.add('flex');
-        const closeModal = (id) => document.getElementById(id).classList.remove('flex');
-        
-        const getTodayDateString = () => {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
+    // State
+    let allIngredients = [];
+    let allProducts = [];
+    let orderHistory = [];
+    let allSuppliers = [];
+    let allLosses = [];
+    let allPurchaseOrders = [];
+    let allEmployees = [];
+    let allAbsences = [];
+    let allSalaryPayments = [];
 
-		const formatDateToDDMMYYYY = (date) => {
-		            if (!date) return 'Date inconnue';
-		            const d = date.seconds ? new Date(date.seconds * 1000) : (date instanceof Date ? date : new Date(date));
-		            if (isNaN(d.getTime())) return 'Date invalide';
-		            const day = String(d.getDate()).padStart(2, '0');
-		            const month = String(d.getMonth() + 1).padStart(2, '0');
-		            const year = d.getFullYear();
-		            
-		            // Si c'est un timestamp (avec heures/minutes)
-		            if (date.seconds) {
-		                const hours = String(d.getHours()).padStart(2, '0');
-		                const minutes = String(d.getMinutes()).padStart(2, '0');
-		                return `${day}/${month}/${year} à ${hours}h${minutes}`;
-		            }
-		            // Si c'est juste une date (ex: date d'embauche)
-		            return `${day}/${month}/${year}`;
-		        };
+    const LOW_STOCK_THRESHOLD = 10;
 
-        const toDate = (timestamp) => {
-            if (!timestamp) return null;
-            return timestamp.seconds ? new Date(timestamp.seconds * 1000) : timestamp;
-        };
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        ingredientsCol     = collection(db, `artifacts/${appId}/public/data/ingredients`);
+        productsCol        = collection(db, `artifacts/${appId}/public/data/products`);
+        ordersCol          = collection(db, `artifacts/${appId}/public/data/orders`);
+        suppliersCol       = collection(db, `artifacts/${appId}/public/data/suppliers`);
+        purchaseOrdersCol  = collection(db, `artifacts/${appId}/public/data/purchaseOrders`);
+        lossesCol          = collection(db, `artifacts/${appId}/public/data/losses`);
+        employeesCol       = collection(db, `artifacts/${appId}/public/data/employees`);
+        absencesCol        = collection(db, `artifacts/${appId}/public/data/absences`);
+        salaryPaymentsCol  = collection(db, `artifacts/${appId}/public/data/salaryPayments`);
 
-        // --- NAVIGATION ---
-        document.querySelectorAll('.tab-link').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active')); tab.classList.add('active'); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.getElementById(`${tab.dataset.tab}-content`).classList.add('active'); }); });
-        
-        // --- RENDERING & KPIs ---
-        const updateAndRenderKPIs = (startDate, endDate, label = "Période : Tout le temps") => {
-             // Update filter label
-            document.getElementById('kpi-filter-label').textContent = label;
+        listenToAllCollections();
 
-             // Filter data based on date range if provided
-            const filteredOrders = !startDate ? orderHistory : orderHistory.filter(o => {
-                const orderDate = toDate(o.saleDate || o.createdAt);
-                return orderDate && orderDate >= startDate && orderDate <= endDate;
-            });
+        // ⚠️ Protéger les champs potentiellement absents
+        const saleDateEl = document.getElementById('sale-date');
+        if (saleDateEl) saleDateEl.value = getTodayDateString();
 
-            const filteredPurchases = !startDate ? allPurchaseOrders.filter(p => p.status === 'received') : allPurchaseOrders.filter(p => {
-                const receivedDate = toDate(p.receivedAt);
-                return p.status === 'received' && receivedDate && receivedDate >= startDate && receivedDate <= endDate;
-            });
-            
-            // *** NEW: Filter for unpaid *and* received purchases ***
-            // Filter by received date, but check paymentStatus
-            const filteredUnpaidPurchases = !startDate 
-                ? allPurchaseOrders.filter(p => p.status === 'received' && p.paymentStatus !== 'paid')
-                : allPurchaseOrders.filter(p => {
-                    // Filter based on *received* date for "Achats" period
-                    const receivedDate = toDate(p.receivedAt); 
-                    return p.status === 'received' && 
-                           p.paymentStatus !== 'paid' &&
-                           receivedDate && 
-                           receivedDate >= startDate && 
-                           receivedDate <= endDate;
-                });
-            // *** END NEW ***
+        const apiStartEl = document.getElementById('api-start-date');
+        if (apiStartEl) apiStartEl.value = getTodayDateString();
 
+        const apiEndEl = document.getElementById('api-end-date');
+        if (apiEndEl) apiEndEl.value = getTodayDateString();
 
-            const filteredLosses = !startDate ? allLosses : allLosses.filter(l => {
-                const lossDate = toDate(l.createdAt);
-                return lossDate && lossDate >= startDate && lossDate <= endDate;
-            });
-            
-            // --- KPI Calculations ---
-            const totalSales = filteredOrders.reduce((sum, order) => sum + order.totalPrice, 0);
-            const totalPurchases = filteredPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
-            const totalUnpaidPurchases = filteredUnpaidPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
-            const totalOrders = filteredOrders.length;
-            const totalLossesValue = filteredLosses.reduce((sum, loss) => {
-                let lossCost = 0;
-                if (loss.type === 'product') {
-                    const product = allProducts.find(p => p.id === loss.itemId);
-                    if (product) lossCost = calculateProductCost(product) * loss.quantity;
-                } else {
-                    const ingredient = allIngredients.find(i => i.id === loss.itemId);
-                    if (ingredient) lossCost = (ingredient.cost || 0) * loss.quantity;
-                }
-                return sum + lossCost;
-            }, 0);
+        const absenceDateEl = document.getElementById('absence-date');
+        if (absenceDateEl) absenceDateEl.value = getTodayDateString();
+      } else {
+        try {
+          if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+          else await signInAnonymously(auth);
+        } catch (error) {
+          console.error("Auth failed:", error);
+        }
+      }
+    });
 
-            // V V V **CALCUL KPI SALAIRES** V V V
-            const totalSalaries = allEmployees.reduce((sum, emp) => sum + (emp.salary || 0), 0);
-            
-            // --- Top Products Calculation ---
-            const productSalesMap = new Map();
-            filteredOrders.forEach(order => {
-                order.items.forEach(item => {
-                    const currentQty = productSalesMap.get(item.id) || 0;
-                    productSalesMap.set(item.id, currentQty + item.quantity);
-                });
-            });
-            const aggregatedProducts = Array.from(productSalesMap.entries()).map(([id, quantity]) => {
-                const product = allProducts.find(p => p.id === id);
-                return { id: id, name: product ? product.name : 'Produit Supprimé', quantity: quantity };
-            });
-            const top5Products = aggregatedProducts.sort((a, b) => b.quantity - a.quantity).slice(0, 5);
-            
-            // --- Update KPI DOM ---
-            document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
-            document.getElementById('kpi-total-purchases').textContent = `${totalPurchases.toFixed(2)} Mad`;
-            document.getElementById('kpi-unpaid-purchases').textContent = `${totalUnpaidPurchases.toFixed(2)} Mad`;
-            document.getElementById('kpi-total-salaries').textContent = `${totalSalaries.toFixed(2)} Mad`; // **MISE A JOUR KPI**
-            document.getElementById('kpi-total-losses').textContent = `${totalLossesValue.toFixed(2)} Mad`;
-            document.getElementById('kpi-total-orders').textContent = totalOrders;
-            
-            renderTopProducts(top5Products);
+    function listenToAllCollections(){
+      if (suppliersCol)
+        onSnapshot(suppliersCol, snap => { allSuppliers = snap.docs.map(d=>({id:d.id,...d.data()})); if (typeof renderSuppliers==='function') renderSuppliers(); if (typeof populateSupplierSelects==='function') populateSupplierSelects(); });
 
-            // --- Low Stock Alerts (unfiltered) ---
-            // ... (code des alertes de stock inchangé) ...
-        };
+      if (purchaseOrdersCol)
+        onSnapshot(purchaseOrdersCol, snap => {
+          allPurchaseOrders = snap.docs.map(d=>({id:d.id,...d.data()}));
+          allPurchaseOrders.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+          if (typeof renderPurchaseOrders==='function') renderPurchaseOrders(allPurchaseOrders);
+          updateAndRenderKPIs();
+        });
 
-        // ... (renderIngredients, calculateProductCost, renderProducts, renderOrderHistory, renderSuppliers, renderPurchaseOrders, renderLossHistory - inchangés) ...
-        
-        // ... (La fonction renderTopProducts est ici) ...
+      if (ingredientsCol)
+        onSnapshot(ingredientsCol, snap => {
+          allIngredients = snap.docs.map(d=>({id:d.id,...d.data()}));
+          allIngredients.sort((a,b)=>a.name.localeCompare(b.name));
+          if (typeof renderIngredients==='function') renderIngredients();
+          updateAndRenderKPIs();
+          if (typeof populateIngredientSelects==='function') populateIngredientSelects();
+          if (typeof renderProducts==='function') renderProducts();
+        });
 
-        // V V V **NOUVELLE FONCTION RENDER EMPLOYEES** V V V
-        const renderEmployees = () => {
-            const list = document.getElementById('employees-list');
-            const placeholder = document.getElementById('hr-placeholder');
-            const table = document.getElementById('hr-table');
-            list.innerHTML = '';
-            
-            // Obtenir le mois et l'année actuels au format "MM/YYYY"
-            const currentMonthYear = new Date().toLocaleDateString('fr-FR', { month: '2-digit', year: 'numeric' });
+      if (productsCol)
+        onSnapshot(productsCol, snap => {
+          allProducts = snap.docs.map(d=>({id:d.id,...d.data()}));
+          allProducts.sort((a,b)=>a.name.localeCompare(b.name));
+          if (typeof renderProducts==='function') renderProducts();
+          if (typeof populateProductSelects==='function') populateProductSelects();
+          updateAndRenderKPIs();
+        });
 
-            if(allEmployees.length === 0) {
-                table.style.display = 'none';
-                placeholder.style.display = 'block';
-            } else {
-                table.style.display = '';
-                placeholder.style.display = 'none';
-                
-                allEmployees.forEach(emp => {
-                    const row = document.createElement('tr');
-                    
-                    // Vérifier si un paiement existe pour cet employé CE MOIS-CI
-                    const isPaidThisMonth = allSalaryPayments.some(p => p.employeeId === emp.id && p.monthYear === currentMonthYear);
-                    
-                    const statusTag = isPaidThisMonth
-                        ? `<span class="text-xs font-bold py-1 px-2 rounded-full bg-green-100 text-green-800">Payé</span>`
-                        : `<span class="text-xs font-bold py-1 px-2 rounded-full bg-red-100 text-red-800">Non Payé</span>`;
-                        
-                    const hireDate = emp.hireDate ? formatDateToDDMMYYYY(emp.hireDate) : 'N/A';
-                    const salary = (emp.salary || 0).toFixed(2);
+      if (ordersCol)
+        onSnapshot(ordersCol, snap => {
+          orderHistory = snap.docs.map(d=>({id:d.id,...d.data()}));
+          orderHistory.sort((a,b)=>(b.saleDate?.seconds||b.createdAt?.seconds||0)-(a.saleDate?.seconds||a.createdAt?.seconds||0));
+          if (typeof renderOrderHistory==='function') renderOrderHistory(orderHistory);
+          updateAndRenderKPIs();
+        });
 
-                    row.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${emp.name}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${hireDate}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${salary} Mad</td>
-                        <td class="px-6 py-4 whitespace-nowrap">${statusTag}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button data-id="${emp.id}" class="add-absence-btn text-yellow-600 hover:text-yellow-900 mr-4" title="Déclarer une absence"><i class="fas fa-calendar-times"></i></button>
-                            <button data-id="${emp.id}" class="edit-employee-btn text-gray-600 hover:text-gray-900 mr-4" title="Modifier"><i class="fas fa-edit"></i></button>
-                            <button data-id="${emp.id}" class="delete-employee-btn text-red-600 hover:text-red-900" title="Supprimer"><i class="fas fa-trash"></i></button>
-                        </td>
-                    `;
-                    list.appendChild(row);
-                });
-            }
-        };
-        // ^ ^ ^ **FIN DE LA NOUVELLE FONCTION** ^ ^ ^
-        
-        // --- KPI FILTERS ---
-        // ... (code des filtres KPI inchangé) ...
-        
-        // --- INGREDIENTS ---
-        // ... (code des ingrédients inchangé) ...
-        
-        // --- PRODUITS ---
-        // ... (code des produits inchangé) ...
-        
-        // --- VENTES ---
-        // ... (code des ventes inchangé) ...
+      if (lossesCol)
+        onSnapshot(lossesCol, snap => {
+          allLosses = snap.docs.map(d=>({id:d.id,...d.data()}));
+          allLosses.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+          if (typeof renderLossHistory==='function') renderLossHistory();
+          updateAndRenderKPIs();
+        });
 
-        // --- PERTES ---
-        // ... (code des pertes inchangé) ...
+      if (employeesCol)
+        onSnapshot(employeesCol, snap => { allEmployees = snap.docs.map(d=>({id:d.id,...d.data()})); allEmployees.sort((a,b)=>a.name.localeCompare(b.name)); renderEmployees(); updateAndRenderKPIs(); });
 
-        // --- FOURNISSEURS & ACHATS ---
-        // ... (code des fournisseurs & achats inchangé) ...
-        
-        // --- IMPORT API SALES (Using Proxy for Auth) ---
-        // ... (code de l'import API inchangé) ...
+      if (absencesCol)
+        onSnapshot(absencesCol, snap => { allAbsences = snap.docs.map(d=>({id:d.id,...d.data()})); /* Optionnel refresh */ });
 
-        // --- IMPORT/EXPORT CSV ---
-        // ... (code de l'import/export CSV inchangé) ...
-        
-        
-        // V V V **NOUVEAUX LISTENERS POUR RH** V V V
-        
-        // --- GESTION SALARIÉS (CRUD) ---
-        document.getElementById('add-employee-btn').addEventListener('click', () => {
-            document.getElementById('employee-modal-title').textContent = 'Ajouter un Salarié';
-            document.getElementById('employee-form').reset();
-            document.getElementById('employee-id').value = '';
-            openModal('employee-modal');
-        });
-        document.getElementById('cancel-employee').addEventListener('click', () => closeModal('employee-modal'));
-        
-        document.getElementById('employee-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('employee-id').value;
-            const data = {
-                name: document.getElementById('employee-name').value,
-                hireDate: document.getElementById('employee-hire-date').value,
-                salary: parseFloat(document.getElementById('employee-salary').value) || 0
-            };
-            
-            try {
-                if (id) {
-                    await updateDoc(doc(employeesCol, id), data);
-                    showToast('Salarié mis à jour !');
-                } else {
-                    await addDoc(employeesCol, {...data, createdAt: serverTimestamp()});
-                    showToast('Salarié ajouté !');
-                }
-                closeModal('employee-modal');
-            } catch(error) {
-                console.error("Erreur sauvegarde salarié:", error);
-                showToast("Erreur lors de l'opération.");
-            }
-        });
-        
-        // --- GESTION CLICS TABLEAU RH (Modifier, Supprimer, Absence) ---
-        document.getElementById('employees-list').addEventListener('click', async e => {
-            const target = e.target.closest('button[data-id]');
-            if (!target) return;
-            const id = target.dataset.id;
-            const employee = allEmployees.find(emp => emp.id === id);
-            if (!employee) return;
+      if (salaryPaymentsCol)
+        onSnapshot(salaryPaymentsCol, snap => { allSalaryPayments = snap.docs.map(d=>({id:d.id,...d.data()})); renderEmployees(); });
+    }
 
-            if (target.classList.contains('delete-employee-btn')) {
-                if(confirm(`Voulez-vous vraiment supprimer ${employee.name} ?`)) {
-                    // TODO: On pourrait aussi supprimer les absences et paiements liés
-                    await deleteDoc(doc(employeesCol, id));
-                    showToast('Salarié supprimé.');
-                }
-            } else if (target.classList.contains('edit-employee-btn')) {
-                document.getElementById('employee-modal-title').textContent = 'Modifier un Salarié';
-                document.getElementById('employee-id').value = id;
-                document.getElementById('employee-name').value = employee.name;
-                document.getElementById('employee-hire-date').value = employee.hireDate;
-                document.getElementById('employee-salary').value = employee.salary;
-                openModal('employee-modal');
-            } else if (target.classList.contains('add-absence-btn')) {
-                document.getElementById('absence-form').reset();
-                document.getElementById('absence-employee-id').value = id;
-                document.getElementById('absence-employee-name').value = employee.name;
-                document.getElementById('absence-modal-name-display').textContent = employee.name;
-                document.getElementById('absence-date').value = getTodayDateString();
-                openModal('absence-modal');
-            }
-        });
-        
-        // --- GESTION ABSENCES ---
-        document.getElementById('cancel-absence').addEventListener('click', () => closeModal('absence-modal'));
-        document.getElementById('absence-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = {
-                employeeId: document.getElementById('absence-employee-id').value,
-                employeeName: document.getElementById('absence-employee-name').value,
-                absenceDate: document.getElementById('absence-date').value,
-                reason: document.getElementById('absence-reason').value || '',
-                createdAt: serverTimestamp()
-            };
-            await addDoc(absencesCol, data);
-            showToast('Absence enregistrée.');
-            closeModal('absence-modal');
-        });
+    // Helpers
+    const showToast = (msg)=>{const t=document.getElementById('toast');document.getElementById('toast-message').textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),3000)}
+    const openModal = (id)=>document.getElementById(id).classList.add('flex');
+    const closeModal = (id)=>document.getElementById(id).classList.remove('flex');
 
-        // --- GESTION PAIEMENT SALAIRES ---
-        document.getElementById('pay-salaries-btn').addEventListener('click', () => {
-            const currentMonthYear = new Date().toLocaleDateString('fr-FR', { month: '2-digit', year: 'numeric' });
-            document.getElementById('payment-month-year').textContent = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-            
-            const unpaidEmployees = allEmployees.filter(emp => {
-                return !allSalaryPayments.some(p => p.employeeId === emp.id && p.monthYear === currentMonthYear);
-            });
+    const getTodayDateString = () => {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
+    };
 
-            const list = document.getElementById('unpaid-employees-list');
-            list.innerHTML = '';
-            let totalToPay = 0;
+    const formatDateToDDMMYYYY = (date)=>{
+      if (!date) return 'Date inconnue';
+      const d = date?.seconds ? new Date(date.seconds*1000) : (date instanceof Date ? date : new Date(date));
+      if (isNaN(d.getTime())) return 'Date invalide';
+      const day = String(d.getDate()).padStart(2,'0');
+      const month = String(d.getMonth()+1).padStart(2,'0');
+      const year = d.getFullYear();
+      if (date?.seconds){
+        const h = String(d.getHours()).padStart(2,'0');
+        const min = String(d.getMinutes()).padStart(2,'0');
+        return `${day}/${month}/${year} à ${h}h${min}`;
+      }
+      return `${day}/${month}/${year}`;
+    };
 
-            if (unpaidEmployees.length === 0) {
-                list.innerHTML = '<p class="text-center text-gray-500">Tous les salaires ont déjà été payés pour ce mois.</p>';
-                document.getElementById('confirm-payment-btn').disabled = true;
-            } else {
-                unpaidEmployees.forEach(emp => {
-                    const amount = emp.salary || 0;
-                    totalToPay += amount;
-                    list.innerHTML += `<div class="flex justify-between p-2 bg-gray-100 rounded-lg"><span>${emp.name}</span><strong>${amount.toFixed(2)} Mad</strong></div>`;
-                });
-                document.getElementById('confirm-payment-btn').disabled = false;
-            }
-            
-            document.getElementById('payment-total-amount').textContent = `${totalToPay.toFixed(2)} Mad`;
-            openModal('salary-payment-modal');
-        });
-        
-        document.getElementById('cancel-payment').addEventListener('click', () => closeModal('salary-payment-modal'));
-        
-        document.getElementById('confirm-payment-btn').addEventListener('click', async () => {
-            const currentMonthYear = new Date().toLocaleDateString('fr-FR', { month: '2-digit', year: 'numeric' });
-            const unpaidEmployees = allEmployees.filter(emp => {
-                return !allSalaryPayments.some(p => p.employeeId === emp.id && p.monthYear === currentMonthYear);
-            });
-            
-            if (unpaidEmployees.length === 0) {
-                showToast("Aucun salaire à payer.");
-                closeModal('salary-payment-modal');
-                return;
-            }
+    const toDate = (ts)=> !ts ? null : (ts.seconds ? new Date(ts.seconds*1000) : new Date(ts));
 
-            const batch = writeBatch(db);
-            unpaidEmployees.forEach(emp => {
-                const paymentData = {
-                    employeeId: emp.id,
-                    employeeName: emp.name,
-                    amount: emp.salary || 0,
-                    monthYear: currentMonthYear,
-                    paidAt: serverTimestamp()
-                };
-                batch.set(doc(collection(db, salaryPaymentsCol.path)), paymentData);
-            });
+    // Tabs
+    document.querySelectorAll('.tab-link').forEach(tab=>{
+      tab.addEventListener('click',()=>{
+        document.querySelectorAll('.tab-link').forEach(t=>t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+        const target = document.getElementById(`${tab.dataset.tab}-content`);
+        if (target) target.classList.add('active');
+      });
+    });
 
-            try {
-                await batch.commit();
-                showToast(`${unpaidEmployees.length} salaire(s) marqué(s) comme payé(s).`);
-                closeModal('salary-payment-modal');
-            } catch (error) {
-                console.error("Erreur paiement salaires:", error);
-                showToast("Erreur lors du paiement.");
-            }
-        });
-        // ^ ^ ^ **FIN DES LISTENERS RH** ^ ^ ^
+    // KPIs
+    const updateAndRenderKPIs = (startDate, endDate, label="Période : Tout le temps")=>{
+      const labelEl = document.getElementById('kpi-filter-label');
+      if (labelEl) labelEl.textContent = label;
 
-    </script>
+      const inRange = (d)=>!startDate || (d && d>=startDate && d<=endDate);
+
+      const filteredOrders = !startDate ? orderHistory : orderHistory.filter(o=>inRange(toDate(o.saleDate || o.createdAt)));
+      const filteredPurchases = !startDate
+        ? allPurchaseOrders.filter(p=>p.status==='received')
+        : allPurchaseOrders.filter(p=>p.status==='received' && inRange(toDate(p.receivedAt)));
+      const filteredUnpaidPurchases = !startDate
+        ? allPurchaseOrders.filter(p=>p.status==='received' && p.paymentStatus!=='paid')
+        : allPurchaseOrders.filter(p=>p.status==='received' && p.paymentStatus!=='paid' && inRange(toDate(p.receivedAt)));
+      const filteredLosses = !startDate ? allLosses : allLosses.filter(l=>inRange(toDate(l.createdAt)));
+
+      const totalSales = filteredOrders.reduce((s,o)=> s + (o.totalPrice||0), 0);
+      const totalPurchases = filteredPurchases.reduce((s,p)=> s + (p.totalCost||0), 0);
+      const totalUnpaidPurchases = filteredUnpaidPurchases.reduce((s,p)=> s + (p.totalCost||0), 0);
+      const totalOrders = filteredOrders.length;
+
+      // Pertes: si vous avez calculateProductCost / coûts ingréd., branchez ici
+      const totalLossesValue = filteredLosses.reduce((sum,loss)=> sum + (loss.estimatedCost||0), 0);
+
+      const totalSalaries = allEmployees.reduce((s,e)=> s + (e.salary||0), 0);
+
+      const setText = (id, val)=>{ const el=document.getElementById(id); if (el) el.textContent = val; };
+      setText('kpi-total-sales', `${totalSales.toFixed(2)} Mad`);
+      setText('kpi-total-purchases', `${totalPurchases.toFixed(2)} Mad`);
+      setText('kpi-unpaid-purchases', `${totalUnpaidPurchases.toFixed(2)} Mad`);
+      setText('kpi-total-salaries', `${totalSalaries.toFixed(2)} Mad`);
+      setText('kpi-total-losses', `${totalLossesValue.toFixed(2)} Mad`);
+      setText('kpi-total-orders', totalOrders);
+
+      // Top produits (si structure items existe)
+      const productSalesMap = new Map();
+      filteredOrders.forEach(order=>{
+        (order.items||[]).forEach(item=>{
+          const cur = productSalesMap.get(item.id)||0;
+          productSalesMap.set(item.id, cur + (item.quantity||0));
+        });
+      });
+      const aggregated = Array.from(productSalesMap.entries()).map(([id,qty])=>{
+        const p = allProducts.find(pp=>pp.id===id);
+        return {id, name: p?p.name:'Produit supprimé', quantity: qty};
+      }).sort((a,b)=>b.quantity-a.quantity).slice(0,5);
+
+      if (typeof renderTopProducts==='function') renderTopProducts(aggregated);
+    };
+
+    // RENDER EMPLOYEES
+    const renderEmployees = ()=>{
+      const list = document.getElementById('employees-list');
+      const placeholder = document.getElementById('hr-placeholder');
+      const table = document.getElementById('hr-table');
+      if (!list || !placeholder || !table) return;
+
+      list.innerHTML = '';
+
+      const currentMonthYear = new Date().toLocaleDateString('fr-FR',{month:'2-digit',year:'numeric'});
+
+      if (allEmployees.length===0){
+        table.style.display='none';
+        placeholder.style.display='block';
+        return;
+      }
+      table.style.display='';
+      placeholder.style.display='none';
+
+      allEmployees.forEach(emp=>{
+        const row = document.createElement('tr');
+        const isPaidThisMonth = allSalaryPayments.some(p=>p.employeeId===emp.id && p.monthYear===currentMonthYear);
+        const statusTag = isPaidThisMonth
+          ? `<span class="text-xs font-bold py-1 px-2 rounded-full bg-green-100 text-green-800">Payé</span>`
+          : `<span class="text-xs font-bold py-1 px-2 rounded-full bg-red-100 text-red-800">Non Payé</span>`;
+        const hireDate = emp.hireDate ? formatDateToDDMMYYYY(emp.hireDate) : 'N/A';
+        const salary = (emp.salary||0).toFixed(2);
+
+        row.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${emp.name||''}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${hireDate}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${salary} Mad</td>
+          <td class="px-6 py-4 whitespace-nowrap">${statusTag}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <button data-id="${emp.id}" class="add-absence-btn text-yellow-600 hover:text-yellow-900 mr-4" title="Déclarer une absence"><i class="fas fa-calendar-times"></i></button>
+            <button data-id="${emp.id}" class="edit-employee-btn text-gray-600 hover:text-gray-900 mr-4" title="Modifier"><i class="fas fa-edit"></i></button>
+            <button data-id="${emp.id}" class="delete-employee-btn text-red-600 hover:text-red-900" title="Supprimer"><i class="fas fa-trash"></i></button>
+          </td>
+        `;
+        list.appendChild(row);
+      });
+    };
+
+    // Listeners RH
+    const addBtn = document.getElementById('add-employee-btn');
+    if (addBtn){
+      addBtn.addEventListener('click', ()=>{
+        document.getElementById('employee-modal-title').textContent='Ajouter un Salarié';
+        document.getElementById('employee-form').reset();
+        document.getElementById('employee-id').value='';
+        openModal('employee-modal');
+      });
+    }
+    const cancelEmp = document.getElementById('cancel-employee');
+    if (cancelEmp) cancelEmp.addEventListener('click', ()=>closeModal('employee-modal'));
+
+    const empForm = document.getElementById('employee-form');
+    if (empForm){
+      empForm.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const id = document.getElementById('employee-id').value;
+        const data = {
+          name: document.getElementById('employee-name').value,
+          hireDate: document.getElementById('employee-hire-date').value,
+          salary: parseFloat(document.getElementById('employee-salary').value)||0
+        };
+        try{
+          if (id){
+            await updateDoc(doc(employeesCol, id), data);
+            showToast('Salarié mis à jour !');
+          }else{
+            await addDoc(employeesCol, {...data, createdAt: serverTimestamp()});
+            showToast('Salarié ajouté !');
+          }
+          closeModal('employee-modal');
+        }catch(err){
+          console.error('Erreur sauvegarde salarié:', err);
+          showToast("Erreur lors de l'opération.");
+        }
+      });
+    }
+
+    const empList = document.getElementById('employees-list');
+    if (empList){
+      empList.addEventListener('click', async e=>{
+        const btn = e.target.closest('button[data-id]');
+        if (!btn) return;
+        const id = btn.dataset.id;
+        const employee = allEmployees.find(emp=>emp.id===id);
+        if (!employee) return;
+
+        if (btn.classList.contains('delete-employee-btn')){
+          if (confirm(`Voulez-vous vraiment supprimer ${employee.name || 'ce salarié'} ?`)){
+            await deleteDoc(doc(employeesCol, id));
+            showToast('Salarié supprimé.');
+          }
+        }else if (btn.classList.contains('edit-employee-btn')){
+          document.getElementById('employee-modal-title').textContent='Modifier un Salarié';
+          document.getElementById('employee-id').value=id;
+          document.getElementById('employee-name').value=employee.name||'';
+          document.getElementById('employee-hire-date').value=employee.hireDate||'';
+          document.getElementById('employee-salary').value=employee.salary||0;
+          openModal('employee-modal');
+        }else if (btn.classList.contains('add-absence-btn')){
+          document.getElementById('absence-form').reset();
+          document.getElementById('absence-employee-id').value=id;
+          document.getElementById('absence-employee-name').value=employee.name||'';
+          document.getElementById('absence-modal-name-display').textContent=employee.name||'';
+          const ad = document.getElementById('absence-date');
+          if (ad) ad.value = getTodayDateString();
+          openModal('absence-modal');
+        }
+      });
+    }
+
+    const cancelAbs = document.getElementById('cancel-absence');
+    if (cancelAbs) cancelAbs.addEventListener('click', ()=>closeModal('absence-modal'));
+
+    const absForm = document.getElementById('absence-form');
+    if (absForm){
+      absForm.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const data = {
+          employeeId: document.getElementById('absence-employee-id').value,
+          employeeName: document.getElementById('absence-employee-name').value,
+          absenceDate: document.getElementById('absence-date').value,
+          reason: document.getElementById('absence-reason').value || '',
+          createdAt: serverTimestamp()
+        };
+        await addDoc(absencesCol, data);
+        showToast('Absence enregistrée.');
+        closeModal('absence-modal');
+      });
+    }
+
+    const payBtn = document.getElementById('pay-salaries-btn');
+    if (payBtn){
+      payBtn.addEventListener('click', ()=>{
+        const currentMonthYear = new Date().toLocaleDateString('fr-FR',{month:'2-digit',year:'numeric'});
+        const label = new Date().toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+        const labelEl = document.getElementById('payment-month-year');
+        if (labelEl) labelEl.textContent = label;
+
+        const unpaid = allEmployees.filter(emp => !allSalaryPayments.some(p=>p.employeeId===emp.id && p.monthYear===currentMonthYear));
+        const list = document.getElementById('unpaid-employees-list');
+        list.innerHTML = '';
+        let total = 0;
+
+        const confirmBtn = document.getElementById('confirm-payment-btn');
+        if (unpaid.length===0){
+          list.innerHTML = '<p class="text-center text-gray-500">Tous les salaires ont déjà été payés pour ce mois.</p>';
+          if (confirmBtn) confirmBtn.disabled = true;
+        }else{
+          unpaid.forEach(emp=>{
+            const amount = emp.salary||0; total += amount;
+            list.innerHTML += `<div class="flex justify-between p-2 bg-gray-100 rounded-lg"><span>${emp.name}</span><strong>${amount.toFixed(2)} Mad</strong></div>`;
+          });
+          if (confirmBtn) confirmBtn.disabled = false;
+        }
+        const totEl = document.getElementById('payment-total-amount');
+        if (totEl) totEl.textContent = `${total.toFixed(2)} Mad`;
+
+        openModal('salary-payment-modal');
+      });
+    }
+
+    const cancelPay = document.getElementById('cancel-payment');
+    if (cancelPay) cancelPay.addEventListener('click', ()=>closeModal('salary-payment-modal'));
+
+    const confirmPay = document.getElementById('confirm-payment-btn');
+    if (confirmPay){
+      confirmPay.addEventListener('click', async ()=>{
+        const currentMonthYear = new Date().toLocaleDateString('fr-FR',{month:'2-digit',year:'numeric'});
+        const unpaid = allEmployees.filter(emp => !allSalaryPayments.some(p=>p.employeeId===emp.id && p.monthYear===currentMonthYear));
+        if (unpaid.length===0){ showToast('Aucun salaire à payer.'); closeModal('salary-payment-modal'); return; }
+
+        const batch = writeBatch(db);
+        unpaid.forEach(emp=>{
+          const paymentData = {
+            employeeId: emp.id,
+            employeeName: emp.name,
+            amount: emp.salary||0,
+            monthYear: currentMonthYear,
+            paidAt: serverTimestamp()
+          };
+          // créer un nouveau doc dans salaryPayments
+          const colRef = collection(db, salaryPaymentsCol.path);
+          const tmp = doc(colRef);
+          batch.set(tmp, paymentData);
+        });
+
+        try{
+          await batch.commit();
+          showToast(`${unpaid.length} salaire(s) marqué(s) comme payé(s).`);
+          closeModal('salary-payment-modal');
+        }catch(err){
+          console.error('Erreur paiement salaires:', err);
+          showToast('Erreur lors du paiement.');
+        }
+      });
+    }
+
+  </script>
 </body>
 </html>
