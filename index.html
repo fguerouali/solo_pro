@@ -102,7 +102,8 @@
                         <!-- Filtres Prédéfinis -->
                         <div class="flex gap-2">
                              <button data-filter="today" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Aujourd'hui</button>
-                             <button data-filter="week" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Cette semaine</button>
+							 <button data-filter="yesterday" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Hier</button>                              <button data-filter="week" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Cette semaine</button>
+                         
                              <button data-filter="month" class="kpi-filter-btn btn-secondary py-1 px-3 text-sm">Ce mois</button>
                         </div>
                         <!-- Plage de Dates Personnalisée -->
@@ -883,6 +884,20 @@ card.innerHTML = `<div class="flex justify-between items-start">
                     startDate = new Date();
                     startDate.setHours(0, 0, 0, 0);
                     label = "Période : Aujourd'hui";
+					// V V V **AJOUTEZ CE BLOC** V V V
+                } else if (filterType === 'yesterday') {
+                    // Définit startDate à hier 00:00
+                    startDate = new Date();
+                    startDate.setDate(now.getDate() - 1);
+                    startDate.setHours(0, 0, 0, 0);
+                    
+                    // Définit endDate à hier 23:59
+                    // (on utilise 'endDate' qui est déjà initialisé à 'new Date()' plus haut)
+                    endDate.setDate(now.getDate() - 1);
+                    endDate.setHours(23, 59, 59, 999); 
+                    
+                    label = "Période : Hier";
+                // ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
                 } else if (filterType === 'week') {
                     startDate = new Date(now.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1))); // Monday
                     startDate.setHours(0, 0, 0, 0);
