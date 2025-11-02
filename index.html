@@ -144,7 +144,69 @@
                 <div id="low-stock-alerts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <div id="low-stock-placeholder" class="text-center col-span-full py-10 text-gray-500">
                         <i class="fas fa-check-circle fa-2x text-green-500 mb-2"></i><p>Aucune alerte de stock bas pour le moment.</p>
-                    </div>
+                    </div></div>
+
+                                <h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-800">Top 5 Produits Vendus</h2>
+                <div id="top-products-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        <div id="top-products-placeholder" class="text-center col-span-full py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
+                        <i class="fas fa-chart-pie fa-2x text-gray-400 mb-2"></i>
+                        <p>Aucune donnée de vente pour la période sélectionnée.</p>
+                    </div>
+                </div>
+                            </div> ```
+
+---
+
+### Étape 2 : Créer la fonction pour afficher le Top 5
+
+Nous avons besoin d'une nouvelle fonction JavaScript qui s'occupera de l'affichage (le "rendu") de cette liste.
+
+1.  Allez dans votre balise `<script type="module">`.
+2.  Trouvez la fin de la fonction `renderLossHistory` (vers la ligne 1098).
+3.  Collez la nouvelle fonction `renderTopProducts` juste après :
+
+```javascript
+// ... (fin de la fonction renderLossHistory) ...
+            } };
+
+        // V V V **AJOUTEZ CETTE NOUVELLE FONCTION** V V V
+        const renderTopProducts = (topProducts) => {
+            const container = document.getElementById('top-products-list');
+            const placeholder = document.getElementById('top-products-placeholder');
+            container.innerHTML = ''; // Vider la liste précédente
+
+            if (topProducts.length === 0) {
+                container.appendChild(placeholder); // Remettre le placeholder s'il n'y a pas de données
+            } else {
+                topProducts.forEach((product, index) => {
+                    const card = document.createElement('div');
+                    // Appliquer un style de carte simple
+                    card.className = 'bg-white p-4 rounded-2xl shadow-lg flex justify-between items-center';
+                    
+                    const rank = index + 1;
+                    // Ajouter un peu de style pour le classement
+                    let rankColor = 'text-gray-500';
+                    if (rank === 1) rankColor = 'text-yellow-500'; // Or
+                    if (rank === 2) rankColor = 'text-gray-400'; // Argent
+                    if (rank === 3) rankColor = 'text-yellow-700'; // Bronze
+
+                    card.innerHTML = `
+                        <div class="flex items-center">
+                            <span class="text-2xl font-bold ${rankColor} w-8">#${rank}</span>
+                            <span class="font-semibold text-lg text-gray-800 ml-3">${product.name}</span>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-2xl font-bold text-gray-900">${product.quantity}</p>
+                            <p class="text-sm text-gray-500">vendus</p>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+        };
+        // ^ ^ ^ **FIN DE LA NOUVELLE FONCTION** ^ ^ ^
+
+        // --- KPI FILTERS --- (fonction suivante)
                 </div>
             </div>
 
@@ -686,14 +748,38 @@
                 }
                 return sum + lossCost;
             }, 0);
+			// V V V **AJOUTEZ CE BLOC DE CALCUL** V V V
+            // --- Top Products Calculation ---
+            const productSalesMap = new Map();
+            // Agréger les ventes de produits à partir des commandes filtrées
+            filteredOrders.forEach(order => {
+                order.items.forEach(item => {
+                    const currentQty = productSalesMap.get(item.id) || 0;
+                    productSalesMap.set(item.id, currentQty + item.quantity);
+                });
+            });
 
+            // Convertir la Map en tableau et récupérer les noms des produits
+            const aggregatedProducts = Array.from(productSalesMap.entries()).map(([id, quantity]) => {
+                const product = allProducts.find(p => p.id === id);
+                return {
+                    id: id,
+                    name: product ? product.name : 'Produit Supprimé',
+                    quantity: quantity
+                };
+            });
+
+            // Trier par quantité (décroissant) et prendre le top 5
+            const top5Products = aggregatedProducts.sort((a, b) => b.quantity - a.quantity).slice(0, 5);
+            // --- End Top Products Calculation ---
+            // ^ ^ ^ **FIN DU BLOC DE CALCUL** ^ ^ ^
             // --- Update KPI DOM ---
             document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
             document.getElementById('kpi-total-purchases').textContent = `${totalPurchases.toFixed(2)} Mad`;
             document.getElementById('kpi-unpaid-purchases').textContent = `${totalUnpaidPurchases.toFixed(2)} Mad`; // *** NEW ***
             document.getElementById('kpi-total-losses').textContent = `${totalLossesValue.toFixed(2)} Mad`;
             document.getElementById('kpi-total-orders').textContent = totalOrders;
-
+			renderTopProducts(top5Products);
             // --- Low Stock Alerts (unfiltered) ---
             const container = document.getElementById('low-stock-alerts');
             const placeholder = document.getElementById('low-stock-placeholder');
@@ -861,6 +947,42 @@ card.innerHTML = `<div class="flex justify-between items-start">
             } 
         };
         const renderLossHistory = () => { const container = document.getElementById('loss-history-list'); const placeholder = document.getElementById('loss-history-placeholder'); container.innerHTML = ''; if (allLosses.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allLosses.forEach(loss => { const card = document.createElement('div'); card.className = 'bg-yellow-50 p-4 rounded-xl shadow-md border-l-4 border-yellow-400'; const date = loss.createdAt ? new Date(loss.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue'; const reasonHtml = loss.reason ? `<p class="text-sm text-gray-500 italic mt-1">"${loss.reason}"</p>` : ''; card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-yellow-800">Perte du ${date}</p><p class="text-gray-700 mt-2"><span class="font-semibold">${loss.quantity} ${loss.unit || ''}</span> de <span class="font-semibold">${loss.itemName}</span></p>${reasonHtml}</div><div class="flex items-center gap-4 text-right"><button data-id="${loss.id}" class="delete-loss-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; container.appendChild(card); }); } };
+		// V V V **BLOC MANQUANT À AJOUTER** V V V
+        const renderTopProducts = (topProducts) => {
+            const container = document.getElementById('top-products-list');
+            const placeholder = document.getElementById('top-products-placeholder');
+            container.innerHTML = ''; // Vider la liste précédente
+
+            if (topProducts.length === 0) {
+                container.appendChild(placeholder); // Remettre le placeholder s'il n'y a pas de données
+            } else {
+                topProducts.forEach((product, index) => {
+                    const card = document.createElement('div');
+                    // Appliquer un style de carte simple
+                    card.className = 'bg-white p-4 rounded-2xl shadow-lg flex justify-between items-center';
+                    
+                    const rank = index + 1;
+                    // Ajouter un peu de style pour le classement
+                    let rankColor = 'text-gray-500';
+                    if (rank === 1) rankColor = 'text-yellow-500'; // Or
+                    if (rank === 2) rankColor = 'text-gray-400'; // Argent
+                    if (rank === 3) rankColor = 'text-yellow-700'; // Bronze
+
+                    card.innerHTML = `
+                        <div class="flex items-center">
+                            <span class="text-2xl font-bold ${rankColor} w-8">#${rank}</span>
+                            <span class="font-semibold text-lg text-gray-800 ml-3">${product.name}</span>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-2xl font-bold text-gray-900">${product.quantity}</p>
+                            <p class="text-sm text-gray-500">vendus</p>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+        };
+        // ^ ^ ^ **FIN DU BLOC MANQUANT** ^ ^ ^
         
         // --- KPI FILTERS ---
         document.getElementById('toggle-kpi-filters-btn').addEventListener('click', () => {
