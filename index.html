@@ -773,11 +773,27 @@ const renderOrderHistory = (history) => {
                     
                     // V V V AJOUTEZ CETTE LIGNE V V V
                     const billNoHtml = order.billNo ? `<p class="text-xs text-gray-500 font-mono">Facture API: ${order.billNo}</p>` : '';
-                    
+                    const discountTagHtml = order.hadDiscount 
+                            ? `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold ml-2 px-2 py-0.5 rounded-full">Rabais</span>`
+                            : '';
                     // V V V MODIFIEZ CETTE LIGNE V V V
-                    card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-gray-700">Vente du ${displayDate}</p>${billNoHtml}<ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul></div><div class="flex items-center gap-4 text-right"><p class="font-bold text-lg text-gray-800">${order.totalPrice.toFixed(2)} Mad</p><button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; 
-                    
-                    container.appendChild(card); 
+card.innerHTML = `<div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-bold text-gray-700">Vente du ${displayDate}</p>
+                                <div class="flex items-center mt-1">
+                                    ${billNoHtml}
+                                    ${discountTagHtml} 
+                                </div>
+                                <ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul>
+                            </div>
+                            <div class="flex items-center gap-4 text-right">
+                                <p class="font-bold text-lg text-gray-800">${order.totalPrice.toFixed(2)} Mad</p>
+                                <button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>`; 
+                        // ^ ^ ^ **FIN DE LA MODIFICATION** ^ ^ ^
+                    
+                    container.appendChild(card);
                 }); 
             } 
         };
@@ -1763,7 +1779,8 @@ const renderOrderHistory = (history) => {
                              billNo: billNo,
                              items: [],
                              totalPrice: 0,
-                             saleDate: null // On initialise à null
+                             saleDate: null, // On initialise à null
+							 hadDiscount: false
                          };
 
                          // On essaie de parser la date de l'API (qui contient l'heure)
@@ -1799,7 +1816,9 @@ const renderOrderHistory = (history) => {
 						if (isNaN(discountPercent)) {
 							discountPercent = 100;
 						}
-						
+						if (discountPercent < 100) {
+                            acc[billNo].hadDiscount = true;
+                        }
 						// On convertit le pourcentage en multiplicateur
 						const discountMultiplier = discountPercent / 100;
 						// ^ ^ ^ FIN DE LA NOUVELLE LOGIQUE ^ ^ ^
@@ -1906,7 +1925,8 @@ const renderOrderHistory = (history) => {
                              totalPrice: sale.totalPrice,
                              createdAt: serverTimestamp(), 
                              saleDate: sale.saleDate,
-								billNo: sale.billNo
+								billNo: sale.billNo,
+								hadDiscount: sale.hadDiscount
                          });
                          salesImportedCount++;
                      } else {
@@ -2172,3 +2192,4 @@ const renderOrderHistory = (history) => {
     </script>
 </body>
 </html>
+
