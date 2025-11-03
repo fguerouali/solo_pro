@@ -769,8 +769,16 @@ const renderOrderHistory = (history) => {
                     const card = document.createElement('div'); 
                     card.className = 'bg-white p-4 rounded-xl shadow-md'; 
                     const displayDate = formatDateToDDMMYYYY(order.saleDate || order.createdAt); 
-                    const itemsHtml = order.items.map(item => `<li>${item.quantity} x ${item.name}</li>`).join(''); 
-                    
+					// (vers la ligne 348)
+					const itemsHtml = order.items.map(item => {
+						// Vérifie si la propriété 'returned' existe ET est supérieure à 0
+						// (Les ventes manuelles n'auront pas cette propriété, elle sera 'undefined' et donc fausse)
+						const refundTag = (item.returned && item.returned > 0)
+							? `<span class="text-red-600 font-semibold ml-2">(remb)</span>`
+							: '';
+						
+						return `<li>${item.quantity} x ${item.name}${refundTag}</li>`;
+					}).join('');                    
                     // V V V AJOUTEZ CETTE LIGNE V V V
                     const billNoHtml = order.billNo ? `<p class="text-xs text-gray-500 font-mono">Facture API: ${order.billNo}</p>` : '';
                     const discountTagHtml = order.hadDiscount 
@@ -1849,7 +1857,8 @@ card.innerHTML = `<div class="flex justify-between items-start">
                                  id: matchedProduct.id, 
                                  name: matchedProduct.name, 
                                  quantity: quantity,
-                                 price: price 
+                                 price: price,
+								 returned: numBack // <-- AJOUTE CETTE LIGNE 
                              });
 
 						// 2. On calcule la quantité nette (vendue - retournée)
