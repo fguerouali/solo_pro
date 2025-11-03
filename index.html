@@ -1842,7 +1842,7 @@ card.innerHTML = `<div class="flex justify-between items-start">
                         // V V V MODIFICATION POUR GÉRER numBack V V V
                         
                         // 1. On récupère la nouvelle variable numBack
-                        const numBack = parseFloat(item.numBack);
+                        const numBack = parseFloat(item.numBack) || 0;
 
                          if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
                              acc[billNo].items.push({
@@ -1852,13 +1852,18 @@ card.innerHTML = `<div class="flex justify-between items-start">
                                  price: price 
                              });
 
-                            // 2. On calcule le prix de l'article avant remise
-                            let itemTotalBeforeDiscount = (price * quantity + priceAdd);
+						// 2. On calcule la quantité nette (vendue - retournée)
+						const netQuantity = Math.max(0, quantity - numBack);
 
-                            // 3. Si numBack est 0 (remboursé), on met son prix à 0
-                            if (numBack === 1) {
-                                itemTotalBeforeDiscount = 0;
-                            }
+						// 3. On calcule le prix de l'article avant remise
+						let itemTotalBeforeDiscount = 0;
+
+						if (netQuantity > 0) {
+							// On facture les articles restants + les frais sup.
+							// (On suppose que priceAdd s'applique à la ligne, pas par article)
+							itemTotalBeforeDiscount = (price * netQuantity) + priceAdd;
+						}
+						// Si netQuantity est 0, itemTotalBeforeDiscount reste 0 (remboursement total)
                             
                             // 4. On ajoute le prix (0 ou le prix normal) au total de la facture, après remise
 							acc[billNo].totalPrice += itemTotalBeforeDiscount * discountMultiplier;
@@ -2206,4 +2211,5 @@ card.innerHTML = `<div class="flex justify-between items-start">
     </script>
 </body>
 </html>
+
 
