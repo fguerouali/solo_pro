@@ -1074,8 +1074,29 @@ card.innerHTML = `<div class="flex justify-between items-start">
             document.getElementById('current-order-total-input').value = total.toFixed(2); 
         };
 
-        const renderCurrentOrder = () => { const list = document.getElementById('current-order-list'); const placeholder = document.getElementById('order-placeholder'); const processBtn = document.getElementById('process-order-btn'); list.innerHTML = ''; if(currentOrder.length === 0){ list.innerHTML = ''; list.appendChild(placeholder); processBtn.disabled = true; } else { currentOrder.forEach((item, index) => { const li = document.createElement('li'); li.className = 'flex justify-between items-center'; li.innerHTML = `<span>${item.quantity} x ${item.name}</span><button data-index="${index}" class="remove-order-item text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>`; list.appendChild(li); }); processBtn.disabled = false; } updateOrderTotal(); }; document.getElementById('current-order-list').addEventListener('click', e => { const button = e.target.closest('.remove-order-item'); if (button) { currentOrder.splice(button.dataset.index, 1); renderCurrentOrder(); } }); 
-        
+        const renderCurrentOrder = () => { 
+    const list = document.getElementById('current-order-list'); 
+    // const placeholder = document.getElementById('order-placeholder'); // <-- SUPPRIMER CETTE LIGNE
+    const processBtn = document.getElementById('process-order-btn'); 
+    list.innerHTML = ''; // <-- Vide la liste (enlève Tiramisu, etc.)
+    
+    if(currentOrder.length === 0){ 
+        // list.innerHTML = ''; // <-- SUPPRIMER CETTE LIGNE (redondante)
+        list.appendChild(orderListPlaceholder); // <-- UTILISER LA VARIABLE MISE EN CACHE
+        processBtn.disabled = true; 
+    } else { 
+        currentOrder.forEach((item, index) => { 
+            const li = document.createElement('li'); 
+            li.className = 'flex justify-between items-center'; 
+            li.innerHTML = `<span>${item.quantity} x ${item.name}</span><button data-index="${index}" class="remove-order-item text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>`; 
+            list.appendChild(li); 
+        }); 
+        processBtn.disabled = false; 
+    } 
+    updateOrderTotal(); 
+};	
+addEventListener('click', e => { const button = e.target.closest('.remove-order-item'); if (button) { currentOrder.splice(button.dataset.index, 1); renderCurrentOrder(); } }); 
+        const orderListPlaceholder = document.getElementById('order-placeholder');
         document.getElementById('process-order-btn').addEventListener('click', async () => { 
             if (currentOrder.length === 0) return; 
             
@@ -2220,5 +2241,6 @@ card.innerHTML = `<div class="flex justify-between items-start">
     </script>
 </body>
 </html>
+
 
 
