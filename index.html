@@ -118,7 +118,7 @@
 
 
                 <!-- KPIs -->
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 mb-8">
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes</h3>
                         <p id="kpi-total-sales" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
@@ -142,6 +142,22 @@
 					<div class="bg-white p-4 rounded-2xl shadow-lg text-center">
     <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Pizzas Vendues</h3>
     <p id="kpi-total-pizzas" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Panier Moyen</h3>
+    <p id="kpi-avg-order-value" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Taux de Perte</h3>
+    <p id="kpi-loss-rate" class="text-3xl font-bold text-red-600 mt-1">0 %</p>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Marge Brute</h3>
+    <p id="kpi-gross-margin" class="text-3xl font-bold text-green-600 mt-1">0.00 Mad</p>
+</div>
+<div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Taux Marge Brute</h3>
+    <p id="kpi-gross-margin-rate" class="text-3xl font-bold text-green-600 mt-1">0 %</p>
 </div>
                 </div>
                 <h2 class="text-2xl font-semibold mb-4 text-gray-800">Alertes de Stock</h2>
@@ -690,6 +706,18 @@
                 }
                 return sum + lossCost;
             }, 0);
+			let totalCogs = 0; // "Cost of Goods Sold" (Coût des Marchandises Vendues)
+filteredOrders.forEach(order => {
+    order.items.forEach(item => {
+        const product = allProducts.find(p => p.id === item.id);
+        if (product) {
+            // On utilise la fonction qui calcule le coût de revient d'UN produit
+            const productCost = calculateProductCost(product);
+            // On le multiplie par la quantité vendue et on l'ajoute au total
+            totalCogs += productCost * item.quantity;
+        }
+    });
+});
 			const totalPizzasSold = filteredOrders.reduce((pizzaCount, order) => {
     // Parcourir chaque article de la commande
     order.items.forEach(item => {
@@ -702,7 +730,21 @@
         }
     });
     return pizzaCount;
-}, 0);
+}, 0);// 1. Marge Brute (Mad)
+const grossMargin = totalSales - totalCogs;
+
+// 2. Taux de Marge Brute (%)
+// On vérifie si totalSales > 0 pour éviter une division par zéro
+const grossMarginRate = totalSales > 0 ? (grossMargin / totalSales) * 100 : 0;
+
+// 3. Panier Moyen (Mad)
+// On vérifie si totalOrders > 0
+const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+
+// 4. Taux de Perte (%)
+// On vérifie si totalSales > 0
+const lossRate = totalSales > 0 ? (totalLossesValue / totalSales) * 100 : 0;
+// ^ ^ ^ **FIN DES 4 CALCULS** ^ ^ ^
             // --- Update KPI DOM ---
             document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
             document.getElementById('kpi-total-purchases').textContent = `${totalPurchases.toFixed(2)} Mad`;
@@ -710,6 +752,10 @@
             document.getElementById('kpi-total-losses').textContent = `${totalLossesValue.toFixed(2)} Mad`;
             document.getElementById('kpi-total-orders').textContent = totalOrders;
 document.getElementById('kpi-total-pizzas').textContent = totalPizzasSold;
+			document.getElementById('kpi-avg-order-value').textContent = `${avgOrderValue.toFixed(2)} Mad`;
+document.getElementById('kpi-loss-rate').textContent = `${lossRate.toFixed(1)} %`;
+document.getElementById('kpi-gross-margin').textContent = `${grossMargin.toFixed(2)} Mad`;
+document.getElementById('kpi-gross-margin-rate').textContent = `${grossMarginRate.toFixed(1)} %`;
             // --- Low Stock Alerts (unfiltered) ---
             const container = document.getElementById('low-stock-alerts');
             const placeholder = document.getElementById('low-stock-placeholder');
