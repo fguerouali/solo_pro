@@ -118,7 +118,7 @@
 
 
                 <!-- KPIs -->
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 mb-8">
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes</h3>
                         <p id="kpi-total-sales" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
@@ -139,6 +139,10 @@
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes (Nbre)</h3>
                         <p id="kpi-total-orders" class="text-3xl font-bold text-gray-900 mt-1">0</p>
                     </div>
+					<div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Pizzas Vendues</h3>
+    <p id="kpi-total-pizzas" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+</div>
                 </div>
                 <h2 class="text-2xl font-semibold mb-4 text-gray-800">Alertes de Stock</h2>
                 <div id="low-stock-alerts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -686,14 +690,26 @@
                 }
                 return sum + lossCost;
             }, 0);
-
+			const totalPizzasSold = filteredOrders.reduce((pizzaCount, order) => {
+    // Parcourir chaque article de la commande
+    order.items.forEach(item => {
+        // Trouver le type de produit correspondant
+        const product = allProducts.find(p => p.id === item.id);
+        // Si le produit existe et que son type est 'Pizza'
+        if (product && product.type === 'Pizza') {
+            // Ajouter la quantité vendue au total
+            pizzaCount += item.quantity;
+        }
+    });
+    return pizzaCount;
+}, 0);
             // --- Update KPI DOM ---
             document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
             document.getElementById('kpi-total-purchases').textContent = `${totalPurchases.toFixed(2)} Mad`;
             document.getElementById('kpi-unpaid-purchases').textContent = `${totalUnpaidPurchases.toFixed(2)} Mad`; // *** NEW ***
             document.getElementById('kpi-total-losses').textContent = `${totalLossesValue.toFixed(2)} Mad`;
             document.getElementById('kpi-total-orders').textContent = totalOrders;
-
+document.getElementById('kpi-total-pizzas').textContent = totalPizzasSold;
             // --- Low Stock Alerts (unfiltered) ---
             const container = document.getElementById('low-stock-alerts');
             const placeholder = document.getElementById('low-stock-placeholder');
