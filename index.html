@@ -79,6 +79,7 @@
                     <button class="tab-link" data-tab="products"><i class="fas fa-utensils mr-2"></i>Produits</button>
                     <button class="tab-link" data-tab="purchases"><i class="fas fa-truck mr-2"></i>Achats</button>
                     <button class="tab-link" data-tab="orders"><i class="fas fa-receipt mr-2"></i>Ventes & Pertes</button>
+					<button class="tab-link" data-tab="charges"><i class="fas fa-file-invoice-dollar mr-2"></i>Charges</button>
                 </nav>
             </div>
         </div>
@@ -118,7 +119,7 @@
 
 
                 <!-- KPIs -->
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6 mb-8">
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes</h3>
                         <p id="kpi-total-sales" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
@@ -158,6 +159,14 @@
 <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
     <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Taux Marge Brute</h3>
     <p id="kpi-gross-margin-rate" class="text-3xl font-bold text-green-600 mt-1">0 %</p>
+</div><div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Charges</h3>
+    <p id="kpi-total-charges" class="text-3xl font-bold text-red-600 mt-1">0.00 Mad</p>
+</div>
+
+<div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Bénéfice Net</h3>
+    <p id="kpi-net-profit" class="text-3xl font-bold text-green-600 mt-1">0.00 Mad</p>
 </div>
                 </div>
                 <h2 class="text-2xl font-semibold mb-4 text-gray-800">Alertes de Stock</h2>
@@ -318,7 +327,48 @@
                        </div>
                  </div>
             </div>
-        </main>
+
+<div id="charges-content" class="tab-content">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Ajouter une Charge</h2>
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <form id="charge-form">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="charge-name" class="block text-sm font-medium text-gray-700">Nom de la Charge</label>
+                            <input type="text" id="charge-name" placeholder="Ex: Loyer, Salaire, Electricité..." required class="mt-1 w-full input-style">
+                        </div>
+                        <div>
+                            <label for="charge-amount" class="block text-sm font-medium text-gray-700">Montant (Mad)</label>
+                            <input type="number" id="charge-amount" min="0" step="0.01" required class="mt-1 w-full input-style">
+                        </div>
+                        <div>
+                            <label for="charge-date" class="block text-sm font-medium text-gray-700">Date de la Charge</label>
+                            <input type="date" id="charge-date" required class="mt-1 w-full input-style">
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <button type="submit" class="btn-primary w-full">Enregistrer la Charge</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Historique des Charges</h2>
+            <div id="charges-list" class="space-y-3">
+                <div id="charges-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
+                    <i class="fas fa-file-invoice-dollar fa-2x text-gray-400 mb-2"></i>
+                    <p>Aucune charge enregistrée.</p>
+                </div>
+                </div>
+        </div>
+    </div>
+</div>
+</main>
+        
     </div>
 
     <!-- Modals -->
@@ -569,7 +619,7 @@
         const storage = getStorage(app);
 
         // --- COLLECTIONS REFS ---
-        let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol;
+        let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol,chargesCol;
 
         // --- ETAT GLOBAL ---
         let allIngredients = [];
@@ -578,6 +628,7 @@
         let allSuppliers = [];
         let allLosses = [];
         let allPurchaseOrders = [];
+		let allCharges = [];
         let currentRecipe = [];
         let currentOrder = [];
         let currentPurchaseOrderItems = [];
@@ -595,11 +646,13 @@
                 suppliersCol = collection(db, `artifacts/${appId}/public/data/suppliers`);
                 purchaseOrdersCol = collection(db, `artifacts/${appId}/public/data/purchaseOrders`);
                 lossesCol = collection(db, `artifacts/${appId}/public/data/losses`);
+				chargesCol = collection(db, `artifacts/${appId}/public/data/charges`); // <-- AJOUTEZ CETTE LIGNE
                 listenToAllCollections();
                 document.getElementById('sale-date').value = getTodayDateString();
                  // Set default dates for API import modal
                 document.getElementById('api-start-date').value = getTodayDateString();
                 document.getElementById('api-end-date').value = getTodayDateString();
+				document.getElementById('charge-date').value = getTodayDateString();
             } else {
                 try {
                     if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
@@ -614,7 +667,13 @@
             onSnapshot(ingredientsCol, snapshot => { allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allIngredients.sort((a,b) => a.name.localeCompare(b.name)); renderIngredients(); updateAndRenderKPIs(); populateIngredientSelects(); renderProducts(); });
             onSnapshot(productsCol, snapshot => { allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allProducts.sort((a,b) => a.name.localeCompare(b.name)); renderProducts(); populateProductSelects(); updateAndRenderKPIs(); });
             onSnapshot(ordersCol, snapshot => { orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0)); renderOrderHistory(orderHistory); updateAndRenderKPIs(); });
-            onSnapshot(lossesCol, snapshot => { allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderLossHistory(); updateAndRenderKPIs(); });
+            onSnapshot(lossesCol, snapshot => { allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderLossHistory(); updateAndRenderKPIs(); });onSnapshot(chargesCol, snapshot => {
+    allCharges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Trier par date de charge, la plus récente en premier
+    allCharges.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
+    renderCharges(allCharges); // Nous allons créer cette fonction
+    updateAndRenderKPIs();
+});
         }
         
         // --- HELPERS ---
@@ -687,7 +746,10 @@
                 const lossDate = toDate(l.createdAt);
                 return lossDate && lossDate >= startDate && lossDate <= endDate;
             });
-            
+            const filteredCharges = !startDate ? allCharges : allCharges.filter(c => {
+    const chargeDate = toDate(c.date || c.createdAt);
+    return chargeDate && chargeDate >= startDate && chargeDate <= endDate;
+});
             // --- KPI Calculations ---
             const totalSales = filteredOrders.reduce((sum, order) => sum + order.totalPrice, 0);
             const totalPurchases = filteredPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0); // This is total *received* purchases
@@ -744,6 +806,8 @@ const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 // 4. Taux de Perte (%)
 // On vérifie si totalSales > 0
 const lossRate = totalSales > 0 ? (totalLossesValue / totalSales) * 100 : 0;
+const totalCharges = filteredCharges.reduce((sum, charge) => sum + charge.amount, 0);
+const netProfit = grossMargin - totalCharges;
 // ^ ^ ^ **FIN DES 4 CALCULS** ^ ^ ^
             // --- Update KPI DOM ---
             document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
@@ -756,6 +820,8 @@ document.getElementById('kpi-total-pizzas').textContent = totalPizzasSold;
 document.getElementById('kpi-loss-rate').textContent = `${lossRate.toFixed(1)} %`;
 document.getElementById('kpi-gross-margin').textContent = `${grossMargin.toFixed(2)} Mad`;
 document.getElementById('kpi-gross-margin-rate').textContent = `${grossMarginRate.toFixed(1)} %`;
+document.getElementById('kpi-total-charges').textContent = `${totalCharges.toFixed(2)} Mad`;
+document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)} Mad`;
             // --- Low Stock Alerts (unfiltered) ---
             const container = document.getElementById('low-stock-alerts');
             const placeholder = document.getElementById('low-stock-placeholder');
@@ -931,7 +997,42 @@ card.innerHTML = `<div class="flex justify-between items-start">
             } 
         };
         const renderLossHistory = () => { const container = document.getElementById('loss-history-list'); const placeholder = document.getElementById('loss-history-placeholder'); container.innerHTML = ''; if (allLosses.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allLosses.forEach(loss => { const card = document.createElement('div'); card.className = 'bg-yellow-50 p-4 rounded-xl shadow-md border-l-4 border-yellow-400'; const date = loss.createdAt ? new Date(loss.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue'; const reasonHtml = loss.reason ? `<p class="text-sm text-gray-500 italic mt-1">"${loss.reason}"</p>` : ''; card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-yellow-800">Perte du ${date}</p><p class="text-gray-700 mt-2"><span class="font-semibold">${loss.quantity} ${loss.unit || ''}</span> de <span class="font-semibold">${loss.itemName}</span></p>${reasonHtml}</div><div class="flex items-center gap-4 text-right"><button data-id="${loss.id}" class="delete-loss-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; container.appendChild(card); }); } };
-        
+        const renderCharges = (charges) => {
+    const container = document.getElementById('charges-list');
+    const placeholder = document.getElementById('charges-placeholder');
+    container.innerHTML = '';
+
+    if (charges.length === 0) {
+        container.appendChild(placeholder);
+    } else {
+        charges.forEach(charge => {
+            const card = document.createElement('div');
+            card.className = 'bg-white p-3 rounded-lg shadow-sm flex justify-between items-center';
+
+            // Formater la date en JJ/MM/AAAA (sans l'heure)
+            const d = toDate(charge.date);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            const displayDate = `${day}/${month}/${year}`;
+
+            card.innerHTML = `
+                <div>
+                    <p class="font-semibold text-gray-800">${charge.name}</p>
+                    <p class="text-sm text-gray-500">${displayDate}</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <p class="font-bold text-lg text-red-600">${charge.amount.toFixed(2)} Mad</p>
+                    <button data-id="${charge.id}" class="delete-charge-btn text-gray-400 hover:text-red-600 transition-colors">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+};
+// ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
         // --- KPI FILTERS ---
         document.getElementById('toggle-kpi-filters-btn').addEventListener('click', () => {
             document.getElementById('kpi-filter-container').classList.toggle('hidden');
@@ -1411,7 +1512,61 @@ addEventListener('click', e => { const button = e.target.closest('.remove-order-
                 } 
             } 
         });
+// V V V **AJOUTEZ CE BLOC POUR LES CHARGES** V V V
+// --- CHARGES ---
 
+// Gérer l'ajout d'une charge
+document.getElementById('charge-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById('charge-name').value;
+    const amount = parseFloat(document.getElementById('charge-amount').value);
+    const dateValue = document.getElementById('charge-date').value;
+
+    if (!name || isNaN(amount) || amount <= 0 || !dateValue) {
+        showToast("Veuillez remplir tous les champs avec des valeurs valides.");
+        return;
+    }
+
+    const chargeDate = new Date(dateValue);
+    // Ajuster l'heure à midi pour éviter les problèmes de fuseau horaire
+    chargeDate.setHours(12, 0, 0, 0); 
+
+    try {
+        await addDoc(chargesCol, {
+            name: name,
+            amount: amount,
+            date: chargeDate,
+            createdAt: serverTimestamp()
+        });
+
+        showToast('Charge enregistrée !');
+        document.getElementById('charge-form').reset();
+        // Réinitialiser la date à aujourd'hui après l'ajout
+        document.getElementById('charge-date').value = getTodayDateString(); 
+    } catch (error) {
+        console.error("Erreur ajout charge: ", error);
+        showToast("Erreur lors de l'enregistrement de la charge.");
+    }
+});
+
+// Gérer la suppression d'une charge
+document.getElementById('charges-list').addEventListener('click', async (e) => {
+    const deleteBtn = e.target.closest('.delete-charge-btn');
+    if (deleteBtn) {
+        const chargeId = deleteBtn.dataset.id;
+        if (confirm("Voulez-vous vraiment supprimer cette charge ?")) {
+            try {
+                await deleteDoc(doc(chargesCol, chargeId));
+                showToast("Charge supprimée.");
+            } catch (error) {
+                console.error("Erreur suppression charge: ", error);
+                showToast("Erreur lors de la suppression.");
+            }
+        }
+    }
+});
+// ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
         // --- FOURNISSEURS & ACHATS ---
         document.getElementById('add-supplier-btn').addEventListener('click', () => { document.getElementById('supplier-modal-title').textContent = 'Ajouter un Fournisseur'; document.getElementById('supplier-form').reset(); document.getElementById('supplier-id').value = ''; openModal('supplier-modal'); }); document.getElementById('cancel-supplier').addEventListener('click', () => closeModal('supplier-modal')); document.getElementById('supplier-form').addEventListener('submit', async e => { e.preventDefault(); const id = document.getElementById('supplier-id').value; const data = { name: document.getElementById('supplier-name').value, contact: document.getElementById('supplier-contact').value }; try { if (id) await updateDoc(doc(suppliersCol, id), data); else await addDoc(suppliersCol, data); showToast(id ? 'Fournisseur mis à jour' : 'Fournisseur ajouté'); closeModal('supplier-modal'); } catch(error) { showToast('Erreur'); } }); document.getElementById('suppliers-list').addEventListener('click', async e => { const target = e.target.closest('button'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-supplier-btn')) { if (confirm('Supprimer ce fournisseur ?')) await deleteDoc(doc(suppliersCol, id)); } else if (target.classList.contains('edit-supplier-btn')) { const sup = allSuppliers.find(s => s.id === id); document.getElementById('supplier-id').value = id; document.getElementById('supplier-name').value = sup.name; document.getElementById('supplier-contact').value = sup.contact; openModal('supplier-modal'); } });
         const populateSupplierSelects = () => { const select = document.getElementById('po-supplier-select'); select.innerHTML = '<option value="">Choisir...</option>'; allSuppliers.forEach(s => select.innerHTML += `<option value="${s.id}">${s.name}</option>`); }; 
