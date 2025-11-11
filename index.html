@@ -585,109 +585,109 @@
         .tab-link { @apply whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors; }
     </style>
 
-    <script type="module">
-        // --- IMPORTS FIREBASE ---
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, serverTimestamp, writeBatch, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+ <script type="module">
+        // --- IMPORTS FIREBASE ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, serverTimestamp, writeBatch, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
-        // --- CONFIGURATION ---
-        const firebaseConfigFromUser = {
-            apiKey: "AIzaSyCzUX90zSN2zG9O97g7TNyTmTSNte9OT-E",
-            authDomain: "solopro-6521a.firebaseapp.com",
-            projectId: "solopro-6521a",
-            storageBucket: "solopro-6521a.appspot.com",
-            messagingSenderId: "126450282941",
-            appId: "1:126450282941:web:10e5255e6ee7c75fa8e2d4"
-        };
+        // --- CONFIGURATION ---
+        const firebaseConfigFromUser = {
+            apiKey: "AIzaSyCzUX90zSN2zG9O97g7TNyTmTSNte9OT-E",
+            authDomain: "solopro-6521a.firebaseapp.com",
+            projectId: "solopro-6521a",
+            storageBucket: "solopro-6521a.appspot.com",
+            messagingSenderId: "126450282941",
+            appId: "1:126450282941:web:10e5255e6ee7c75fa8e2d4"
+        };
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
-        
-        // --- URL du Proxy ---
-        // !!! REMPLACEZ PAR L'URL RÉELLE DE VOTRE PROXY DÉPLOYÉ SUR RENDER !!!
-        // Par exemple: "https://solo-proxy.onrender.com"
-        const PROXY_URL = "https://solo-proxy.onrender.com"; // <= MODIFIEZ CETTE LIGNE
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
+        
+        // --- URL du Proxy ---
+        // !!! REMPLACEZ PAR L'URL RÉELLE DE VOTRE PROXY DÉPLOYÉ SUR RENDER !!!
+        // Par exemple: "https://solo-proxy.onrender.com"
+        const PROXY_URL = "https://solo-proxy.onrender.com"; // <= MODIFIEZ CETTE LIGNE
 
 
-        // --- INITIALISATION FIREBASE ---
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
+        // --- INITIALISATION FIREBASE ---
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
 
-        // --- COLLECTIONS REFS ---
-        let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol,chargesCol;
+        // --- COLLECTIONS REFS ---
+        let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol,chargesCol;
 
-        // --- ETAT GLOBAL ---
-        let allIngredients = [];
-        let allProducts = [];
-        let orderHistory = [];
-        let allSuppliers = [];
-        let allLosses = [];
-        let allPurchaseOrders = [];
+        // --- ETAT GLOBAL ---
+        let allIngredients = [];
+        let allProducts = [];
+        let orderHistory = [];
+        let allSuppliers = [];
+        let allLosses = [];
+        let allPurchaseOrders = [];
 		let allCharges = [];
-        let currentRecipe = [];
-        let currentOrder = [];
-        let currentPurchaseOrderItems = [];
-        let importType = '';
+        let currentRecipe = [];
+        let currentOrder = [];
+        let currentPurchaseOrderItems = [];
+        let importType = '';
 
-        // --- SEUILS ---
-        const LOW_STOCK_THRESHOLD = 10;
-        
-        // --- AUTHENTIFICATION ---
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                ingredientsCol = collection(db, `artifacts/${appId}/public/data/ingredients`);
-                productsCol = collection(db, `artifacts/${appId}/public/data/products`);
-                ordersCol = collection(db, `artifacts/${appId}/public/data/orders`);
-                suppliersCol = collection(db, `artifacts/${appId}/public/data/suppliers`);
-                purchaseOrdersCol = collection(db, `artifacts/${appId}/public/data/purchaseOrders`);
-                lossesCol = collection(db, `artifacts/${appId}/public/data/losses`);
+        // --- SEUILS ---
+        const LOW_STOCK_THRESHOLD = 10;
+        
+        // --- AUTHENTIFICATION ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                ingredientsCol = collection(db, `artifacts/${appId}/public/data/ingredients`);
+                productsCol = collection(db, `artifacts/${appId}/public/data/products`);
+                ordersCol = collection(db, `artifacts/${appId}/public/data/orders`);
+                suppliersCol = collection(db, `artifacts/${appId}/public/data/suppliers`);
+                purchaseOrdersCol = collection(db, `artifacts/${appId}/public/data/purchaseOrders`);
+                lossesCol = collection(db, `artifacts/${appId}/public/data/losses`);
 				chargesCol = collection(db, `artifacts/${appId}/public/data/charges`); // <-- AJOUTEZ CETTE LIGNE
-                listenToAllCollections();
-                document.getElementById('sale-date').value = getTodayDateString();
-                 // Set default dates for API import modal
-                document.getElementById('api-start-date').value = getTodayDateString();
-                document.getElementById('api-end-date').value = getTodayDateString();
+                listenToAllCollections();
+                document.getElementById('sale-date').value = getTodayDateString();
+                 // Set default dates for API import modal
+                document.getElementById('api-start-date').value = getTodayDateString();
+                document.getElementById('api-end-date').value = getTodayDateString();
 				document.getElementById('charge-date').value = getTodayDateString();
-            } else {
-                try {
-                    if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
-                    else await signInAnonymously(auth);
-                } catch (error) { console.error("Auth failed:", error); }
-            }
-        });
-        
-        function listenToAllCollections() {
-            onSnapshot(suppliersCol, snapshot => { allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSuppliers(); populateSupplierSelects(); });
-            onSnapshot(purchaseOrdersCol, snapshot => { allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderPurchaseOrders(allPurchaseOrders); updateAndRenderKPIs(); });
-            onSnapshot(ingredientsCol, snapshot => { allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allIngredients.sort((a,b) => a.name.localeCompare(b.name)); renderIngredients(); updateAndRenderKPIs(); populateIngredientSelects(); renderProducts(); });
-            onSnapshot(productsCol, snapshot => { allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allProducts.sort((a,b) => a.name.localeCompare(b.name)); renderProducts(); populateProductSelects(); updateAndRenderKPIs(); });
-            onSnapshot(ordersCol, snapshot => { orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0)); renderOrderHistory(orderHistory); updateAndRenderKPIs(); });
-            onSnapshot(lossesCol, snapshot => { allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderLossHistory(); updateAndRenderKPIs(); });onSnapshot(chargesCol, snapshot => {
-    allCharges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    // Trier par date de charge, la plus récente en premier
-    allCharges.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
-    renderCharges(allCharges); // Nous allons créer cette fonction
-    updateAndRenderKPIs();
+            } else {
+                try {
+                    if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+                    else await signInAnonymously(auth);
+                } catch (error) { console.error("Auth failed:", error); }
+            }
+        });
+        
+        function listenToAllCollections() {
+            onSnapshot(suppliersCol, snapshot => { allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSuppliers(); populateSupplierSelects(); });
+            onSnapshot(purchaseOrdersCol, snapshot => { allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderPurchaseOrders(allPurchaseOrders); updateAndRenderKPIs(); });
+            onSnapshot(ingredientsCol, snapshot => { allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allIngredients.sort((a,b) => a.name.localeCompare(b.name)); renderIngredients(); updateAndRenderKPIs(); populateIngredientSelects(); renderProducts(); });
+            onSnapshot(productsCol, snapshot => { allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allProducts.sort((a,b) => a.name.localeCompare(b.name)); renderProducts(); populateProductSelects(); updateAndRenderKPIs(); });
+            onSnapshot(ordersCol, snapshot => { orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0)); renderOrderHistory(orderHistory); updateAndRenderKPIs(); });
+            onSnapshot(lossesCol, snapshot => { allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderLossHistory(); updateAndRenderKPIs(); });onSnapshot(chargesCol, snapshot => {
+    allCharges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Trier par date de charge, la plus récente en premier
+    allCharges.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
+    renderCharges(allCharges); // Nous allons créer cette fonction
+    updateAndRenderKPIs();
 });
-        }
-        
-        // --- HELPERS ---
-        const showToast = (message) => { const toast = document.getElementById('toast'); document.getElementById('toast-message').textContent = message; toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), 3000); };
-        const openModal = (id) => document.getElementById(id).classList.add('flex');
-        const closeModal = (id) => document.getElementById(id).classList.remove('flex');
-        
-        const getTodayDateString = () => {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
+        }
+        
+        // --- HELPERS ---
+        const showToast = (message) => { const toast = document.getElementById('toast'); document.getElementById('toast-message').textContent = message; toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), 3000); };
+        const openModal = (id) => document.getElementById(id).classList.add('flex');
+        const closeModal = (id) => document.getElementById(id).classList.remove('flex');
+        
+        const getTodayDateString = () => {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
 
 		const formatDateToDDMMYYYY = (date) => {
 		            if (!date) return 'Date inconnue';
@@ -702,96 +702,96 @@
 		            return `${day}/${month}/${year} à ${hours}h${minutes}`;
 		        };
 
-        const toDate = (timestamp) => {
-            if (!timestamp) return null;
-            return timestamp.seconds ? new Date(timestamp.seconds * 1000) : timestamp;
-        };
+        const toDate = (timestamp) => {
+            if (!timestamp) return null;
+            return timestamp.seconds ? new Date(timestamp.seconds * 1000) : timestamp;
+        };
 
-        // --- NAVIGATION ---
-        document.querySelectorAll('.tab-link').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active')); tab.classList.add('active'); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.getElementById(`${tab.dataset.tab}-content`).classList.add('active'); }); });
-        
-        // --- RENDERING & KPIs ---
-        const updateAndRenderKPIs = (startDate, endDate, label = "Période : Tout le temps") => {
-             // Update filter label
-            document.getElementById('kpi-filter-label').textContent = label;
+        // --- NAVIGATION ---
+        document.querySelectorAll('.tab-link').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active')); tab.classList.add('active'); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.getElementById(`${tab.dataset.tab}-content`).classList.add('active'); }); });
+        
+        // --- RENDERING & KPIs ---
+        const updateAndRenderKPIs = (startDate, endDate, label = "Période : Tout le temps") => {
+             // Update filter label
+            document.getElementById('kpi-filter-label').textContent = label;
 
-             // Filter data based on date range if provided
-            const filteredOrders = !startDate ? orderHistory : orderHistory.filter(o => {
-                const orderDate = toDate(o.saleDate || o.createdAt);
-                return orderDate && orderDate >= startDate && orderDate <= endDate;
-            });
+             // Filter data based on date range if provided
+            const filteredOrders = !startDate ? orderHistory : orderHistory.filter(o => {
+                const orderDate = toDate(o.saleDate || o.createdAt);
+                return orderDate && orderDate >= startDate && orderDate <= endDate;
+            });
 
-            const filteredPurchases = !startDate ? allPurchaseOrders.filter(p => p.status === 'received') : allPurchaseOrders.filter(p => {
-                const receivedDate = toDate(p.receivedAt);
-                return p.status === 'received' && receivedDate && receivedDate >= startDate && receivedDate <= endDate;
-            });
-            
-            // *** NEW: Filter for unpaid *and* received purchases ***
-            // Filter by received date, but check paymentStatus
-            const filteredUnpaidPurchases = !startDate 
-                ? allPurchaseOrders.filter(p => p.status === 'received' && p.paymentStatus !== 'paid')
-                : allPurchaseOrders.filter(p => {
-                    // Filter based on *received* date for "Achats" period
-                    const receivedDate = toDate(p.receivedAt); 
-                    return p.status === 'received' && 
-                           p.paymentStatus !== 'paid' &&
-                           receivedDate && 
-                           receivedDate >= startDate && 
-                           receivedDate <= endDate;
-                });
-            // *** END NEW ***
+            const filteredPurchases = !startDate ? allPurchaseOrders.filter(p => p.status === 'received') : allPurchaseOrders.filter(p => {
+                const receivedDate = toDate(p.receivedAt);
+                return p.status === 'received' && receivedDate && receivedDate >= startDate && receivedDate <= endDate;
+            });
+            
+            // *** NEW: Filter for unpaid *and* received purchases ***
+            // Filter by received date, but check paymentStatus
+            const filteredUnpaidPurchases = !startDate 
+                ? allPurchaseOrders.filter(p => p.status === 'received' && p.paymentStatus !== 'paid')
+                : allPurchaseOrders.filter(p => {
+                    // Filter based on *received* date for "Achats" period
+                    const receivedDate = toDate(p.receivedAt); 
+                    return p.status === 'received' && 
+                           p.paymentStatus !== 'paid' &&
+                           receivedDate && 
+                           receivedDate >= startDate && 
+                           receivedDate <= endDate;
+                });
+            // *** END NEW ***
 
 
-            const filteredLosses = !startDate ? allLosses : allLosses.filter(l => {
-                const lossDate = toDate(l.createdAt);
-                return lossDate && lossDate >= startDate && lossDate <= endDate;
-            });
-            const filteredCharges = !startDate ? allCharges : allCharges.filter(c => {
-    const chargeDate = toDate(c.date || c.createdAt);
-    return chargeDate && chargeDate >= startDate && chargeDate <= endDate;
+            const filteredLosses = !startDate ? allLosses : allLosses.filter(l => {
+                const lossDate = toDate(l.createdAt);
+                return lossDate && lossDate >= startDate && lossDate <= endDate;
+            });
+            const filteredCharges = !startDate ? allCharges : allCharges.filter(c => {
+    const chargeDate = toDate(c.date || c.createdAt);
+    return chargeDate && chargeDate >= startDate && chargeDate <= endDate;
 });
-            // --- KPI Calculations ---
-            const totalSales = filteredOrders.reduce((sum, order) => sum + order.totalPrice, 0);
-            const totalPurchases = filteredPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0); // This is total *received* purchases
-            // *** NEW: Calculate total unpaid purchases (from the *received* ones in the period) ***
-            const totalUnpaidPurchases = filteredUnpaidPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
-            // *** END NEW ***
-            const totalOrders = filteredOrders.length;
-            const totalLossesValue = filteredLosses.reduce((sum, loss) => {
-                let lossCost = 0;
-                if (loss.type === 'product') {
-                    const product = allProducts.find(p => p.id === loss.itemId);
-                    if (product) lossCost = calculateProductCost(product) * loss.quantity;
-                } else {
-                    const ingredient = allIngredients.find(i => i.id === loss.itemId);
-                    if (ingredient) lossCost = (ingredient.cost || 0) * loss.quantity;
-                }
-                return sum + lossCost;
-            }, 0);
+            // --- KPI Calculations ---
+            const totalSales = filteredOrders.reduce((sum, order) => sum + order.totalPrice, 0);
+            const totalPurchases = filteredPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0); // This is total *received* purchases
+            // *** NEW: Calculate total unpaid purchases (from the *received* ones in the period) ***
+            const totalUnpaidPurchases = filteredUnpaidPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
+            // *** END NEW ***
+            const totalOrders = filteredOrders.length;
+            const totalLossesValue = filteredLosses.reduce((sum, loss) => {
+                let lossCost = 0;
+                if (loss.type === 'product') {
+                    const product = allProducts.find(p => p.id === loss.itemId);
+                    if (product) lossCost = calculateProductCost(product) * loss.quantity;
+                } else {
+                    const ingredient = allIngredients.find(i => i.id === loss.itemId);
+                    if (ingredient) lossCost = (ingredient.cost || 0) * loss.quantity;
+                }
+                return sum + lossCost;
+            }, 0);
 			let totalCogs = 0; // "Cost of Goods Sold" (Coût des Marchandises Vendues)
 filteredOrders.forEach(order => {
-    order.items.forEach(item => {
-        const product = allProducts.find(p => p.id === item.id);
-        if (product) {
-            // On utilise la fonction qui calcule le coût de revient d'UN produit
-            const productCost = calculateProductCost(product);
-            // On le multiplie par la quantité vendue et on l'ajoute au total
-            totalCogs += productCost * item.quantity;
-        }
-    });
+    order.items.forEach(item => {
+        const product = allProducts.find(p => p.id === item.id);
+        if (product) {
+            // On utilise la fonction qui calcule le coût de revient d'UN produit
+            const productCost = calculateProductCost(product);
+            // On le multiplie par la quantité vendue et on l'ajoute au total
+            totalCogs += productCost * item.quantity;
+        }
+    });
 });
 			const totalPizzasSold = filteredOrders.reduce((pizzaCount, order) => {
-    // Parcourir chaque article de la commande
-    order.items.forEach(item => {
-        // Trouver le type de produit correspondant
-        const product = allProducts.find(p => p.id === item.id);
-        // Si le produit existe et que son type est 'Pizza'
-        if (product && product.type === 'Pizza') {
-            // Ajouter la quantité vendue au total
-            pizzaCount += item.quantity;
-        }
-    });
-    return pizzaCount;
+    // Parcourir chaque article de la commande
+    order.items.forEach(item => {
+        // Trouver le type de produit correspondant
+        const product = allProducts.find(p => p.id === item.id);
+        // Si le produit existe et que son type est 'Pizza'
+        if (product && product.type === 'Pizza') {
+            // Ajouter la quantité vendue au total
+            pizzaCount += item.quantity;
+        }
+    });
+    return pizzaCount;
 }, 0);// 1. Marge Brute (Mad)
 const grossMargin = totalSales - totalCogs;
 
@@ -809,12 +809,12 @@ const lossRate = totalSales > 0 ? (totalLossesValue / totalSales) * 100 : 0;
 const totalCharges = filteredCharges.reduce((sum, charge) => sum + charge.amount, 0);
 const netProfit = grossMargin - totalCharges;
 // ^ ^ ^ **FIN DES 4 CALCULS** ^ ^ ^
-            // --- Update KPI DOM ---
-            document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
-            document.getElementById('kpi-total-purchases').textContent = `${totalPurchases.toFixed(2)} Mad`;
-            document.getElementById('kpi-unpaid-purchases').textContent = `${totalUnpaidPurchases.toFixed(2)} Mad`; // *** NEW ***
-            document.getElementById('kpi-total-losses').textContent = `${totalLossesValue.toFixed(2)} Mad`;
-            document.getElementById('kpi-total-orders').textContent = totalOrders;
+            // --- Update KPI DOM ---
+            document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-purchases').textContent = `${totalPurchases.toFixed(2)} Mad`;
+            document.getElementById('kpi-unpaid-purchases').textContent = `${totalUnpaidPurchases.toFixed(2)} Mad`; // *** NEW ***
+            document.getElementById('kpi-total-losses').textContent = `${totalLossesValue.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-orders').textContent = totalOrders;
 document.getElementById('kpi-total-pizzas').textContent = totalPizzasSold;
 			document.getElementById('kpi-avg-order-value').textContent = `${avgOrderValue.toFixed(2)} Mad`;
 document.getElementById('kpi-loss-rate').textContent = `${lossRate.toFixed(1)} %`;
@@ -822,81 +822,81 @@ document.getElementById('kpi-gross-margin').textContent = `${grossMargin.toFixed
 document.getElementById('kpi-gross-margin-rate').textContent = `${grossMarginRate.toFixed(1)} %`;
 document.getElementById('kpi-total-charges').textContent = `${totalCharges.toFixed(2)} Mad`;
 document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)} Mad`;
-            // --- Low Stock Alerts (unfiltered) ---
-            const container = document.getElementById('low-stock-alerts');
-            const placeholder = document.getElementById('low-stock-placeholder');
-            container.innerHTML = '';
-            const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD);
-            if (lowStockItems.length === 0) {
-                container.innerHTML = '';
-                container.appendChild(placeholder);
-            } else {
-                lowStockItems.forEach(item => {
-                    const alertDiv = document.createElement('div');
-                    alertDiv.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow';
-                    alertDiv.innerHTML = `<p class="font-bold">${item.name}</p><p>Stock restant: ${item.quantity} ${item.unit}</p>`;
-                    container.appendChild(alertDiv);
-                });
-            }
-        };
+            // --- Low Stock Alerts (unfiltered) ---
+            const container = document.getElementById('low-stock-alerts');
+            const placeholder = document.getElementById('low-stock-placeholder');
+            container.innerHTML = '';
+            const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD);
+            if (lowStockItems.length === 0) {
+                container.innerHTML = '';
+                container.appendChild(placeholder);
+            } else {
+                lowStockItems.forEach(item => {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow';
+                    alertDiv.innerHTML = `<p class="font-bold">${item.name}</p><p>Stock restant: ${item.quantity} ${item.unit}</p>`;
+                    container.appendChild(alertDiv);
+                });
+            }
+        };
 
-        const renderIngredients = () => { const list = document.getElementById('ingredients-list'); const placeholder = document.getElementById('ingredients-placeholder'); const table = document.getElementById('ingredients-table'); list.innerHTML = ''; if(allIngredients.length === 0) { table.style.display = 'none'; placeholder.style.display = 'block'; } else { table.style.display = ''; placeholder.style.display = 'none'; allIngredients.forEach(ing => { const isLow = ing.quantity < LOW_STOCK_THRESHOLD; const row = document.createElement('tr'); row.className = isLow ? 'low-stock' : ''; const costDisplay = (ing.cost && ing.cost > 0) ? `${ing.cost.toFixed(2)} Mad` : 'N/A'; row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td><td class="px-6 py-4 whitespace-nowrap"><span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> <span class="text-gray-500">${ing.unit}</span></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${costDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-medium"><button data-id="${ing.id}" class="edit-ingredient-btn text-gray-600 hover:text-gray-900 mr-4">Modifier</button><button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button></td>`; list.appendChild(row); }); } };
-        
-        const calculateProductCost = (product) => {
-            if (!product) return 0;
-            if (product.recipe && product.recipe.length > 0) {
-                return product.recipe.reduce((total, recipeItem) => {
-                    const ingredient = allIngredients.find(ing => ing.id === recipeItem.id);
-                    const ingredientCost = ingredient ? (ingredient.cost || 0) : 0;
-                    return total + (ingredientCost * recipeItem.quantity);
-                }, 0);
-            } else if (product.linkedIngredientId) {
-                const linkedIngredient = allIngredients.find(i => i.id === product.linkedIngredientId);
-                return linkedIngredient ? (linkedIngredient.cost || 0) : 0;
-            }
-            return 0;
-        };
+        const renderIngredients = () => { const list = document.getElementById('ingredients-list'); const placeholder = document.getElementById('ingredients-placeholder'); const table = document.getElementById('ingredients-table'); list.innerHTML = ''; if(allIngredients.length === 0) { table.style.display = 'none'; placeholder.style.display = 'block'; } else { table.style.display = ''; placeholder.style.display = 'none'; allIngredients.forEach(ing => { const isLow = ing.quantity < LOW_STOCK_THRESHOLD; const row = document.createElement('tr'); row.className = isLow ? 'low-stock' : ''; const costDisplay = (ing.cost && ing.cost > 0) ? `${ing.cost.toFixed(2)} Mad` : 'N/A'; row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td><td class="px-6 py-4 whitespace-nowrap"><span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> <span class="text-gray-500">${ing.unit}</span></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${costDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-medium"><button data-id="${ing.id}" class="edit-ingredient-btn text-gray-600 hover:text-gray-900 mr-4">Modifier</button><button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button></td>`; list.appendChild(row); }); } };
+        
+        const calculateProductCost = (product) => {
+            if (!product) return 0;
+            if (product.recipe && product.recipe.length > 0) {
+                return product.recipe.reduce((total, recipeItem) => {
+                    const ingredient = allIngredients.find(ing => ing.id === recipeItem.id);
+                    const ingredientCost = ingredient ? (ingredient.cost || 0) : 0;
+                    return total + (ingredientCost * recipeItem.quantity);
+                }, 0);
+            } else if (product.linkedIngredientId) {
+                const linkedIngredient = allIngredients.find(i => i.id === product.linkedIngredientId);
+                return linkedIngredient ? (linkedIngredient.cost || 0) : 0;
+            }
+            return 0;
+        };
 
-        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); container.innerHTML = ''; if(allProducts.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Entrée: '<i class="fas fa-concierge-bell"></i>', Pizza: '<i class="fas fa-pizza-slice"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Autre: '<i class="fas fa-box"></i>' }; 
-        
-        let contentHtml = '';
-        if (product.recipe && product.recipe.length > 0) {
-            let recipeHtml = product.recipe.map(r => {
-                const ingredientDetails = allIngredients.find(ing => ing.id === r.id);
-                let costHtml = '';
-                if (ingredientDetails && ingredientDetails.cost > 0) {
-                    const itemCost = r.quantity * ingredientDetails.cost;
-                    costHtml = `<span class="font-semibold text-gray-600">${itemCost.toFixed(2)} Mad</span>`;
-                }
-                return `<li class="flex justify-between items-center">
-                            <span>- ${r.quantity} ${r.unit} ${r.name}</span>
-                            ${costHtml}
-                        </li>`;
-            }).join('');
+        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); container.innerHTML = ''; if(allProducts.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Entrée: '<i class="fas fa-concierge-bell"></i>', Pizza: '<i class="fas fa-pizza-slice"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Autre: '<i class="fas fa-box"></i>' }; 
+        
+        let contentHtml = '';
+        if (product.recipe && product.recipe.length > 0) {
+            let recipeHtml = product.recipe.map(r => {
+                const ingredientDetails = allIngredients.find(ing => ing.id === r.id);
+                let costHtml = '';
+                if (ingredientDetails && ingredientDetails.cost > 0) {
+                    const itemCost = r.quantity * ingredientDetails.cost;
+                    costHtml = `<span class="font-semibold text-gray-600">${itemCost.toFixed(2)} Mad</span>`;
+                }
+                return `<li class="flex justify-between items-center">
+                            <span>- ${r.quantity} ${r.unit} ${r.name}</span>
+                            ${costHtml}
+                        </li>`;
+            }).join('');
 
-            contentHtml = `<div class="mt-2">
-                                <h4 class="font-semibold text-sm text-gray-600">Recette:</h4>
-                                <ul class="text-gray-500 text-sm space-y-1 mt-1">${recipeHtml}</ul>
-                            </div>`;
+            contentHtml = `<div class="mt-2">
+                                <h4 class="font-semibold text-sm text-gray-600">Recette:</h4>
+                                <ul class="text-gray-500 text-sm space-y-1 mt-1">${recipeHtml}</ul>
+                            </div>`;
 
-        } else if (product.linkedIngredientId) {
-            const linkedIngredient = allIngredients.find(i => i.id === product.linkedIngredientId);
-            contentHtml = `<div class="mt-2"><h4 class="font-semibold text-sm text-gray-600">Article en stock:</h4><p class="text-gray-500 text-sm">${linkedIngredient ? linkedIngredient.name : 'Non lié'}</p></div>`;
-        }
-        
-        const productCost = calculateProductCost(product); card.innerHTML = `<div class="p-6"><div class="flex justify-between items-start"><div><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p></div><span class="text-gray-400 text-xl">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div><p class="text-gray-800 font-bold text-2xl text-right mt-4">${product.price.toFixed(2)} Mad</p></div><div class="bg-gray-50 px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
-const renderOrderHistory = (history) => { 
-            const container = document.getElementById('order-history-list'); 
-            const placeholder = document.getElementById('order-history-placeholder'); 
-            container.innerHTML = ''; 
-            if (history.length === 0) { 
-                container.innerHTML = ''; 
-                container.appendChild(placeholder); 
-            } else { 
-                history.forEach(order => { 
-                    const card = document.createElement('div'); 
-                    card.className = 'bg-white p-4 rounded-xl shadow-md'; 
-                    const displayDate = formatDateToDDMMYYYY(order.saleDate || order.createdAt); 
+        } else if (product.linkedIngredientId) {
+            const linkedIngredient = allIngredients.find(i => i.id === product.linkedIngredientId);
+            contentHtml = `<div class="mt-2"><h4 class="font-semibold text-sm text-gray-600">Article en stock:</h4><p class="text-gray-500 text-sm">${linkedIngredient ? linkedIngredient.name : 'Non lié'}</p></div>`;
+        }
+        
+        const productCost = calculateProductCost(product); card.innerHTML = `<div class="p-6"><div class="flex justify-between items-start"><div><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p></div><span class="text-gray-400 text-xl">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div><p class="text-gray-800 font-bold text-2xl text-right mt-4">${product.price.toFixed(2)} Mad</p></div><div class="bg-gray-50 px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
+const renderOrderHistory = (history) => { 
+            const container = document.getElementById('order-history-list'); 
+            const placeholder = document.getElementById('order-history-placeholder'); 
+            container.innerHTML = ''; 
+            if (history.length === 0) { 
+                container.innerHTML = ''; 
+                container.appendChild(placeholder); 
+            } else { 
+                history.forEach(order => { 
+                    const card = document.createElement('div'); 
+                    card.className = 'bg-white p-4 rounded-xl shadow-md'; 
+                    const displayDate = formatDateToDDMMYYYY(order.saleDate || order.createdAt); 
 					// (vers la ligne 348)
 					const itemsHtml = order.items.map(item => {
 						// Vérifie si la propriété 'returned' existe ET est supérieure à 0
@@ -906,653 +906,654 @@ const renderOrderHistory = (history) => {
 							: '';
 						
 						return `<li>${item.quantity} x ${item.name}${refundTag}</li>`;
-					}).join('');                    
-                    // V V V AJOUTEZ CETTE LIGNE V V V
-                    const billNoHtml = order.billNo ? `<p class="text-xs text-gray-500 font-mono">Facture API: ${order.billNo}</p>` : '';
-                    const discountTagHtml = order.hadDiscount 
-                            ? `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold ml-2 px-2 py-0.5 rounded-full">Rabais</span>`
-                            : '';
-                    // V V V MODIFIEZ CETTE LIGNE V V V
+					}).join('');                    
+                    // V V V AJOUTEZ CETTE LIGNE V V V
+                    const billNoHtml = order.billNo ? `<p class="text-xs text-gray-500 font-mono">Facture API: ${order.billNo}</p>` : '';
+                    const discountTagHtml = order.hadDiscount 
+                            ? `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold ml-2 px-2 py-0.5 rounded-full">Rabais</span>`
+                            : '';
+                    // V V V MODIFIEZ CETTE LIGNE V V V
 card.innerHTML = `<div class="flex justify-between items-start">
-                            <div>
-                                <p class="font-bold text-gray-700">Vente du ${displayDate}</p>
-                                <div class="flex items-center mt-1">
-                                    ${billNoHtml}
-                                    ${discountTagHtml} 
-                                </div>
-                                <ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul>
-                            </div>
-                            <div class="flex items-center gap-4 text-right">
-                                <p class="font-bold text-lg text-gray-800">${order.totalPrice.toFixed(2)} Mad</p>
-                                <button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button>
-                            </div>
-                        </div>`; 
-                        // ^ ^ ^ **FIN DE LA MODIFICATION** ^ ^ ^
-                    
+                            <div>
+                                <p class="font-bold text-gray-700">Vente du ${displayDate}</p>
+                                <div class="flex items-center mt-1">
+                                    ${billNoHtml}
+                                    ${discountTagHtml} 
+                                </div>
+                                <ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul>
+                            </div>
+                            <div class="flex items-center gap-4 text-right">
+                                <p class="font-bold text-lg text-gray-800">${order.totalPrice.toFixed(2)} Mad</p>
+                                <button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>`; 
+                        // ^ ^ ^ **FIN DE LA MODIFICATION** ^ ^ ^
+                   nbsp;
                     container.appendChild(card);
-                }); 
-            } 
-        };
-        const renderSuppliers = () => { const container = document.getElementById('suppliers-list'); const placeholder = document.getElementById('suppliers-placeholder'); container.innerHTML = ''; if (allSuppliers.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allSuppliers.forEach(sup => { const div = document.createElement('div'); div.className = "bg-white p-3 rounded-lg shadow-sm flex justify-between items-center"; div.innerHTML = `<div><p class="font-semibold">${sup.name}</p><p class="text-sm text-gray-500">${sup.contact || ''}</p></div><div><button data-id="${sup.id}" class="edit-supplier-btn text-gray-400 hover:text-gray-800 mr-2"><i class="fas fa-edit"></i></button><button data-id="${sup.id}" class="delete-supplier-btn text-gray-400 hover:text-red-600"><i class="fas fa-trash"></i></button></div>`; container.appendChild(div); }); } };
-        const renderPurchaseOrders = (purchaseOrders) => { 
-            const container = document.getElementById('purchase-orders-list'); 
-            const placeholder = document.getElementById('purchase-orders-placeholder'); 
-            container.innerHTML = ''; 
-            if (purchaseOrders.length === 0) { 
-                container.innerHTML = ''; 
-                container.appendChild(placeholder); 
-            } else { 
-                purchaseOrders.forEach(po => { 
-                    const supplier = allSuppliers.find(s => s.id === po.supplierId); 
-                    const div = document.createElement('div'); 
-                    const isReceived = po.status === 'received'; 
-                    // *** NEW: Check payment status ***
-                    const isPaid = po.paymentStatus === 'paid';
-                    // *** END NEW ***
-                    div.className = `bg-white p-3 rounded-lg shadow-sm`; 
-                    // Display price per unit in the list
-                    const itemsHtml = po.items.map(i => `<li>${i.quantity} ${i.unit} - ${i.name} (${(i.price || 0).toFixed(2)} Mad/unité)</li>`).join(''); 
-                    // Use the saved totalCost, which might be the manually adjusted one
-                    const totalDisplay = `<p class="font-bold text-lg text-gray-800">${(po.totalCost || 0).toFixed(2)} Mad</p>`; 
-                    
-                    // *** NEW: Actions logic updated ***
-                    const actionsHtml = `
-                    <div class="flex justify-between items-center mt-3 pt-3 border-t">
-                        <div>
-                            <button data-id="${po.id}" class="reorder-po-btn text-blue-500 hover:text-blue-800 text-sm font-medium mr-3"><i class="fas fa-redo mr-1"></i> Relancer</button>
-                            ${!isReceived ? `<button data-id="${po.id}" class="edit-po-btn text-gray-500 hover:text-gray-800 text-sm font-medium mr-3"><i class="fas fa-edit mr-1"></i> Modifier</button>` : ''}
-                            ${!isReceived ? `<button data-id="${po.id}" class="delete-po-btn text-red-500 hover:text-red-800 text-sm font-medium"><i class="fas fa-trash mr-1"></i> Supprimer</button>` : ''}
-                        </div>
-                        <div class="flex gap-2">
-                            ${!isPaid ? `<button data-id="${po.id}" class="pay-po-btn btn-secondary bg-green-100 hover:bg-green-200 text-green-800 text-sm py-1 px-3"><i class="fas fa-check mr-1"></i> Marquer Payé</button>` : ''}
-                            ${!isReceived ? `<button data-id="${po.id}" class="receive-po-btn btn-primary text-sm py-1 px-3">Réceptionner</button>` : ''}
-                        </div>
-                    </div>`; 
-                    // *** END NEW ***
-                    
-                    // *** NEW: Payment status tag added ***
-                    const paymentTag = `<span class="text-xs font-bold py-1 px-2 rounded-full ${isPaid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${isPaid ? 'Payé' : 'Non Payé'}</span>`;
-                    // *** END NEW ***
+                }); 
+            } 
+        };
+        const renderSuppliers = () => { const container = document.getElementById('suppliers-list'); const placeholder = document.getElementById('suppliers-placeholder'); container.innerHTML = ''; if (allSuppliers.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allSuppliers.forEach(sup => { const div = document.createElement('div'); div.className = "bg-white p-3 rounded-lg shadow-sm flex justify-between items-center"; div.innerHTML = `<div><p class="font-semibold">${sup.name}</p><p class="text-sm text-gray-500">${sup.contact || ''}</p></div><div><button data-id="${sup.id}" class="edit-supplier-btn text-gray-400 hover:text-gray-800 mr-2"><i class="fas fa-edit"></i></button><button data-id="${sup.id}" class="delete-supplier-btn text-gray-400 hover:text-red-600"><i class="fas fa-trash"></i></button></div>`; container.appendChild(div); }); } };
+        const renderPurchaseOrders = (purchaseOrders) => { 
+            const container = document.getElementById('purchase-orders-list'); 
+            const placeholder = document.getElementById('purchase-orders-placeholder'); 
+            container.innerHTML = ''; 
+            if (purchaseOrders.length === 0) { 
+                container.innerHTML = ''; 
+                container.appendChild(placeholder); 
+            } else { 
+                purchaseOrders.forEach(po => { 
+                    const supplier = allSuppliers.find(s => s.id === po.supplierId); 
+                    const div = document.createElement('div'); 
+                    const isReceived = po.status === 'received'; 
+                    // *** NEW: Check payment status ***
+                    const isPaid = po.paymentStatus === 'paid';
+                    // *** END NEW ***
+                    div.className = `bg-white p-3 rounded-lg shadow-sm`; 
+                    // Display price per unit in the list
+                    const itemsHtml = po.items.map(i => `<li>${i.quantity} ${i.unit} - ${i.name} (${(i.price || 0).toFixed(2)} Mad/unité)</li>`).join(''); 
+                    // Use the saved totalCost, which might be the manually adjusted one
+                    const totalDisplay = `<p class="font-bold text-lg text-gray-800">${(po.totalCost || 0).toFixed(2)} Mad</p>`; 
+                    
+                    // *** NEW: Actions logic updated ***
+                    const actionsHtml = `
+                    <div class="flex justify-between items-center mt-3 pt-3 border-t">
+                        <div>
+                            <button data-id="${po.id}" class="reorder-po-btn text-blue-500 hover:text-blue-800 text-sm font-medium mr-3"><i class="fas fa-redo mr-1"></i> Relancer</button>
+                            ${!isReceived ? `<button data-id="${po.id}" class="edit-po-btn text-gray-500 hover:text-gray-800 text-sm font-medium mr-3"><i class="fas fa-edit mr-1"></i> Modifier</button>` : ''}
+                            ${!isReceived ? `<button data-id="${po.id}" class="delete-po-btn text-red-500 hover:text-red-800 text-sm font-medium"><i class="fas fa-trash mr-1"></i> Supprimer</button>` : ''}
+                        </div>
+                        <div class="flex gap-2">
+                            ${!isPaid ? `<button data-id="${po.id}" class="pay-po-btn btn-secondary bg-green-100 hover:bg-green-200 text-green-800 text-sm py-1 px-3"><i class="fas fa-check mr-1"></i> Marquer Payé</button>` : ''}
+                            ${!isReceived ? `<button data-id="${po.id}" class="receive-po-btn btn-primary text-sm py-1 px-3">Réceptionner</button>` : ''}
+                        </div>
+                    </div>`; 
+                    // *** END NEW ***
+                    
+                    // *** NEW: Payment status tag added ***
+                    const paymentTag = `<span class="text-xs font-bold py-1 px-2 rounded-full ${isPaid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${isPaid ? 'Payé' : 'Non Payé'}</span>`;
+e>
+                    // *** END NEW ***
 
-                    div.innerHTML = `<div class="p-3">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <p class="font-semibold text-gray-800">${supplier ? supplier.name : 'Fournisseur inconnu'}</p>
-                                <p class="text-xs text-gray-500">${formatDateToDDMMYYYY(po.createdAt)}</p>
-                                <ul class="text-sm mt-2 list-disc list-inside">${itemsHtml}</ul>
-                            </div>
-                            <div class="text-right">
-                                <div class="flex flex-col items-end gap-1">
-                                    <span class="text-xs font-bold py-1 px-2 rounded-full ${isReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${isReceived ? 'Reçue' : 'En attente'}</span>
-                                    ${paymentTag} <!-- NEW TAG ADDED -->
-                                </div>
-                                ${isReceived ? `<p class="text-xs text-gray-500 mt-1">Reçue le ${formatDateToDDMMYYYY(po.receivedAt)}</p>` : ''}
-                                ${totalDisplay} 
-                                ${po.invoiceUrl ? `<a href="${po.invoiceUrl}" target="_blank" class="block text-sm text-gray-600 hover:text-gray-900 mt-2"><i class="fas fa-file-invoice"></i> Facture</a>` : ''}
-                            </div>
-                        </div>
-                    </div>${actionsHtml}`; 
-                    container.appendChild(div); 
-                }); 
-            } 
-        };
-        const renderLossHistory = () => { const container = document.getElementById('loss-history-list'); const placeholder = document.getElementById('loss-history-placeholder'); container.innerHTML = ''; if (allLosses.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allLosses.forEach(loss => { const card = document.createElement('div'); card.className = 'bg-yellow-50 p-4 rounded-xl shadow-md border-l-4 border-yellow-400'; const date = loss.createdAt ? new Date(loss.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue'; const reasonHtml = loss.reason ? `<p class="text-sm text-gray-500 italic mt-1">"${loss.reason}"</p>` : ''; card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-yellow-800">Perte du ${date}</p><p class="text-gray-700 mt-2"><span class="font-semibold">${loss.quantity} ${loss.unit || ''}</span> de <span class="font-semibold">${loss.itemName}</span></p>${reasonHtml}</div><div class="flex items-center gap-4 text-right"><button data-id="${loss.id}" class="delete-loss-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; container.appendChild(card); }); } };
-        const renderCharges = (charges) => {
-    const container = document.getElementById('charges-list');
-    const placeholder = document.getElementById('charges-placeholder');
-    container.innerHTML = '';
+                    div.innerHTML = `<div class="p-3">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-semibold text-gray-800">${supplier ? supplier.name : 'Fournisseur inconnu'}</p>
+                                <p class="text-xs text-gray-500">${formatDateToDDMMYYYY(po.createdAt)}</p>
+                                <ul class="text-sm mt-2 list-disc list-inside">${itemsHtml}</ul>
+                            </div>
+                            <div class="text-right">
+                                <div class="flex flex-col items-end gap-1">
+                                    <span class="text-xs font-bold py-1 px-2 rounded-full ${isReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${isReceived ? 'Reçue' : 'En attente'}</span>
+                                    ${paymentTag}                                 </div>
+                                ${isReceived ? `<p class="text-xs text-gray-500 mt-1">Reçue le ${formatDateToDDMMYYYY(po.receivedAt)}</p>` : ''}
+                                ${totalDisplay} 
+                                ${po.invoiceUrl ? `<a href="${po.invoiceUrl}" target="_blank" class="block text-sm text-gray-600 hover:text-gray-900 mt-2"><i class="fas fa-file-invoice"></i> Facture</a>` : ''}
+                            </div>
+                        </div>
+                    </div>${actionsHtml}`; 
+                    container.appendChild(div); 
+                }); 
+            } 
+        };
+        const renderLossHistory = () => { const container = document.getElementById('loss-history-list'); const placeholder = document.getElementById('loss-history-placeholder'); container.innerHTML = ''; if (allLosses.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allLosses.forEach(loss => { const card = document.createElement('div'); card.className = 'bg-yellow-50 p-4 rounded-xl shadow-md border-l-4 border-yellow-400'; const date = loss.createdAt ? new Date(loss.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue'; const reasonHtml = loss.reason ? `<p class="text-sm text-gray-500 italic mt-1">"${loss.reason}"</p>` : ''; card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-yellow-800">Perte du ${date}</p><p class="text-gray-700 mt-2"><span class="font-semibold">${loss.quantity} ${loss.unit || ''}</span> de <span class="font-semibold">${loss.itemName}</span></p>${reasonHtml}</div><div class="flex items-center gap-4 text-right"><button data-id="${loss.id}" class="delete-loss-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; container.appendChild(card); }); } };
+        const renderCharges = (charges) => {
+    const container = document.getElementById('charges-list');
+    const placeholder = document.getElementById('charges-placeholder');
+    container.innerHTML = '';
 
-    if (charges.length === 0) {
-        container.appendChild(placeholder);
-    } else {
-        charges.forEach(charge => {
-            const card = document.createElement('div');
-            card.className = 'bg-white p-3 rounded-lg shadow-sm flex justify-between items-center';
+    if (charges.length === 0) {
+        container.appendChild(placeholder);
+    } else {
+        charges.forEach(charge => {
+            const card = document.createElement('div');
+            card.className = 'bg-white p-3 rounded-lg shadow-sm flex justify-between items-center';
 
-            // Formater la date en JJ/MM/AAAA (sans l'heure)
-            const d = toDate(charge.date);
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = d.getFullYear();
-            const displayDate = `${day}/${month}/${year}`;
+            // Formater la date en JJ/MM/AAAA (sans l'heure)
+            const d = toDate(charge.date);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            const displayDate = `${day}/${month}/${year}`;
 
-            card.innerHTML = `
-                <div>
-                    <p class="font-semibold text-gray-800">${charge.name}</p>
-                    <p class="text-sm text-gray-500">${displayDate}</p>
-                </div>
-                <div class="flex items-center gap-4">
-                    <p class="font-bold text-lg text-red-600">${charge.amount.toFixed(2)} Mad</p>
-                    <button data-id="${charge.id}" class="delete-charge-btn text-gray-400 hover:text-red-600 transition-colors">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                </div>
-            `;
-            container.appendChild(card);
-        });
-    }
+            card.innerHTML = `
+                <div>
+                    <p class="font-semibold text-gray-800">${charge.name}</p>
+                    <p class="text-sm text-gray-500">${displayDate}</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <p class="font-bold text-lg text-red-600">${charge.amount.toFixed(2)} Mad</p>
+                    <button data-id="${charge.id}" class="delete-charge-btn text-gray-400 hover:text-red-600 transition-colors">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
 };
 // ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
-        // --- KPI FILTERS ---
-        document.getElementById('toggle-kpi-filters-btn').addEventListener('click', () => {
-            document.getElementById('kpi-filter-container').classList.toggle('hidden');
-        });
+        // --- KPI FILTERS ---
+        document.getElementById('toggle-kpi-filters-btn').addEventListener('click', () => {
+            document.getElementById('kpi-filter-container').classList.toggle('hidden');
+        });
 
-        document.querySelectorAll('.kpi-filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.kpi-filter-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                document.getElementById('kpi-start-date').value = '';
-                document.getElementById('kpi-end-date').value = '';
+        document.querySelectorAll('.kpi-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.kpi-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('kpi-start-date').value = '';
+                document.getElementById('kpi-end-date').value = '';
 
-                const filterType = btn.dataset.filter;
-                const now = new Date();
-                let startDate, endDate = new Date(), label;
-                endDate.setHours(23, 59, 59, 999);
+                const filterType = btn.dataset.filter;
+                const now = new Date();
+                let startDate, endDate = new Date(), label;
+                endDate.setHours(23, 59, 59, 999);
 
-                if (filterType === 'today') {
-                    startDate = new Date();
-                    startDate.setHours(0, 0, 0, 0);
-                    label = "Période : Aujourd'hui";
+                if (filterType === 'today') {
+                    startDate = new Date();
+                    startDate.setHours(0, 0, 0, 0);
+                    label = "Période : Aujourd'hui";
 					// V V V **AJOUTEZ CE BLOC** V V V
                 } else if (filterType === 'yesterday') {
-                    // Définit startDate à hier 00:00
+                    // Définit startDate à hier 00:00
                     startDate = new Date();
                     startDate.setDate(now.getDate() - 1);
                     startDate.setHours(0, 0, 0, 0);
-                    
-                    // Définit endDate à hier 23:59
-                    // (on utilise 'endDate' qui est déjà initialisé à 'new Date()' plus haut)
+                    
+                    // Définit endDate à hier 23:59
+                    // (on utilise 'endDate' qui est déjà initialisé à 'new Date()' plus haut)
                     endDate.setDate(now.getDate() - 1);
-                    endDate.setHours(23, 59, 59, 999); 
-                    
+                    endDate.setHours(23, 59, 59, 999); 
+                    
                     label = "Période : Hier";
-                // ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
-                } else if (filterType === 'week') {
-                    startDate = new Date(now.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1))); // Monday
-                    startDate.setHours(0, 0, 0, 0);
-                    label = "Période : Cette semaine";
-                } else if (filterType === 'month') {
-                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                    startDate.setHours(0, 0, 0, 0);
-                    label = "Période : Ce mois";
-                }
-                updateAndRenderKPIs(startDate, endDate, label);
-                document.getElementById('kpi-filter-container').classList.add('hidden');
-            });
-        });
-
-        document.getElementById('kpi-filter-range-btn').addEventListener('click', () => {
-             document.querySelectorAll('.kpi-filter-btn').forEach(b => b.classList.remove('active'));
-            const startValue = document.getElementById('kpi-start-date').value;
-            const endValue = document.getElementById('kpi-end-date').value;
-            if (!startValue || !endValue) return showToast("Veuillez sélectionner une date de début et de fin.");
-
-            const startDate = new Date(startValue);
-            startDate.setHours(0, 0, 0, 0);
-            const endDate = new Date(endValue);
-            endDate.setHours(23, 59, 59, 999);
-            
-            const label = `Période : du ${formatDateToDDMMYYYY(startDate)} au ${formatDateToDDMMYYYY(endDate)}`;
-            updateAndRenderKPIs(startDate, endDate, label);
-            document.getElementById('kpi-filter-container').classList.add('hidden');
-        });
-
-        document.getElementById('kpi-reset-filter-btn').addEventListener('click', () => {
-            document.querySelectorAll('.kpi-filter-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('kpi-start-date').value = '';
-            document.getElementById('kpi-end-date').value = '';
-            updateAndRenderKPIs(); // No args means all time
-            document.getElementById('kpi-filter-container').classList.add('hidden');
-        });
-
-        // --- INGREDIENTS ---
-        document.getElementById('add-ingredient-btn').addEventListener('click', () => { document.getElementById('ingredient-modal-title').textContent = 'Ajouter un ingrédient'; document.getElementById('ingredient-form').reset(); document.getElementById('ingredient-id').value = ''; openModal('ingredient-modal'); }); document.getElementById('cancel-ingredient').addEventListener('click', () => closeModal('ingredient-modal')); document.getElementById('ingredient-form').addEventListener('submit', async (e) => { e.preventDefault(); const id = document.getElementById('ingredient-id').value; const data = { name: document.getElementById('ingredient-name').value, quantity: parseFloat(document.getElementById('ingredient-quantity').value), unit: document.getElementById('ingredient-unit').value, cost: parseFloat(document.getElementById('ingredient-cost').value) || 0 }; try { if (id) await updateDoc(doc(ingredientsCol, id), data); else await addDoc(ingredientsCol, {...data, createdAt: serverTimestamp()}); showToast(id ? 'Ingrédient mis à jour !' : 'Ingrédient ajouté !'); closeModal('ingredient-modal'); } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); } }); document.getElementById('ingredients-list').addEventListener('click', async e => { const target = e.target.closest('[data-id]'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-ingredient-btn')) { if(confirm('Voulez-vous vraiment supprimer cet ingrédient ?')) { await deleteDoc(doc(ingredientsCol, id)); showToast('Ingrédient supprimé.'); } } else if (target.classList.contains('edit-ingredient-btn')) { const docSnap = await getDoc(doc(ingredientsCol, id)); const data = docSnap.data(); document.getElementById('ingredient-modal-title').textContent = 'Modifier un ingrédient'; document.getElementById('ingredient-id').value = docSnap.id; document.getElementById('ingredient-name').value = data.name; document.getElementById('ingredient-quantity').value = data.quantity; document.getElementById('ingredient-unit').value = data.unit; document.getElementById('ingredient-cost').value = data.cost || ''; openModal('ingredient-modal'); } });
-        
-        // --- PRODUITS ---
-        const populateIngredientSelects = () => {  const recipeSelect = document.getElementById('recipe-ingredient-select');  const linkedSelect = document.getElementById('linked-ingredient-select');  const poSelect = document.getElementById('po-ingredient-select'); const lossIngredientSelect = document.getElementById('loss-ingredient-select'); const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join('');  recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`;  linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`; poSelect.innerHTML = `<option value="">Choisir...</option>${options}`; lossIngredientSelect.innerHTML = `<option value="">Choisir...</option>${options}`};
-        const populateProductSelects = () => { const orderSelect = document.getElementById('order-product-select'); const lossSelect = document.getElementById('loss-product-select'); const options = allProducts.map(product => `<option value="${product.id}">${product.name}</option>`).join(''); orderSelect.innerHTML = options; lossSelect.innerHTML = options; }
-        document.getElementById('add-product-btn').addEventListener('click', () => { 
-            document.getElementById('product-modal-title').textContent = 'Créer un Produit'; 
-            document.getElementById('product-form').reset(); 
-            document.getElementById('product-id').value = ''; 
-            document.getElementById('product-type').dispatchEvent(new Event('change')); 
-            currentRecipe = []; 
-            renderCurrentRecipe(); 
-            // *** NEW: Reset linked quantity field on add ***
-            document.getElementById('linked-ingredient-quantity').value = 1;
-            // *** END NEW ***
-            openModal('product-modal'); 
-        });
-        document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal')); 
-        
-        document.getElementById('product-type').addEventListener('change', (e) => { 
-            const productType = e.target.value;
-            const hasRecipe = ['Pizza', 'Dessert', 'Entrée'].includes(productType);
-            document.getElementById('recipe-section').style.display = hasRecipe ? 'block' : 'none';
-            document.getElementById('linked-ingredient-section').style.display = hasRecipe ? 'none' : 'block';
-        }); 
-        
-        document.getElementById('add-recipe-ingredient-btn').addEventListener('click', () => { const select = document.getElementById('recipe-ingredient-select'); const ingredientId = select.value; const quantity = parseFloat(document.getElementById('recipe-quantity').value); if (!ingredientId || isNaN(quantity) || quantity <= 0) return showToast("Veuillez sélectionner un ingrédient et une quantité valide."); const ingredient = allIngredients.find(ing => ing.id === ingredientId); currentRecipe.push({ id: ingredient.id, name: ingredient.name, quantity: quantity, unit: ingredient.unit }); renderCurrentRecipe(); document.getElementById('recipe-quantity').value = ''; select.value = ''; });
-        
-        const updateRecipeCost = () => {
-             const cost = currentRecipe.reduce((total, recipeItem) => {
-                const ingredient = allIngredients.find(ing => ing.id === recipeItem.id);
-                return total + ((ingredient?.cost || 0) * recipeItem.quantity);
-             }, 0);
-            document.getElementById('current-recipe-cost').textContent = `${cost.toFixed(2)} Mad`;
-        };
-        
-        const renderCurrentRecipe = () => { const list = document.getElementById('recipe-ingredients-list'); list.innerHTML = ''; currentRecipe.forEach((item, index) => { const li = document.createElement('div'); li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name}</span><button type="button" data-index="${index}" class="remove-recipe-item text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; list.appendChild(li); }); updateRecipeCost(); }; 
-        document.getElementById('recipe-ingredients-list').addEventListener('click', e => { const button = e.target.closest('.remove-recipe-item'); if (button) { currentRecipe.splice(button.dataset.index, 1); renderCurrentRecipe(); } }); 
-        
-        document.getElementById('product-form').addEventListener('submit', async e => { 
-            e.preventDefault(); 
-            const id = document.getElementById('product-id').value; 
-            const type = document.getElementById('product-type').value; 
-            const data = { name: document.getElementById('product-name').value, price: parseFloat(document.getElementById('product-price').value), type: type }; 
-            
-            const hasRecipe = ['Pizza', 'Dessert', 'Entrée'].includes(type);
-
-            if (hasRecipe) {
-                if (currentRecipe.length === 0) return showToast("La recette ne peut pas être vide pour ce type de produit.");
-                data.recipe = currentRecipe;
-                if (data.hasOwnProperty('linkedIngredientId')) {
-                    delete data.linkedIngredientId;
-                }
-                 if (data.hasOwnProperty('linkedIngredientQuantity')) { // Clean up
-                    delete data.linkedIngredientQuantity;
-                }
-            } else {
-                const linkedId = document.getElementById('linked-ingredient-select').value;
-                // *** NEW: Get linked quantity ***
-                const linkedQty = parseFloat(document.getElementById('linked-ingredient-quantity').value);
-                // *** END NEW ***
-
-                if (!linkedId) return showToast("Veuillez lier ce produit à un article en stock.");
-                // *** NEW: Validate linked quantity ***
-                if (isNaN(linkedQty) || linkedQty <= 0) {
-                    return showToast("Veuillez entrer une quantité consommée valide (positive).");
-                }
-                // *** END NEW ***
-
-                data.linkedIngredientId = linkedId;
-                data.linkedIngredientQuantity = linkedQty; // *** NEW ***
-                if (data.hasOwnProperty('recipe')) {
-                    delete data.recipe;
-                }
-            }
-
-            try { 
-                if (id) {
-                    await updateDoc(doc(productsCol, id), data);
-                } else {
-                    await addDoc(productsCol, {...data, createdAt: serverTimestamp()});
-                }
-                showToast(id ? 'Produit mis à jour !' : 'Produit créé !'); 
-                closeModal('product-modal'); 
-            } catch(error) { 
-                console.error(error); 
-                showToast("Erreur lors de l'opération."); 
-            } 
-        }); 
-        
-        document.getElementById('products-list').addEventListener('click', async e => { 
-            const id = e.target.closest('[data-id]')?.dataset.id; 
-            if(!id) return; 
-            const target = e.target; 
-            if (target.closest('.delete-product-btn')) { 
-                if(confirm('Voulez-vous vraiment supprimer ce produit ?')) { 
-                    await deleteDoc(doc(productsCol, id)); 
-                    showToast('Produit supprimé.'); 
-                } 
-            } else if (target.closest('.edit-product-btn')) { 
-                const product = allProducts.find(p => p.id === id); 
-                document.getElementById('product-modal-title').textContent = 'Modifier un Produit'; 
-                document.getElementById('product-id').value = id; 
-                document.getElementById('product-name').value = product.name; 
-                document.getElementById('product-price').value = product.price; 
-                document.getElementById('product-type').value = product.type; 
-                document.getElementById('product-type').dispatchEvent(new Event('change')); 
-                
-                if (product.recipe && product.recipe.length > 0) { 
-                    currentRecipe = [...product.recipe]; 
-                    renderCurrentRecipe(); 
-                } else if (product.linkedIngredientId) { 
-                    document.getElementById('linked-ingredient-select').value = product.linkedIngredientId; 
-                    // *** NEW: Populate linked quantity ***
-                    document.getElementById('linked-ingredient-quantity').value = product.linkedIngredientQuantity || 1; // Default to 1 if not set
-                    // *** END NEW ***
-                } 
-                openModal('product-modal'); 
-            } 
-        });
-        
-        // --- VENTES ---
-        document.getElementById('add-to-order-form').addEventListener('submit', e => { e.preventDefault(); const productId = document.getElementById('order-product-select').value; const quantity = parseInt(document.getElementById('order-product-quantity').value); const product = allProducts.find(p => p.id === productId); if (!product || isNaN(quantity) || quantity <= 0) return; const existingItem = currentOrder.find(item => item.id === productId); if(existingItem) existingItem.quantity += quantity; else currentOrder.push({ id: product.id, name: product.name, quantity: quantity, price: product.price }); renderCurrentOrder(); });
-        
-        const updateOrderTotal = () => {
-            const total = currentOrder.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            // Met à jour le champ input, pas un span
-            document.getElementById('current-order-total-input').value = total.toFixed(2); 
-        };
-
-        const renderCurrentOrder = () => { 
-    const list = document.getElementById('current-order-list'); 
-    // const placeholder = document.getElementById('order-placeholder'); // <-- SUPPRIMER CETTE LIGNE
-    const processBtn = document.getElementById('process-order-btn'); 
-    list.innerHTML = ''; // <-- Vide la liste (enlève Tiramisu, etc.)
-    
-    if(currentOrder.length === 0){ 
-        // list.innerHTML = ''; // <-- SUPPRIMER CETTE LIGNE (redondante)
-        list.appendChild(orderListPlaceholder); // <-- UTILISER LA VARIABLE MISE EN CACHE
-        processBtn.disabled = true; 
-    } else { 
-        currentOrder.forEach((item, index) => { 
-            const li = document.createElement('li'); 
-            li.className = 'flex justify-between items-center'; 
-            li.innerHTML = `<span>${item.quantity} x ${item.name}</span><button data-index="${index}" class="remove-order-item text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>`; 
-            list.appendChild(li); 
-        }); 
-        processBtn.disabled = false; 
-    } 
-    updateOrderTotal(); 
-};	
-addEventListener('click', e => { const button = e.target.closest('.remove-order-item'); if (button) { currentOrder.splice(button.dataset.index, 1); renderCurrentOrder(); } }); 
-        const orderListPlaceholder = document.getElementById('order-placeholder');
-        document.getElementById('process-order-btn').addEventListener('click', async () => { 
-            if (currentOrder.length === 0) return; 
-            
-            // *** MODIFICATION : Lire le total depuis l'input ***
-            const totalPriceInput = document.getElementById('current-order-total-input');
-            const totalPrice = parseFloat(totalPriceInput.value);
-
-            if (isNaN(totalPrice) || totalPrice < 0) {
-                showToast("Le montant total de la vente est invalide.");
-                return;
-            }
-            // *** FIN MODIFICATION ***
-            
-            const batch = writeBatch(db); 
-            // let totalPrice = 0; // N'est plus calculé ici, lu depuis l'input
-            const tempDeductions = new Map(); 
-
-            for (const orderItem of currentOrder) { 
-                const product = allProducts.find(p => p.id === orderItem.id); 
-                if (!product) { 
-                    showToast(`Produit non trouvé : ${orderItem.name}`);
-                    return;
-                } 
-                // totalPrice += product.price * orderItem.quantity; // Déjà fait / lu depuis l'input
-                
-                if (product.recipe && product.recipe.length > 0) { 
-                    for (const recipeItem of product.recipe) { 
-                        const current = tempDeductions.get(recipeItem.id) || 0; 
-                        tempDeductions.set(recipeItem.id, current + recipeItem.quantity * orderItem.quantity); 
-                    } 
-                } else if (product.linkedIngredientId) { 
-                    // *** MODIFIED: Use linkedIngredientQuantity ***
-                    const linkedQtyPerProduct = product.linkedIngredientQuantity || 1; // Default to 1
-                    const totalQtyToDeduct = linkedQtyPerProduct * orderItem.quantity;
-                    const current = tempDeductions.get(product.linkedIngredientId) || 0; 
-                    tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct); 
-                    // *** END MODIFICATION ***
-                } 
-            } 
-            
-            for (const [ingId, qty] of tempDeductions.entries()) { 
-                // La vérification de stock a été supprimée pour permettre les stocks négatifs
-                batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) }); 
-            }
-            
-            const saleDateInput = document.getElementById('sale-date').value;
-            const saleDate = saleDateInput ? new Date(saleDateInput) : new Date();
-            saleDate.setHours(12, 0, 0, 0); // Normalize to midday to avoid timezone issues
-
-            batch.set(doc(ordersCol), { 
-                items: currentOrder, 
-                totalPrice: totalPrice, // Utilise le total de l'input
-                createdAt: serverTimestamp(),
-                saleDate: saleDate 
-            }); 
-            
-            try { 
-                await batch.commit(); 
-                showToast('Vente validée, stock mis à jour !'); 
-                currentOrder = []; 
-                renderCurrentOrder(); 
-                totalPriceInput.value = '0.00'; // Réinitialiser le champ total
-            } catch (error) { 
-                console.error("Batch commit failed: ", error); 
-                showToast(`Erreur: ${error.message}`); 
-            } 
-        }); 
-        
-        document.getElementById('order-history-list').addEventListener('click', async e => { 
-            const deleteBtn = e.target.closest('.delete-order-btn'); 
-            if (deleteBtn) { 
-                const orderId = deleteBtn.dataset.id; 
-                const order = orderHistory.find(o => o.id === orderId); 
-                if (!order) return; 
-                if (confirm("Voulez-vous vraiment supprimer cette vente ?\n\nLe stock utilisé sera automatiquement restauré.")) { 
-                    const batch = writeBatch(db); 
-                    for (const item of order.items) { 
-                        const prod = allProducts.find(p => p.id === item.id); 
-                        if (!prod) continue; 
-                        
-                        if (prod.recipe && prod.recipe.length > 0) { 
-                            for (const recipeItem of prod.recipe) { 
-                                batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(recipeItem.quantity * item.quantity) }); 
-                            } 
-                        } else if (prod.linkedIngredientId) { 
-                            // *** MODIFIED: Use linkedIngredientQuantity ***
-                            const linkedQtyPerProduct = prod.linkedIngredientQuantity || 1;
-                            const totalQtyToRestore = linkedQtyPerProduct * item.quantity;
-                            batch.update(doc(ingredientsCol, prod.linkedIngredientId), { quantity: increment(totalQtyToRestore) }); 
-                            // *** END MODIFICATION ***
-                        } 
-                    } 
-                    batch.delete(doc(ordersCol, orderId)); 
-                    try { 
-                        await batch.commit(); 
-                        showToast("Vente supprimée et stock restauré."); 
-                    } catch (error) { 
-                        console.error("Error restoring stock:", error); 
-                        showToast("Erreur lors de la suppression."); 
-                    } 
-                } 
-            } 
-        });
-
-        const handleDateFilter = () => {
-            const filterValue = document.getElementById('history-date-filter').value;
-            if (!filterValue) {
-                renderOrderHistory(orderHistory);
-                return;
-            }
-
-            const filterDate = new Date(filterValue);
-            filterDate.setUTCHours(0, 0, 0, 0);
-            const filterTime = filterDate.getTime();
-
-            const filtered = orderHistory.filter(order => {
-                const orderDateSource = order.saleDate || order.createdAt;
-                if (!orderDateSource) return false;
-
-                const orderDate = orderDateSource.seconds ? new Date(orderDateSource.seconds * 1000) : orderDateSource;
-                orderDate.setUTCHours(0, 0, 0, 0);
-                
-                return orderDate.getTime() === filterTime;
-            });
-            renderOrderHistory(filtered);
-        };
-
-        document.getElementById('history-date-filter').addEventListener('input', handleDateFilter);
-
-        
-        // --- PERTES ---
-        document.getElementById('declare-loss-btn').addEventListener('click', () => { document.getElementById('loss-form').reset(); populateProductSelects(); populateIngredientSelects(); document.querySelector('input[name="loss-type"][value="product"]').checked = true; document.getElementById('loss-product-section').classList.remove('hidden'); document.getElementById('loss-ingredient-section').classList.add('hidden'); document.getElementById('loss-product-select').required = true; document.getElementById('loss-ingredient-select').required = false; openModal('loss-modal'); });
-        document.getElementById('cancel-loss').addEventListener('click', () => closeModal('loss-modal'));
-        document.querySelectorAll('input[name="loss-type"]').forEach(radio => { radio.addEventListener('change', (e) => { const isProduct = e.target.value === 'product'; document.getElementById('loss-product-section').classList.toggle('hidden', !isProduct); document.getElementById('loss-ingredient-section').classList.toggle('hidden', isProduct); document.getElementById('loss-product-select').required = isProduct; document.getElementById('loss-ingredient-select').required = !isProduct; }); });
-        
-        document.getElementById('loss-form').addEventListener('submit', async (e) => { 
-            e.preventDefault(); 
-            const type = document.querySelector('input[name="loss-type"]:checked').value; 
-            const quantity = parseFloat(document.getElementById('loss-quantity').value); 
-            const reason = document.getElementById('loss-reason').value; 
-            if (isNaN(quantity) || quantity <= 0) { return showToast("La quantité doit être un nombre positif."); } 
-            
-            const batch = writeBatch(db); 
-            let lossData = { reason, createdAt: serverTimestamp(), quantity }; 
-            let success = true; 
-
-            if (type === 'product') { 
-                const productId = document.getElementById('loss-product-select').value; 
-                const product = allProducts.find(p => p.id === productId); 
-                if (!product) return showToast("Produit non trouvé."); 
-
-                lossData.itemId = productId; 
-                lossData.itemName = product.name; 
-                lossData.type = 'product'; 
-                
-                const tempDeductions = new Map(); 
-                if (product.recipe && product.recipe.length > 0) { 
-                    for (const recipeItem of product.recipe) { 
-                        const current = tempDeductions.get(recipeItem.id) || 0; 
-                        tempDeductions.set(recipeItem.id, current + recipeItem.quantity * quantity); 
-                    } 
-                } else if (product.linkedIngredientId) { 
-                    // *** MODIFIED: Use linkedIngredientQuantity ***
-                    const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
-                    const totalQtyToDeduct = linkedQtyPerProduct * quantity;
-                    const current = tempDeductions.get(product.linkedIngredientId) || 0; 
-                    tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct); 
-                    // *** END MODIFICATION ***
-                } 
-
-                for (const [ingId, qtyToDeduct] of tempDeductions.entries()) { 
-                    // La vérification de stock a été supprimée
-                    batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qtyToDeduct) }); 
+                // ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
+                } else if (filterType === 'week') {
+                    startDate = new Date(now.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1))); // Monday
+                    startDate.setHours(0, 0, 0, 0);
+                    label = "Période : Cette semaine";
+                } else if (filterType === 'month') {
+                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    startDate.setHours(0, 0, 0, 0);
+                    label = "Période : Ce mois";
                 }
-            } else { 
-                const ingredientId = document.getElementById('loss-ingredient-select').value; 
-                const ingredient = allIngredients.find(i => i.id === ingredientId); 
-                if (!ingredient) return showToast("Ingrédient non trouvé."); 
-                
-                // La vérification de stock a été supprimée
-                lossData.itemId = ingredientId; 
-                lossData.itemName = ingredient.name; 
-                lossData.unit = ingredient.unit; 
-                lossData.type = 'ingredient'; 
-                batch.update(doc(ingredientsCol, ingredientId), { quantity: increment(-quantity) }); 
+                updateAndRenderKPIs(startDate, endDate, label);
+                document.getElementById('kpi-filter-container').classList.add('hidden');
+            });
+        });
+
+        document.getElementById('kpi-filter-range-btn').addEventListener('click', () => {
+             document.querySelectorAll('.kpi-filter-btn').forEach(b => b.classList.remove('active'));
+            const startValue = document.getElementById('kpi-start-date').value;
+            const endValue = document.getElementById('kpi-end-date').value;
+            if (!startValue || !endValue) return showToast("Veuillez sélectionner une date de début et de fin.");
+
+            const startDate = new Date(startValue);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(endValue);
+            endDate.setHours(23, 59, 59, 999);
+            
+            const label = `Période : du ${formatDateToDDMMYYYY(startDate)} au ${formatDateToDDMMYYYY(endDate)}`;
+            updateAndRenderKPIs(startDate, endDate, label);
+            document.getElementById('kpi-filter-container').classList.add('hidden');
+        });
+
+        document.getElementById('kpi-reset-filter-btn').addEventListener('click', () => {
+            document.querySelectorAll('.kpi-filter-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('kpi-start-date').value = '';
+            document.getElementById('kpi-end-date').value = '';
+            updateAndRenderKPIs(); // No args means all time
+            document.getElementById('kpi-filter-container').classList.add('hidden');
+        });
+
+        // --- INGREDIENTS ---
+        document.getElementById('add-ingredient-btn').addEventListener('click', () => { document.getElementById('ingredient-modal-title').textContent = 'Ajouter un ingrédient'; document.getElementById('ingredient-form').reset(); document.getElementById('ingredient-id').value = ''; openModal('ingredient-modal'); }); document.getElementById('cancel-ingredient').addEventListener('click', () => closeModal('ingredient-modal')); document.getElementById('ingredient-form').addEventListener('submit', async (e) => { e.preventDefault(); const id = document.getElementById('ingredient-id').value; const data = { name: document.getElementById('ingredient-name').value, quantity: parseFloat(document.getElementById('ingredient-quantity').value), unit: document.getElementById('ingredient-unit').value, cost: parseFloat(document.getElementById('ingredient-cost').value) || 0 }; try { if (id) await updateDoc(doc(ingredientsCol, id), data); else await addDoc(ingredientsCol, {...data, createdAt: serverTimestamp()}); showToast(id ? 'Ingrédient mis à jour !' : 'Ingrédient ajouté !'); closeModal('ingredient-modal'); } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); } }); document.getElementById('ingredients-list').addEventListener('click', async e => { const target = e.target.closest('[data-id]'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-ingredient-btn')) { if(confirm('Voulez-vous vraiment supprimer cet ingrédient ?')) { await deleteDoc(doc(ingredientsCol, id)); showToast('Ingrédient supprimé.'); } } else if (target.classList.contains('edit-ingredient-btn')) { const docSnap = await getDoc(doc(ingredientsCol, id)); const data = docSnap.data(); document.getElementById('ingredient-modal-title').textContent = 'Modifier un ingrédient'; document.getElementById('ingredient-id').value = docSnap.id; document.getElementById('ingredient-name').value = data.name; document.getElementById('ingredient-quantity').value = data.quantity; document.getElementById('ingredient-unit').value = data.unit; document.getElementById('ingredient-cost').value = data.cost || ''; openModal('ingredient-modal'); } });
+        
+        // --- PRODUITS ---
+        const populateIngredientSelects = () => {  const recipeSelect = document.getElementById('recipe-ingredient-select');  const linkedSelect = document.getElementById('linked-ingredient-select');  const poSelect = document.getElementById('po-ingredient-select'); const lossIngredientSelect = document.getElementById('loss-ingredient-select'); const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join('');  recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`;  linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`; poSelect.innerHTML = `<option value="">Choisir...</option>${options}`; lossIngredientSelect.innerHTML = `<option value="">Choisir...</option>${options}`};
+        const populateProductSelects = () => { const orderSelect = document.getElementById('order-product-select'); const lossSelect = document.getElementById('loss-product-select'); const options = allProducts.map(product => `<option value="${product.id}">${product.name}</option>`).join(''); orderSelect.innerHTML = options; lossSelect.innerHTML = options; }
+        document.getElementById('add-product-btn').addEventListener('click', () => { 
+            document.getElementById('product-modal-title').textContent = 'Créer un Produit'; 
+            document.getElementById('product-form').reset(); 
+            document.getElementById('product-id').value = ''; 
+            document.getElementById('product-type').dispatchEvent(new Event('change')); 
+            currentRecipe = []; 
+            renderCurrentRecipe(); 
+            // *** NEW: Reset linked quantity field on add ***
+            document.getElementById('linked-ingredient-quantity').value = 1;
+            // *** END NEW ***
+            openModal('product-modal');s
+        });
+        document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal')); 
+        
+        document.getElementById('product-type').addEventListener('change', (e) => { 
+            const productType = e.target.value;
+            const hasRecipe = ['Pizza', 'Dessert', 'Entrée'].includes(productType);
+            document.getElementById('recipe-section').style.display = hasRecipe ? 'block' : 'none';
+            document.getElementById('linked-ingredient-section').style.display = hasRecipe ? 'none' : 'block';
+        }); 
+        
+        document.getElementById('add-recipe-ingredient-btn').addEventListener('click', () => { const select = document.getElementById('recipe-ingredient-select'); const ingredientId = select.value; const quantity = parseFloat(document.getElementById('recipe-quantity').value); if (!ingredientId || isNaN(quantity) || quantity <= 0) return showToast("Veuillez sélectionner un ingrédient et une quantité valide."); const ingredient = allIngredients.find(ing => ing.id === ingredientId); currentRecipe.push({ id: ingredient.id, name: ingredient.name, quantity: quantity, unit: ingredient.unit }); renderCurrentRecipe(); document.getElementById('recipe-quantity').value = ''; select.value = ''; });
+        
+        const updateRecipeCost = () => {
+             const cost = currentRecipe.reduce((total, recipeItem) => {
+                const ingredient = allIngredients.find(ing => ing.id === recipeItem.id);
+                return total + ((ingredient?.cost || 0) * recipeItem.quantity);
+             }, 0);
+            document.getElementById('current-recipe-cost').textContent = `${cost.toFixed(2)} Mad`;
+        };
+        
+        const renderCurrentRecipe = () => { const list = document.getElementById('recipe-ingredients-list'); list.innerHTML = ''; currentRecipe.forEach((item, index) => { const li = document.createElement('div'); li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name}</span><button type="button" data-index="${index}" class="remove-recipe-item text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; list.appendChild(li); }); updateRecipeCost(); }; 
+        document.getElementById('recipe-ingredients-list').addEventListener('click', e => { const button = e.target.closest('.remove-recipe-item'); if (button) { currentRecipe.splice(button.dataset.index, 1); renderCurrentRecipe(); } }); 
+        
+        document.getElementById('product-form').addEventListener('submit', async e => { 
+            e.preventDefault(); 
+            const id = document.getElementById('product-id').value; 
+            const type = document.getElementById('product-type').value; 
+            const data = { name: document.getElementById('product-name').value, price: parseFloat(document.getElementById('product-price').value), type: type }; 
+            
+            const hasRecipe = ['Pizza', 'Dessert', 'Entrée'].includes(type);
+
+            if (hasRecipe) {
+                if (currentRecipe.length === 0) return showToast("La recette ne peut pas être vide pour ce type de produit.");
+                data.recipe = currentRecipe;
+                if (data.hasOwnProperty('linkedIngredientId')) {
+                    delete data.linkedIngredientId;
+                }
+                 if (data.hasOwnProperty('linkedIngredientQuantity')) { // Clean up
+                    delete data.linkedIngredientQuantity;
+                }
+            } else {
+                const linkedId = document.getElementById('linked-ingredient-select').value;
+s              // *** NEW: Get linked quantity ***
+                const linkedQty = parseFloat(document.getElementById('linked-ingredient-quantity').value);
+                // *** END NEW ***
+
+                if (!linkedId) return showToast("Veuillez lier ce produit à un article en stock.");
+                // *** NEW: Validate linked quantity ***
+                if (isNaN(linkedQty) || linkedQty <= 0) {
+                    return showToast("Veuillez entrer une quantité consommée valide (positive).");
+                }
+                // *** END NEW ***
+
+                data.linkedIngredientId = linkedId;
+                data.linkedIngredientQuantity = linkedQty; // *** NEW ***
+nbsp;               if (data.hasOwnProperty('recipe')) {
+                    delete data.recipe;
+                }
             }
 
-            if (success) { 
-                batch.set(doc(lossesCol), lossData); 
-                try { 
-                    await batch.commit(); 
-                    showToast('Perte enregistrée et stock mis à jour !'); 
-                    closeModal('loss-modal'); 
-                } catch (error) { 
-                    console.error("Loss commit failed: ", error); 
-                    showToast(`Erreur: ${error.message}`); 
-                } 
-            } 
-        });
-        
-        document.getElementById('loss-history-list').addEventListener('click', async e => { 
-            const deleteBtn = e.target.closest('.delete-loss-btn'); 
-            if (deleteBtn) { 
-                const lossId = deleteBtn.dataset.id; 
-                const loss = allLosses.find(l => l.id === lossId); 
-                if (!loss) return; 
-                
-                if (confirm("Voulez-vous vraiment annuler cette perte ?\n\nLe stock sera restauré.")) { 
-                    const batch = writeBatch(db); 
-                    if (loss.type === 'product') { 
-                        const product = allProducts.find(p => p.id === loss.itemId); 
-                        if (product) { 
-                            if (product.recipe && product.recipe.length > 0) { 
-                                for (const recipeItem of product.recipe) { 
-                                    batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(recipeItem.quantity * loss.quantity) }); 
-                                } 
-                            } else if (product.linkedIngredientId) { 
-                                // *** MODIFIED: Use linkedIngredientQuantity ***
-                                const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
-                                const totalQtyToRestore = linkedQtyPerProduct * loss.quantity;
-                                batch.update(doc(ingredientsCol, product.linkedIngredientId), { quantity: increment(totalQtyToRestore) }); 
-                                // *** END MODIFICATION ***
-                            } 
-                        } 
-                    } else { 
-                        batch.update(doc(ingredientsCol, loss.itemId), { quantity: increment(loss.quantity) }); 
-                    } 
-                    batch.delete(doc(lossesCol, lossId)); 
-                    
-                    try { 
-                        await batch.commit(); 
-                        showToast("Perte annulée et stock restauré."); 
-                    } catch (error) { 
-                        console.error("Error restoring stock from loss:", error); 
-                        showToast("Erreur lors de l'annulation de la perte."); 
-                    } 
-                } 
-            } 
-        });
+            try { 
+                if (id) {
+                    await updateDoc(doc(productsCol, id), data);
+                } else {
+                    await addDoc(productsCol, {...data, createdAt: serverTimestamp()});
+s              }
+                showToast(id ? 'Produit mis à jour !' : 'Produit créé !'); 
+                closeModal('product-modal'); 
+            } catch(error) { 
+                console.error(error); 
+                showToast("Erreur lors de l'opération."); 
+            } 
+        }); 
+        
+        document.getElementById('products-list').addEventListener('click', async e => { 
+            const id = e.target.closest('[data-id]')?.dataset.id; 
+            if(!id) return; 
+            const target = e.target; 
+            if (target.closest('.delete-product-btn')) { 
+                if(confirm('Voulez-vous vraiment supprimer ce produit ?')) { 
+                    await deleteDoc(doc(productsCol, id)); 
+                    showToast('Produit supprimé.'); 
+                } 
+            } else if (target.closest('.edit-product-btn')) { 
+                const product = allProducts.find(p => p.id === id); 
+                document.getElementById('product-modal-title').textContent = 'Modifier un Produit'; 
+                document.getElementById('product-id').value = id; 
+                document.getElementById('product-name').value = product.name;s
+                document.getElementById('product-price').value = product.price; 
+                document.getElementById('product-type').value = product.type; 
+                document.getElementById('product-type').dispatchEvent(new Event('change')); 
+                
+                if (product.recipe && product.recipe.length > 0) { 
+                    currentRecipe = [...product.recipe]; 
+                    renderCurrentRecipe(); 
+                } else if (product.linkedIngredientId) { 
+                    document.getElementById('linked-ingredient-select').value = product.linkedIngredientId; 
+                    // *** NEW: Populate linked quantity ***
+                    document.getElementById('linked-ingredient-quantity').value = product.linkedIngredientQuantity || 1; // Default to 1 if not set
+                    // *** END NEW ***
+                } 
+                openModal('product-modal'); 
+            } 
+        });
+        
+        // --- VENTES ---
+        document.getElementById('add-to-order-form').addEventListener('submit', e => { e.preventDefault(); const productId = document.getElementById('order-product-select').value; const quantity = parseInt(document.getElementById('order-product-quantity').value); const product = allProducts.find(p => p.id === productId); if (!product || isNaN(quantity) || quantity <= 0) return; const existingItem = currentOrder.find(item => item.id === productId); if(existingItem) existingItem.quantity += quantity; else currentOrder.push({ id: product.id, name: product.name, quantity: quantity, price: product.price }); renderCurrentOrder(); });
+        
+        const updateOrderTotal = () => {
+            const total = currentOrder.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            // Met à jour le champ input, pas un span
+            document.getElementById('current-order-total-input').value = total.toFixed(2); 
+        };
+
+        const renderCurrentOrder = () => { 
+    const list = document.getElementById('current-order-list'); 
+    // const placeholder = document.getElementById('order-placeholder'); // <-- SUPPRIMER CETTE LIGNE
+    const processBtn = document.getElementById('process-order-btn'); 
+    list.innerHTML = ''; // <-- Vide la liste (enlève Tiramisu, etc.)
+    
+    if(currentOrder.length === 0){ 
+        // list.innerHTML = ''; // <-- SUPPRIMER CETTE LIGNE (redondante)
+        list.appendChild(orderListPlaceholder); // <-- UTILISER LA VARIABLE MISE EN CACHE
+        processBtn.disabled = true; 
+    } else { 
+        currentOrder.forEach((item, index) => { 
+            const li = document.createElement('li'); 
+            li.className = 'flex justify-between items-center'; 
+            li.innerHTML = `<span>${item.quantity} x ${item.name}</span><button data-index="${index}" class="remove-order-item text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>`;s
+            list.appendChild(li); 
+        }); 
+        processBtn.disabled = false; 
+    } 
+    updateOrderTotal(); 
+};	
+addEventListener('click', e => { const button = e.target.closest('.remove-order-item'); if (button) { currentOrder.splice(button.dataset.index, 1); renderCurrentOrder(); } }); 
+        const orderListPlaceholder = document.getElementById('order-placeholder');
+        document.getElementById('process-order-btn').addEventListener('click', async () => { 
+            if (currentOrder.length === 0) return; 
+            
+            // *** MODIFICATION : Lire le total depuis l'input ***
+            const totalPriceInput = document.getElementById('current-order-total-input');
+            const totalPrice = parseFloat(totalPriceInput.value);
+
+            if (isNaN(totalPrice) || totalPrice < 0) {
+                showToast("Le montant total de la vente est invalide.");
+                return;
+            }
+            // *** FIN MODIFICATION ***
+            
+            const batch = writeBatch(db); 
+            // let totalPrice = 0; // N'est plus calculé ici, lu depuis l'input
+            const tempDeductions = new Map(); 
+
+            for (const orderItem of currentOrder) { 
+                const product = allProducts.find(p => p.id === orderItem.id); 
+                if (!product) { 
+                    showToast(`Produit non trouvé : ${orderItem.name}`);
+                    return;
+                } 
+                // totalPrice += product.price * orderItem.quantity; // Déjà fait / lu depuis l'input
+                
+                if (product.recipe && product.recipe.length > 0) {s
+                    for (const recipeItem of product.recipe) { 
+                        const current = tempDeductions.get(recipeItem.id) || 0; 
+                        tempDeductions.set(recipeItem.id, current + recipeItem.quantity * orderItem.quantity); 
+                    } 
+                } else if (product.linkedIngredientId) { 
+                    // *** MODIFIED: Use linkedIngredientQuantity ***
+                    const linkedQtyPerProduct = product.linkedIngredientQuantity || 1; // Default to 1
+                    const totalQtyToDeduct = linkedQtyPerProduct * orderItem.quantity;
+                    const current = tempDeductions.get(product.linkedIngredientId) || 0; 
+                    tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct); 
+                    // *** END MODIFICATION ***
+              s} 
+            } 
+            
+            for (const [ingId, qty] of tempDeductions.entries()) { 
+                // La vérification de stock a été supprimée pour permettre les stocks négatifs
+                batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });s
+            }
+            
+            const saleDateInput = document.getElementById('sale-date').value;
+            const saleDate = saleDateInput ? new Date(saleDateInput) : new Date();
+            saleDate.setHours(12, 0, 0, 0); // Normalize to midday to avoid timezone issues
+
+            batch.set(doc(ordersCol), { 
+                items: currentOrder, 
+                totalPrice: totalPrice, // Utilise le total de l'input
+                createdAt: serverTimestamp(),
+                saleDate: saleDate 
+            }); 
+            
+            try {s
+                await batch.commit(); 
+                showToast('Vente validée, stock mis à jour !'); 
+                currentOrder = []; 
+                renderCurrentOrder(); 
+                totalPriceInput.value = '0.00'; // Réinitialiser le champ total
+            } catch (error) { 
+                console.error("Batch commit failed: ", error);s
+                showToast(`Erreur: ${error.message}`); 
+            } 
+        }); 
+        
+        document.getElementById('order-history-list').addEventListener('click', async e => { 
+            const deleteBtn = e.target.closest('.delete-order-btn'); 
+            if (deleteBtn) { 
+                const orderId = deleteBtn.dataset.id; 
+                const order = orderHistory.find(o => o.id === orderId); 
+                if (!order) return; 
+                if (confirm("Voulez-vous vraiment supprimer cette vente ?\n\nLe stock utilisé sera automatiquement restauré.")) { 
+                    const batch = writeBatch(db); 
+                    for (const item of order.items) { 
+                        const prod = allProducts.find(p => p.id === item.id); 
+                        if (!prod) continue; 
+                        
+                        if (prod.recipe && prod.recipe.length > 0) { 
+                            for (const recipeItem of prod.recipe) { 
+                                batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(recipeItem.quantity * item.quantity) });s
+                            } 
+                        } else if (prod.linkedIngredientId) { 
+                            // *** MODIFIED: Use linkedIngredientQuantity ***
+                      s       const linkedQtyPerProduct = prod.linkedIngredientQuantity || 1;
+                            const totalQtyToRestore = linkedQtyPerProduct * item.quantity;
+                            batch.update(doc(ingredientsCol, prod.linkedIngredientId), { quantity: increment(totalQtyToRestore) }); 
+                            // *** END MODIFICATION ***
+                        } 
+                    } 
+                    batch.delete(doc(ordersCol, orderId));s
+                    try { 
+                        await batch.commit(); 
+                        showToast("Vente supprimée et stock restauré."); 
+                    } catch (error) { 
+  s                     console.error("Error restoring stock:", error); 
+                        showToast("Erreur lors de la suppression."); 
+                    } 
+                } 
+            } 
+        });
+
+        const handleDateFilter = () => {
+            const filterValue = document.getElementById('history-date-filter').value;
+            if (!filterValue) {
+                renderOrderHistory(orderHistory);
+                return;
+            }
+
+            const filterDate = new Date(filterValue);
+            filterDate.setUTCHours(0, 0, 0, 0);
+            const filterTime = filterDate.getTime();
+
+            const filtered = orderHistory.filter(order => {
+                const orderDateSource = order.saleDate || order.createdAt;
+                if (!orderDateSource) return false;
+
+                const orderDate = orderDateSource.seconds ? new Date(orderDateSource.seconds * 1000) : orderDateSource;
+            	  orderDate.setUTCHours(0, 0, 0, 0);
+            	  
+  	          return orderDate.getTime() === filterTime;
+            });
+            renderOrderHistory(filtered);
+        };
+
+        document.getElementById('history-date-filter').addEventListener('input', handleDateFilter);
+
+        
+        // --- PERTES ---
+        document.getElementById('declare-loss-btn').addEventListener('click', () => { document.getElementById('loss-form').reset(); populateProductSelects(); populateIngredientSelects(); document.querySelector('input[name="loss-type"][value="product"]').checked = true; document.getElementById('loss-product-section').classList.remove('hidden'); document.getElementById('loss-ingredient-section').classList.add('hidden'); document.getElementById('loss-product-select').required = true; document.getElementById('loss-ingredient-select').required = false; openModal('loss-modal'); });
+        document.getElementById('cancel-loss').addEventListener('click', () => closeModal('loss-modal'));
+        document.querySelectorAll('input[name="loss-type"]').forEach(radio => { radio.addEventListener('change', (e) => { const isProduct = e.target.value === 'product'; document.getElementById('loss-product-section').classList.toggle('hidden', !isProduct); document.getElementById('loss-ingredient-section').classList.toggle('hidden', isProduct); document.getElementById('loss-product-select').required = isProduct; document.getElementById('loss-ingredient-select').required = !isProduct; }); });
+        
+        document.getElementById('loss-form').addEventListener('submit', async (e) => { 
+            e.preventDefault(); 
+            const type = document.querySelector('input[name="loss-type"]:checked').value; 
+            const quantity = parseFloat(document.getElementById('loss-quantity').value); 
+            const reason = document.getElementById('loss-reason').value; 
+            if (isNaN(quantity) || quantity <= 0) { return showToast("La quantité doit être un nombre positif."); } 
+            
+            const batch = writeBatch(db); 
+          	let lossData = { reason, createdAt: serverTimestamp(), quantity }; 
+          	let success = true; 
+
+          	if (type === 'product') { 
+            	const productId = document.getElementById('loss-product-select').value; 
+            	const product = allProducts.find(p => p.id === productId); 
+            	if (!product) return showToast("Produit non trouvé."); 
+
+            	lossData.itemId = productId; 
+            	lossData.itemName = product.name; 
+            	lossData.type = 'product'; 
+            	
+            	const tempDeductions = new Map(); 
+            	if (product.recipe && product.recipe.length > 0) { 
+                	for (const recipeItem of product.recipe) { 
+                    	const current = tempDeductions.get(recipeItem.id) || 0; 
+                    	tempDeductions.set(recipeItem.id, current + recipeItem.quantity * quantity); 
+                	} 
+            	} else if (product.linkedIngredientId) { 
+                	// *** MODIFIED: Use linkedIngredientQuantity ***
+                	const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
+s              	const totalQtyToDeduct = linkedQtyPerProduct * quantity;
+                	const current = tempDeductions.get(product.linkedIngredientId) || 0; 
+                	tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct); 
+                	// *** END MODIFICATION ***
+            	} 
+
+            	for (const [ingId, qtyToDeduct] of tempDeductions.entries()) { 
+                	// La vérification de stock a été supprimée
+                	batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qtyToDeduct) }); 
+            	}
+          	} else { 
+            	const ingredientId = document.getElementById('loss-ingredient-select').value;s
+            	const ingredient = allIngredients.find(i => i.id === ingredientId); 
+            	if (!ingredient) return showToast("Ingrédient non trouvé."); 
+            	
+            	// La vérification de stock a été supprimée
+s          	lossData.itemId = ingredientId; 
+            	lossData.itemName = ingredient.name; 
+            	lossData.unit = ingredient.unit; 
+            	lossData.type = 'ingredient'; 
+            	batch.update(doc(ingredientsCol, ingredientId), { quantity: increment(-quantity) });s
+          	}
+
+          	if (success) { 
+            	batch.set(doc(lossesCol), lossData); 
+            	try { 
+                	await batch.commit(); 
+                	showToast('Perte enregistrée et stock mis à jour !');s
+                	closeModal('loss-modal'); 
+            	} catch (error) { 
+                	console.error("Loss commit failed: ", error); 
+                	showToast(`Erreur: ${error.message}`); 
+            	} 
+          	} 
+        });
+        
+        document.getElementById('loss-history-list').addEventListener('click', async e => { 
+          	const deleteBtn = e.target.closest('.delete-loss-btn'); 
+          	if (deleteBtn) { 
+            	const lossId = deleteBtn.dataset.id;s
+            	const loss = allLosses.find(l => l.id === lossId); 
+            	if (!loss) return; 
+            	
+            	if (confirm("Voulez-vous vraiment annuler cette perte ?\n\nLe stock sera restauré.")) { 
+                	const batch = writeBatch(db); 
+                	if (loss.type === 'product') { 
+                    	const product = allProducts.find(p => p.id === loss.itemId); 
+                    	if (product) { 
+                        	if (product.recipe && product.recipe.length > 0) { 
+                            	for (const recipeItem of product.recipe) { 
+                                	batch.update(doc(ingredientsCol, recipeItem.id), { quantity: increment(recipeItem.quantity * loss.quantity) });s
+                            	} 
+                        	} else if (product.linkedIngredientId) { 
+                            	// *** MODIFIED: Use linkedIngredientQuantity ***
+                            	const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
+                            	const totalQtyToRestore = linkedQtyPerProduct * loss.quantity;
+                            	batch.update(doc(ingredientsCol, product.linkedIngredientId), { quantity: increment(totalQtyToRestore) });s
+                            	// *** END MODIFICATION ***
+                        	} 
+                    	} 
+                	} else { 
+                    	batch.update(doc(ingredientsCol, loss.itemId), { quantity: increment(loss.quantity) });s
+                	} 
+                	batch.delete(doc(lossesCol, lossId)); 
+                	
+                	try { 
+                    	await batch.commit(); 
+                    	showToast("Perte annulée et stock restauré."); 
+                	} catch (error) { 
+                    	console.error("Error restoring stock from loss:", error);s
+                    	showToast("Erreur lors de l'annulation de la perte."); 
+                	} 
+            	} 
+          	} 
+        });
 // V V V **AJOUTEZ CE BLOC POUR LES CHARGES** V V V
 // --- CHARGES ---
 
 // Gérer l'ajout d'une charge
 document.getElementById('charge-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
+  	e.preventDefault();
 
-    const name = document.getElementById('charge-name').value;
-    const amount = parseFloat(document.getElementById('charge-amount').value);
-    const dateValue = document.getElementById('charge-date').value;
+  	const name = document.getElementById('charge-name').value;
+  	const amount = parseFloat(document.getElementById('charge-amount').value);
+  	const dateValue = document.getElementById('charge-date').value;
 
-    if (!name || isNaN(amount) || amount <= 0 || !dateValue) {
-        showToast("Veuillez remplir tous les champs avec des valeurs valides.");
-        return;
-    }
+  	if (!name || isNaN(amount) || amount <= 0 || !dateValue) {
+    	showToast("Veuillez remplir tous les champs avec des valeurs valides.");
+    	return;
+  	}
 
-    const chargeDate = new Date(dateValue);
-    // Ajuster l'heure à midi pour éviter les problèmes de fuseau horaire
-    chargeDate.setHours(12, 0, 0, 0); 
+  	const chargeDate = new Date(dateValue);
+  	// Ajuster l'heure à midi pour éviter les problèmes de fuseau horaire
+  	chargeDate.setHours(12, 0, 0, 0); 
 
-    try {
-        await addDoc(chargesCol, {
-            name: name,
-            amount: amount,
-            date: chargeDate,
-            createdAt: serverTimestamp()
-        });
+  	try {
+    	await addDoc(chargesCol, {
+        	name: name,
+        	amount: amount,
+        	date: chargeDate,
+        	createdAt: serverTimestamp()
+    	});
 
-        showToast('Charge enregistrée !');
-        document.getElementById('charge-form').reset();
-        // Réinitialiser la date à aujourd'hui après l'ajout
-        document.getElementById('charge-date').value = getTodayDateString(); 
-    } catch (error) {
-        console.error("Erreur ajout charge: ", error);
-        showToast("Erreur lors de l'enregistrement de la charge.");
-    }
+    	showToast('Charge enregistrée !');
+    	document.getElementById('charge-form').reset();
+    	// Réinitialiser la date à aujourd'hui après l'ajout
+    	document.getElementById('charge-date').value = getTodayDateString(); 
+  	} catch (error) {
+    	console.error("Erreur ajout charge: ", error);
+    	showToast("Erreur lors de l'enregistrement de la charge.");
+  	}
 });
 
 // Gérer la suppression d'une charge
 document.getElementById('charges-list').addEventListener('click', async (e) => {
-    const deleteBtn = e.target.closest('.delete-charge-btn');
-    if (deleteBtn) {
-        const chargeId = deleteBtn.dataset.id;
-        if (confirm("Voulez-vous vraiment supprimer cette charge ?")) {
-            try {
-                await deleteDoc(doc(chargesCol, chargeId));
-                showToast("Charge supprimée.");
-            } catch (error) {
-                console.error("Erreur suppression charge: ", error);
-                showToast("Erreur lors de la suppression.");
-            }
-        }
-    }
+  	const deleteBtn = e.target.closest('.delete-charge-btn');
+  	if (deleteBtn) {
+    	const chargeId = deleteBtn.dataset.id;
+    	if (confirm("Voulez-vous vraiment supprimer cette charge ?")) {
+        	try {
+            	await deleteDoc(doc(chargesCol, chargeId));
+            	showToast("Charge supprimée.");
+        	} catch (error) {
+            	console.error("Erreur suppression charge: ", error);
+s          	showToast("Erreur lors de la suppression.");
+        	}
+      	}
+  	}
 });
+
 // ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
         // --- FOURNISSEURS & ACHATS ---
         document.getElementById('add-supplier-btn').addEventListener('click', () => { document.getElementById('supplier-modal-title').textContent = 'Ajouter un Fournisseur'; document.getElementById('supplier-form').reset(); document.getElementById('supplier-id').value = ''; openModal('supplier-modal'); }); document.getElementById('cancel-supplier').addEventListener('click', () => closeModal('supplier-modal')); document.getElementById('supplier-form').addEventListener('submit', async e => { e.preventDefault(); const id = document.getElementById('supplier-id').value; const data = { name: document.getElementById('supplier-name').value, contact: document.getElementById('supplier-contact').value }; try { if (id) await updateDoc(doc(suppliersCol, id), data); else await addDoc(suppliersCol, data); showToast(id ? 'Fournisseur mis à jour' : 'Fournisseur ajouté'); closeModal('supplier-modal'); } catch(error) { showToast('Erreur'); } }); document.getElementById('suppliers-list').addEventListener('click', async e => { const target = e.target.closest('button'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-supplier-btn')) { if (confirm('Supprimer ce fournisseur ?')) await deleteDoc(doc(suppliersCol, id)); } else if (target.classList.contains('edit-supplier-btn')) { const sup = allSuppliers.find(s => s.id === id); document.getElementById('supplier-id').value = id; document.getElementById('supplier-name').value = sup.name; document.getElementById('supplier-contact').value = sup.contact; openModal('supplier-modal'); } });
