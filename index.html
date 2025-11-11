@@ -2123,8 +2123,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                  }
 
 
-                // --- Step 4: Check Stock and Save Batch ---
-                 // --- Step 4: Process Stock and Save Batch (Stock Check Disabled) ---
+               // --- Step 4: Process Stock and Save Batch (Stock Check Disabled) ---
                  const batch = writeBatch(db);
                  statusText.textContent = `Traitement de ${salesToSave.length} commandes...`;
 
@@ -2144,14 +2143,14 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                          } else if (product.linkedIngredientId) { 
                              const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
                              const totalQtyToDeduct = linkedQtyPerProduct * saleItem.quantity;
-                      _      const current = tempDeductions.get(product.linkedIngredientId) || 0;
+                             const current = tempDeductions.get(product.linkedIngredientId) || 0;
                              tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct);
                          }
                      }
 
-                     // 2. Appliquer les déductions (sans vérification)
+              _      // 2. Appliquer les déductions (sans vérification)
                      for (const [ingId, qty] of tempDeductions.entries()) {
-                         batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
+                  _        batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
                      }
                      
                      // 3. Enregistrer la vente
@@ -2161,7 +2160,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                          createdAt: serverTimestamp(), 
                          saleDate: sale.saleDate,
                          billNo: sale.billNo,
-                         hadDiscount: sale.hadDiscount
+              _          hadDiscount: sale.hadDiscount
                      });
                      salesImportedCount++; // On compte chaque vente comme importée
                  }
@@ -2169,11 +2168,11 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 // --- Step 5: Commit Batch ---
                  if (salesImportedCount > 0) {
                      statusText.textContent = `Enregistrement de ${salesImportedCount} vente(s)...`;
-                     await batch.commit();
+nbsp;                await batch.commit();
                      let successMsg = `${salesImportedCount} vente(s) importée(s) avec succès via API. Le stock a été déduit.`;
                      showToast(successMsg);
                  } else {
-                V      showToast("Aucune vente valide trouvée à importer via API."); 
+                     showToast("Aucune vente valide trouvée à importer via API."); 
                  }
 
 
