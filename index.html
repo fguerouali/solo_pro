@@ -171,6 +171,29 @@
     <p id="kpi-net-profit" class="text-3xl font-bold text-green-600 mt-1">0.00 Mad</p>
 </div>
                 </div>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <!-- Top 5 Pizzas -->
+    <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <i class="fas fa-pizza-slice text-red-500 mr-2"></i>
+            Top 5 Pizzas
+        </h3>
+        <div id="top-pizzas-list" class="space-y-3">
+            <p class="text-center text-gray-500 py-4">Aucune donnée disponible</p>
+        </div>
+    </div>
+
+    <!-- Top 5 Boissons -->
+    <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <i class="fas fa-wine-bottle text-blue-500 mr-2"></i>
+            Top 5 Boissons
+        </h3>
+        <div id="top-drinks-list" class="space-y-3">
+            <p class="text-center text-gray-500 py-4">Aucune donnée disponible</p>
+        </div>
+    </div>
+</div>
                 <h2 class="text-2xl font-semibold mb-4 text-gray-800">Alertes de Stock</h2>
                 <div id="low-stock-alerts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <div id="low-stock-placeholder" class="text-center col-span-full py-10 text-gray-500">
@@ -974,6 +997,12 @@ document.getElementById('kpi-gross-margin').textContent = `${grossMargin.toFixed
 document.getElementById('kpi-gross-margin-rate').textContent = `${grossMarginRate.toFixed(1)} %`;
 document.getElementById('kpi-total-charges').textContent = `${totalCharges.toFixed(2)} Mad`;
 document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)} Mad`;
+  // --- TOP 5 PIZZAS ET BOISSONS ---
+            const topPizzas = calculateTop5(filteredOrders, 'Pizza');
+            const topDrinks = calculateTop5(filteredOrders, 'Boisson');
+
+            renderTopProducts(topPizzas, 'top-pizzas-list', 'Aucune pizza vendue dans cette période');
+            renderTopProducts(topDrinks, 'top-drinks-list', 'Aucune boisson vendue dans cette période');
             // --- Low Stock Alerts (unfiltered) ---
             const container = document.getElementById('low-stock-alerts');
             const placeholder = document.getElementById('low-stock-placeholder');
@@ -993,7 +1022,67 @@ document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)}
         };
 
         const renderIngredients = () => { const list = document.getElementById('ingredients-list'); const placeholder = document.getElementById('ingredients-placeholder'); const table = document.getElementById('ingredients-table'); list.innerHTML = ''; if(allIngredients.length === 0) { table.style.display = 'none'; placeholder.style.display = 'block'; } else { table.style.display = ''; placeholder.style.display = 'none'; allIngredients.forEach(ing => { const isLow = ing.quantity < LOW_STOCK_THRESHOLD; const row = document.createElement('tr'); row.className = isLow ? 'low-stock' : ''; const costDisplay = (ing.cost && ing.cost > 0) ? `${ing.cost.toFixed(2)} Mad` : 'N/A'; row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td><td class="px-6 py-4 whitespace-nowrap"><span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> <span class="text-gray-500">${ing.unit}</span></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${costDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-medium"><button data-id="${ing.id}" class="edit-ingredient-btn text-gray-600 hover:text-gray-900 mr-4">Modifier</button><button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button></td>`; list.appendChild(row); }); } };
-        
+            // --- TOP 5 FUNCTIONS ---
+        const calculateTop5 = (orders, productType) => {
+            const productCounts = {};
+            
+            orders.forEach(order => {
+                order.items.forEach(item => {
+                    const product = allProducts.find(p => p.id === item.id);
+                    if (product && product.type === productType) {
+                        if (!productCounts[item.id]) {
+                            productCounts[item.id] = {
+                                name: item.name,
+                                count: 0,
+                                revenue: 0
+                            };
+                        }
+                        productCounts[item.id].count += item.quantity;
+                        productCounts[item.id].revenue += item.quantity * item.price;
+                    }
+                });
+            });
+            
+            const sorted = Object.values(productCounts)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+            
+            return sorted;
+        };
+
+        const renderTopProducts = (topProducts, containerId, emptyMessage) => {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            if (topProducts.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-500 py-4">${emptyMessage}</p>`;
+                return;
+            }
+            
+            topProducts.forEach((product, index) => {
+                const rankColors = ['bg-yellow-400', 'bg-gray-300', 'bg-orange-400', 'bg-blue-100', 'bg-blue-100'];
+                const rankColor = rankColors[index] || 'bg-gray-100';
+                
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors';
+                item.innerHTML = `
+                    <div class="flex items-center gap-3 flex-grow">
+                        <span class="flex items-center justify-center w-8 h-8 rounded-full ${rankColor} font-bold text-gray-800">
+                            ${index + 1}
+                        </span>
+                        <div class="flex-grow">
+                            <p class="font-semibold text-gray-900">${product.name}</p>
+                            <p class="text-sm text-gray-500">${product.revenue.toFixed(2)} Mad</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold text-gray-800">${product.count}</p>
+                        <p class="text-xs text-gray-500">vendus</p>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        };
         const calculateProductCost = (product) => {
             if (!product) return 0;
             if (product.recipe && product.recipe.length > 0) {
