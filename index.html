@@ -1236,10 +1236,10 @@ card.innerHTML = `<div class="flex justify-between items-start">
             // Met à jour le champ input, pas un span
             document.getElementById('current-order-total-input').value = total.toFixed(2); 
         };
-
+const orderListPlaceholder = document.getElementById('order-placeholder');
         const renderCurrentOrder = () => { 
     const list = document.getElementById('current-order-list'); 
-    // const placeholder = document.getElementById('order-placeholder'); // <-- SUPPRIMER CETTE LIGNE
+    
     const processBtn = document.getElementById('process-order-btn'); 
     list.innerHTML = ''; // <-- Vide la liste (enlève Tiramisu, etc.)
     
@@ -1258,8 +1258,8 @@ card.innerHTML = `<div class="flex justify-between items-start">
     } 
     updateOrderTotal(); 
 };	
-addEventListener('click', e => { const button = e.target.closest('.remove-order-item'); if (button) { currentOrder.splice(button.dataset.index, 1); renderCurrentOrder(); } }); 
-        const orderListPlaceholder = document.getElementById('order-placeholder');
+document.getElementById('current-order-list').addEventListener('click', e => { const button = e.target.closest('.remove-order-item'); if (button) { currentOrder.splice(button.dataset.index, 1); renderCurrentOrder(); } }); 
+        
         document.getElementById('process-order-btn').addEventListener('click', async () => { 
             if (currentOrder.length === 0) return; 
             
