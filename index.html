@@ -1300,15 +1300,14 @@ addEventListener('click', e => { const button = e.target.closest('.remove-order-
                 } 
             } 
             
-            for (const [ingId, qty] of tempDeductions.entries()) { 
-                const ing = allIngredients.find(i => i.id === ingId); 
-                if (!ing) { // On vérifie seulement si l'ingrédient existe
-                    showToast(`Erreur: L'ingrédient (ID: ${ingId}) n'existe pas.`); 
-                    return; 
-                }
-              // La vérification de stock (ing.quantity < qty) est supprimée.
-                batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) }); 
-            }
+            for (const [ingId, qty] of tempDeductions.entries()) { 
+                const ing = allIngredients.find(i => i.id === ingId); 
+                if (!ing || ing.quantity < qty) { 
+                    showToast(`Stock insuffisant pour: ${ing ? ing.name : 'inconnu'}`); 
+                    return; 
+                } 
+                batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) }); 
+            } 
             
             const saleDateInput = document.getElementById('sale-date').value;
             const saleDate = saleDateInput ? new Date(saleDateInput) : new Date();
@@ -1435,28 +1434,30 @@ addEventListener('click', e => { const button = e.target.closest('.remove-order-
                     // *** END MODIFICATION ***
                 } 
 
-                for (const [ingId, qtyToDeduct] of tempDeductions.entries()) { 
-                    const ing = allIngredients.find(i => i.id === ingId); 
-                    if (!ing) { // On vérifie seulement si l'ingrédient existe
-                        showToast(`Erreur: L'ingrédient (ID: ${ingId}) n'existe pas.`); 
-                        success = false; 
-                        break; 
-                    }
-                  // La vérification de stock (ing.quantity < qtyToDeduct) est supprimée.
-                    batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qtyToDeduct) }); 
-                }
+                for (const [ingId, qtyToDeduct] of tempDeductions.entries()) { 
+                    const ing = allIngredients.find(i => i.id === ingId); 
+                    if (!ing || ing.quantity < qtyToDeduct) { 
+                        showToast(`Stock insuffisant pour: ${ing ? ing.name : 'inconnu'}`); 
+                        success = false; 
+                        break; 
+                    } 
+                    batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qtyToDeduct) }); 
+                } 
             } else { 
                 const ingredientId = document.getElementById('loss-ingredient-select').value; 
                 const ingredient = allIngredients.find(i => i.id === ingredientId); 
                 if (!ingredient) return showToast("Ingrédient non trouvé."); 
                 
-                // La vérification de stock (ingredient.quantity < quantity) est supprimée.
-                lossData.itemId = ingredientId; 
-                lossData.itemName = ingredient.name; 
-                lossData.unit = ingredient.unit; 
-                lossData.type = 'ingredient'; 
-                batch.update(doc(ingredientsCol, ingredientId), { quantity: increment(-quantity) }); 
-                // 'success' reste true par défaut
+                if (ingredient.quantity < quantity) { 
+                    showToast(`Stock insuffisant pour: ${ingredient.name}`); 
+                    success = false; 
+                } else { 
+                    lossData.itemId = ingredientId; 
+                    lossData.itemName = ingredient.name; 
+                    lossData.unit = ingredient.unit; 
+                    lossData.type = 'ingredient'; 
+                    batch.update(doc(ingredientsCol, ingredientId), { quantity: increment(-quantity) }); 
+                } 
             } 
 
             if (success) { 
@@ -2144,58 +2145,59 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                  for (const sale of salesToSave) {
                      // ... (logique de vérification stock et création batch - INCHANGÉE) ...
                      const tempDeductions = new Map();
-                     let ingredientsExist = true; // On change le nom de la variable pour plus de clarté
+                     let stockAvailable = true;
 
-                     for (const saleItem of sale.items) {
-                         const product = allProducts.find(p => p.id === saleItem.id); 
-                         if (!product) continue; 
+                     for (const saleItem of sale.items) {
+                         const product = allProducts.find(p => p.id === saleItem.id); 
+                         if (!product) continue; 
 
-                         if (product.recipe && product.recipe.length > 0) {
-                             for (const recipeItem of product.recipe) {
-                                 const current = tempDeductions.get(recipeItem.id) || 0;
-                                 tempDeductions.set(recipeItem.id, current + recipeItem.quantity * saleItem.quantity);
-                             }
-                         } else if (product.linkedIngredientId) { 
-                             const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
-                             const totalQtyToDeduct = linkedQtyPerProduct * saleItem.quantity;
-                             const current = tempDeductions.get(product.linkedIngredientId) || 0;
-                             tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct);
-      _Espace réservé (le code continue)_
-                         }
-                     }
+                         if (product.recipe && product.recipe.length > 0) {
+                             for (const recipeItem of product.recipe) {
+                                 const current = tempDeductions.get(recipeItem.id) || 0;
+                                 tempDeductions.set(recipeItem.id, current + recipeItem.quantity * saleItem.quantity);
+                             }
+                         } else if (product.linkedIngredientId) { 
+                             // *** MODIFIED: Use linkedIngredientQuantity ***
+                             const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
+                             const totalQtyToDeduct = linkedQtyPerProduct * saleItem.quantity;
+                             const current = tempDeductions.get(product.linkedIngredientId) || 0;
+                             tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct);
+                             // *** END MODIFICATION ***
+                         }
+                     }
 
-                     // On vérifie si les ingrédients existent, mais on ne bloque pas si le stock est insuffisant.
-                     for (const [ingId, qty] of tempDeductions.entries()) {
-                         const ing = allIngredients.find(i => i.id === ingId);
-                         if (!ing) { // On vérifie seulement si l'ingrédient existe
-                             ingredientsExist = false;
-                             failedStockChecks.push(`Ingrédient introuvable (ID: ${ingId}) pour facture ${sale.billNo}`);
-                             break;
-                         }
-                         // La vérification de stock (ing.quantity < qty) est supprimée.
-                     }
+                     // Check stock for this specific sale
+                     for (const [ingId, qty] of tempDeductions.entries()) {
+                         const ing = allIngredients.find(i => i.id === ingId);
+                         if (!ing || ing.quantity < qty) {
+                             stockAvailable = false;
+                             const failedProdName = sale.items.find(i => {
+                                 const p = allProducts.find(pr => pr.id === i.id);
+                                 return (p?.recipe?.some(r => r.id === ingId) || p?.linkedIngredientId === ingId);
+                             })?.name || 'inconnu';
+                             failedStockChecks.push(`Stock insuffisant pour facture ${sale.billNo} (produit: ${failedProdName}, ingrédient: ${ing?.name || 'inconnu'})`);
+                             break; // Stop checking stock for this sale
+                         }
+                     }
 
-                     // On ajoute la vente SEULEMENT si tous les ingrédients de la recette existent.
-                     // On autorise le stock négatif, donc on ne vérifie pas la quantité.
-                     if (ingredientsExist) {
-                         // Add stock deductions to batch
-                         for (const [ingId, qty] of tempDeductions.entries()) {
-                             batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
-                         }
-                         // Add sale record to batch
-              _Espace réservé (le code continue)_
-                             items: sale.items,
-                             totalPrice: sale.totalPrice,
-                             createdAt: serverTimestamp(), 
-                             saleDate: sale.saleDate,
+                     if (stockAvailable) {
+                         // Add stock deductions to batch
+                         for (const [ingId, qty] of tempDeductions.entries()) {
+                             batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
+                         }
+                         // Add sale record to batch
+                         batch.set(doc(collection(db, ordersCol.path)), { 
+                             items: sale.items,
+                             totalPrice: sale.totalPrice,
+                             createdAt: serverTimestamp(), 
+                             saleDate: sale.saleDate,
 								billNo: sale.billNo,
 								hadDiscount: sale.hadDiscount
-                         });
-                         salesImportedCount++;
-                     } else {
-                         salesSkippedCount++;
-                         // Le message d'erreur a déjà été ajouté à failedStockChecks
-                     }
+                         });
+                         salesImportedCount++;
+                     } else {
+                         salesSkippedCount++;
+                     }
                  }
 
                 // --- Step 5: Commit Batch ---
