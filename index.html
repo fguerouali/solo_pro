@@ -80,6 +80,8 @@
                     <button class="tab-link" data-tab="purchases"><i class="fas fa-truck mr-2"></i>Achats</button>
                     <button class="tab-link" data-tab="orders"><i class="fas fa-receipt mr-2"></i>Ventes & Pertes</button>
 					<button class="tab-link" data-tab="charges"><i class="fas fa-file-invoice-dollar mr-2"></i>Charges</button>
+					<button class="tab-link" data-tab="rh"><i class="fas fa-users mr-2"></i>RH</button>
+
                 </nav>
             </div>
         </div>
@@ -366,8 +368,69 @@
                 </div>
         </div>
     </div>
-</div>
+</div></div>
 </main>
+
+<!-- AJOUTEZ CETTE SECTION COMPLÈTE AVANT </main> -->
+<div id="rh-content" class="tab-content">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Section Gestion des Salariés -->
+        <div>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold text-gray-800">Gestion des Salariés</h2>
+                <button id="add-employee-btn" class="btn-primary"><i class="fas fa-user-plus mr-2"></i>Ajouter</button>
+            </div>
+            <div id="employees-list" class="space-y-3">
+                <div id="employees-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
+                    <i class="fas fa-users fa-2x text-gray-400 mb-2"></i>
+                    <p>Aucun salarié enregistré.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Paiement des Salaires -->
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Paiement des Salaires</h2>
+            <div class="bg-white p-6 rounded-2xl shadow-lg mb-6">
+                <div class="mb-4">
+                    <label for="salary-month" class="block text-sm font-medium text-gray-700">Mois de paiement</label>
+                    <input type="month" id="salary-month" class="mt-1 w-full input-style">
+                </div>
+                <button id="calculate-salaries-btn" class="btn-secondary w-full">
+                    <i class="fas fa-calculator mr-2"></i>Calculer les salaires du mois
+                </button>
+            </div>
+
+            <!-- Résultats de calcul -->
+            <div id="salary-calculations" class="hidden bg-white p-6 rounded-2xl shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Salaires à payer</h3>
+                <div id="salary-results-list" class="space-y-3 mb-4"></div>
+                <div class="border-t pt-4 flex justify-between items-center">
+                    <span class="text-lg font-semibold text-gray-800">Total à payer :</span>
+                    <span id="total-salary-amount" class="text-2xl font-bold text-red-600">0.00 Mad</span>
+                </div>
+                <button id="pay-all-salaries-btn" class="btn-primary w-full mt-4">
+                    <i class="fas fa-money-bill-wave mr-2"></i>Payer tous les salaires
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historique des paiements -->
+    <div class="mt-8">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Historique des Paiements</h2>
+        <div id="salary-payments-history" class="space-y-3">
+            <div id="salary-payments-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
+                <i class="fas fa-file-invoice-dollar fa-2x text-gray-400 mb-2"></i>
+                <p>Aucun paiement de salaire enregistré.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+</main>
+
         
     </div>
 
@@ -579,7 +642,74 @@
     <div id="toast" class="hidden fixed bottom-5 right-5 bg-gray-900 text-white py-2 px-5 rounded-lg shadow-lg">
         <p id="toast-message"></p>
     </div>
+<div id="employee-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+        <h3 id="employee-modal-title" class="text-xl font-semibold mb-4 text-gray-800">Ajouter un Salarié</h3>
+        <form id="employee-form">
+            <input type="hidden" id="employee-id">
+            <div class="space-y-4">
+                <div>
+                    <label for="employee-name" class="block text-sm font-medium text-gray-700">Nom complet</label>
+                    <input type="text" id="employee-name" required class="mt-1 w-full input-style">
+                </div>
+                <div>
+                    <label for="employee-salary" class="block text-sm font-medium text-gray-700">Salaire mensuel (Mad)</label>
+                    <input type="number" id="employee-salary" min="0" step="0.01" required class="mt-1 w-full input-style">
+                </div>
+                <div>
+                    <label for="employee-start-date" class="block text-sm font-medium text-gray-700">Date d'embauche</label>
+                    <input type="date" id="employee-start-date" required class="mt-1 w-full input-style">
+                </div>
+                <div>
+                    <label for="employee-active" class="flex items-center">
+                        <input type="checkbox" id="employee-active" checked class="h-4 w-4 text-gray-800 border-gray-300 rounded focus:ring-gray-700">
+                        <span class="ml-2 text-sm text-gray-700">Actif</span>
+                    </label>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" class="btn-secondary" id="cancel-employee">Annuler</button>
+                <button type="submit" class="btn-primary">Sauvegarder</button>
+            </div>
+        </form>
+    </div>
+</div>
 
+<!-- Modal Absences -->
+<div id="absences-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+        <h3 class="text-xl font-semibold mb-4 text-gray-800">Gérer les Absences</h3>
+        <p class="text-sm text-gray-600 mb-4">Salarié: <span id="absence-employee-name" class="font-semibold"></span></p>
+        
+        <form id="absence-form" class="mb-6">
+            <input type="hidden" id="absence-employee-id">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="absence-month" class="block text-sm font-medium text-gray-700">Mois</label>
+                    <input type="month" id="absence-month" required class="mt-1 w-full input-style">
+                </div>
+                <div>
+                    <label for="absence-days" class="block text-sm font-medium text-gray-700">Jours d'absence</label>
+                    <input type="number" id="absence-days" min="0" max="26" step="0.5" required class="mt-1 w-full input-style">
+                </div>
+            </div>
+            <button type="submit" class="btn-primary w-full mt-4">Enregistrer l'absence</button>
+        </form>
+
+        <div class="border-t pt-4">
+            <h4 class="font-semibold text-gray-800 mb-3">Historique des absences</h4>
+            <div id="absences-list" class="space-y-2 max-h-60 overflow-y-auto">
+                <p class="text-sm text-gray-500 text-center py-4">Aucune absence enregistrée.</p>
+            </div>
+        </div>
+
+        <div class="mt-6 flex justify-end">
+            <button type="button" class="btn-secondary" id="cancel-absences">Fermer</button>
+        </div>
+    </div>
+</div>
+
+<!-- CSS Additionnel -->
     <!-- CSS Additionnel -->
     <style>
         .tab-link { @apply whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors; }
@@ -620,7 +750,7 @@
 
         // --- COLLECTIONS REFS ---
         let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol,chargesCol;
-
+		let employeesCol, absencesCol, salaryPaymentsCol;
         // --- ETAT GLOBAL ---
         let allIngredients = [];
         let allProducts = [];
@@ -629,10 +759,14 @@
         let allLosses = [];
         let allPurchaseOrders = [];
 		let allCharges = [];
+		let allEmployees = []; // AJOUTEZ CETTE LIGNE
+let allAbsences = []; // AJOUTEZ CETTE LIGNE
+let allSalaryPayments = []; // AJOUTEZ CETTE LIGNE
         let currentRecipe = [];
         let currentOrder = [];
         let currentPurchaseOrderItems = [];
         let importType = '';
+		let currentSalaryCalculations = []; // AJOUTEZ CETTE LIGNE
 
         // --- SEUILS ---
         const LOW_STOCK_THRESHOLD = 10;
@@ -647,6 +781,9 @@
                 purchaseOrdersCol = collection(db, `artifacts/${appId}/public/data/purchaseOrders`);
                 lossesCol = collection(db, `artifacts/${appId}/public/data/losses`);
 				chargesCol = collection(db, `artifacts/${appId}/public/data/charges`); // <-- AJOUTEZ CETTE LIGNE
+				        employeesCol = collection(db, `artifacts/${appId}/public/data/employees`);
+        absencesCol = collection(db, `artifacts/${appId}/public/data/absences`);
+        salaryPaymentsCol = collection(db, `artifacts/${appId}/public/data/salaryPayments`);
                 listenToAllCollections();
                 document.getElementById('sale-date').value = getTodayDateString();
                  // Set default dates for API import modal
@@ -674,6 +811,21 @@
     renderCharges(allCharges); // Nous allons créer cette fonction
     updateAndRenderKPIs();
 });
+onSnapshot(employeesCol, snapshot => {
+        allEmployees = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        allEmployees.sort((a, b) => a.name.localeCompare(b.name));
+        renderEmployees();
+    });
+    
+    onSnapshot(absencesCol, snapshot => {
+        allAbsences = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    });
+    
+    onSnapshot(salaryPaymentsCol, snapshot => {
+        allSalaryPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        allSalaryPayments.sort((a, b) => (toDate(b.paymentDate)?.getTime() || 0) - (toDate(a.paymentDate)?.getTime() || 0));
+        renderSalaryPaymentsHistory();
+    });
         }
         
         // --- HELPERS ---
@@ -1512,6 +1664,412 @@ document.getElementById('current-order-list').addEventListener('click', e => { c
                 } 
             } 
         });
+		// ======================
+// === SECTION RH ===
+// ======================
+
+// --- Render Functions ---
+const renderEmployees = () => {
+    const container = document.getElementById('employees-list');
+    const placeholder = document.getElementById('employees-placeholder');
+    container.innerHTML = '';
+
+    if (allEmployees.length === 0) {
+        container.appendChild(placeholder);
+    } else {
+        allEmployees.forEach(employee => {
+            const card = document.createElement('div');
+            card.className = `bg-white p-4 rounded-lg shadow-sm ${!employee.active ? 'opacity-60' : ''}`;
+            
+            const startDate = toDate(employee.startDate);
+            const formattedStartDate = startDate ? `${startDate.getDate().toString().padStart(2, '0')}/${(startDate.getMonth() + 1).toString().padStart(2, '0')}/${startDate.getFullYear()}` : 'N/A';
+            
+            const statusBadge = employee.active 
+                ? '<span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Actif</span>'
+                : '<span class="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Inactif</span>';
+
+            card.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div class="flex-grow">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h3 class="font-semibold text-gray-900">${employee.name}</h3>
+                            ${statusBadge}
+                        </div>
+                        <p class="text-sm text-gray-600">Salaire: <span class="font-semibold">${employee.monthlySalary.toFixed(2)} Mad/mois</span></p>
+                        <p class="text-xs text-gray-500">Embauché le: ${formattedStartDate}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button data-id="${employee.id}" class="manage-absences-btn text-yellow-600 hover:text-yellow-800" title="Gérer absences">
+                            <i class="fas fa-calendar-times"></i>
+                        </button>
+                        <button data-id="${employee.id}" class="edit-employee-btn text-gray-600 hover:text-gray-900" title="Modifier">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button data-id="${employee.id}" class="delete-employee-btn text-red-600 hover:text-red-900" title="Supprimer">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+};
+
+const renderSalaryPaymentsHistory = () => {
+    const container = document.getElementById('salary-payments-history');
+    const placeholder = document.getElementById('salary-payments-placeholder');
+    container.innerHTML = '';
+
+    if (allSalaryPayments.length === 0) {
+        container.appendChild(placeholder);
+    } else {
+        allSalaryPayments.forEach(payment => {
+            const card = document.createElement('div');
+            card.className = 'bg-white p-4 rounded-lg shadow-sm';
+            
+            const paymentDate = toDate(payment.paymentDate);
+            const formattedDate = paymentDate ? formatDateToDDMMYYYY(paymentDate) : 'Date inconnue';
+
+            const employeesHtml = payment.employees.map(emp => 
+                `<li class="flex justify-between text-sm">
+                    <span>${emp.name}${emp.absenceDays > 0 ? ` <span class="text-yellow-600">(${emp.absenceDays}j abs.)</span>` : ''}</span>
+                    <span class="font-semibold">${emp.finalSalary.toFixed(2)} Mad</span>
+                </li>`
+            ).join('');
+
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Paiement du ${formattedDate}</h3>
+                        <p class="text-xs text-gray-500">Mois: ${payment.month}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-bold text-red-600">${payment.totalAmount.toFixed(2)} Mad</p>
+                    </div>
+                </div>
+                <ul class="space-y-1 border-t pt-2 mt-2">
+                    ${employeesHtml}
+                </ul>
+            `;
+            container.appendChild(card);
+        });
+    }
+};
+
+const renderAbsencesForEmployee = (employeeId) => {
+    const container = document.getElementById('absences-list');
+    const employeeAbsences = allAbsences.filter(a => a.employeeId === employeeId);
+    
+    container.innerHTML = '';
+    
+    if (employeeAbsences.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Aucune absence enregistrée.</p>';
+    } else {
+        employeeAbsences.sort((a, b) => b.month.localeCompare(a.month));
+        employeeAbsences.forEach(absence => {
+            const div = document.createElement('div');
+            div.className = 'flex justify-between items-center bg-gray-50 p-2 rounded';
+            div.innerHTML = `
+                <div>
+                    <span class="text-sm font-medium">${absence.month}</span>
+                    <span class="text-xs text-gray-600 ml-2">${absence.days} jour(s)</span>
+                </div>
+                <button data-id="${absence.id}" class="delete-absence-btn text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(div);
+        });
+    }
+};
+
+// --- Event Handlers ---
+
+// Ajouter un salarié
+document.getElementById('add-employee-btn').addEventListener('click', () => {
+    document.getElementById('employee-modal-title').textContent = 'Ajouter un Salarié';
+    document.getElementById('employee-form').reset();
+    document.getElementById('employee-id').value = '';
+    document.getElementById('employee-active').checked = true;
+    document.getElementById('employee-start-date').value = getTodayDateString();
+    openModal('employee-modal');
+});
+
+document.getElementById('cancel-employee').addEventListener('click', () => closeModal('employee-modal'));
+
+document.getElementById('employee-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const id = document.getElementById('employee-id').value;
+    const data = {
+        name: document.getElementById('employee-name').value.trim(),
+        monthlySalary: parseFloat(document.getElementById('employee-salary').value),
+        startDate: new Date(document.getElementById('employee-start-date').value),
+        active: document.getElementById('employee-active').checked
+    };
+
+    try {
+        if (id) {
+            await updateDoc(doc(employeesCol, id), data);
+            showToast('Salarié mis à jour !');
+        } else {
+            await addDoc(employeesCol, { ...data, createdAt: serverTimestamp() });
+            showToast('Salarié ajouté !');
+        }
+        closeModal('employee-modal');
+    } catch (error) {
+        console.error("Erreur salarié:", error);
+        showToast("Erreur lors de l'opération.");
+    }
+});
+
+// Gérer les actions sur les salariés
+document.getElementById('employees-list').addEventListener('click', async (e) => {
+    const deleteBtn = e.target.closest('.delete-employee-btn');
+    const editBtn = e.target.closest('.edit-employee-btn');
+    const absencesBtn = e.target.closest('.manage-absences-btn');
+
+    if (deleteBtn) {
+        const employeeId = deleteBtn.dataset.id;
+        if (confirm('Voulez-vous vraiment supprimer ce salarié ? Toutes ses absences seront également supprimées.')) {
+            try {
+                // Supprimer les absences associées
+                const employeeAbsences = allAbsences.filter(a => a.employeeId === employeeId);
+                for (const absence of employeeAbsences) {
+                    await deleteDoc(doc(absencesCol, absence.id));
+                }
+                // Supprimer le salarié
+                await deleteDoc(doc(employeesCol, employeeId));
+                showToast('Salarié supprimé.');
+            } catch (error) {
+                console.error("Erreur suppression salarié:", error);
+                showToast("Erreur lors de la suppression.");
+            }
+        }
+    } else if (editBtn) {
+        const employeeId = editBtn.dataset.id;
+        const employee = allEmployees.find(e => e.id === employeeId);
+        if (employee) {
+            document.getElementById('employee-modal-title').textContent = 'Modifier le Salarié';
+            document.getElementById('employee-id').value = employee.id;
+            document.getElementById('employee-name').value = employee.name;
+            document.getElementById('employee-salary').value = employee.monthlySalary;
+            
+            const startDate = toDate(employee.startDate);
+            if (startDate) {
+                const year = startDate.getFullYear();
+                const month = String(startDate.getMonth() + 1).padStart(2, '0');
+                const day = String(startDate.getDate()).padStart(2, '0');
+                document.getElementById('employee-start-date').value = `${year}-${month}-${day}`;
+            }
+            
+            document.getElementById('employee-active').checked = employee.active;
+            openModal('employee-modal');
+        }
+    } else if (absencesBtn) {
+        const employeeId = absencesBtn.dataset.id;
+        const employee = allEmployees.find(e => e.id === employeeId);
+        if (employee) {
+            document.getElementById('absence-employee-id').value = employee.id;
+            document.getElementById('absence-employee-name').textContent = employee.name;
+            
+            // Définir le mois par défaut (mois courant)
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            document.getElementById('absence-month').value = `${year}-${month}`;
+            
+            renderAbsencesForEmployee(employeeId);
+            openModal('absences-modal');
+        }
+    }
+});
+
+// Gérer les absences
+document.getElementById('cancel-absences').addEventListener('click', () => closeModal('absences-modal'));
+
+document.getElementById('absence-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const employeeId = document.getElementById('absence-employee-id').value;
+    const month = document.getElementById('absence-month').value; // Format: YYYY-MM
+    const days = parseFloat(document.getElementById('absence-days').value);
+
+    if (days < 0 || days > 26) {
+        showToast('Le nombre de jours d\'absence doit être entre 0 et 26.');
+        return;
+    }
+
+    // Vérifier si une absence existe déjà pour ce mois
+    const existingAbsence = allAbsences.find(a => a.employeeId === employeeId && a.month === month);
+
+    try {
+        if (existingAbsence) {
+            // Mettre à jour l'absence existante
+            await updateDoc(doc(absencesCol, existingAbsence.id), { days });
+            showToast('Absence mise à jour !');
+        } else {
+            // Créer une nouvelle absence
+            await addDoc(absencesCol, {
+                employeeId,
+                month,
+                days,
+                createdAt: serverTimestamp()
+            });
+            showToast('Absence enregistrée !');
+        }
+        
+        // Réinitialiser le formulaire
+        document.getElementById('absence-days').value = '';
+        
+        // Rafraîchir la liste des absences
+        renderAbsencesForEmployee(employeeId);
+    } catch (error) {
+        console.error("Erreur absence:", error);
+        showToast("Erreur lors de l'enregistrement de l'absence.");
+    }
+});
+
+// Supprimer une absence
+document.getElementById('absences-list').addEventListener('click', async (e) => {
+    const deleteBtn = e.target.closest('.delete-absence-btn');
+    if (deleteBtn) {
+        const absenceId = deleteBtn.dataset.id;
+        if (confirm('Supprimer cette absence ?')) {
+            try {
+                await deleteDoc(doc(absencesCol, absenceId));
+                showToast('Absence supprimée.');
+                const employeeId = document.getElementById('absence-employee-id').value;
+                renderAbsencesForEmployee(employeeId);
+            } catch (error) {
+                console.error("Erreur suppression absence:", error);
+                showToast("Erreur lors de la suppression.");
+            }
+        }
+    }
+});
+
+// Calculer les salaires
+document.getElementById('calculate-salaries-btn').addEventListener('click', () => {
+    const monthInput = document.getElementById('salary-month').value;
+    
+    if (!monthInput) {
+        showToast('Veuillez sélectionner un mois.');
+        return;
+    }
+
+    const activeEmployees = allEmployees.filter(e => e.active);
+    
+    if (activeEmployees.length === 0) {
+        showToast('Aucun salarié actif à payer.');
+        return;
+    }
+
+    currentSalaryCalculations = [];
+    let totalAmount = 0;
+
+    activeEmployees.forEach(employee => {
+        const monthlySalary = employee.monthlySalary;
+        const dailySalary = monthlySalary / 26; // Base 26 jours
+        
+        // Récupérer les absences du mois
+        const absence = allAbsences.find(a => a.employeeId === employee.id && a.month === monthInput);
+        const absenceDays = absence ? absence.days : 0;
+        
+        // Calculer le salaire final
+        const deduction = dailySalary * absenceDays;
+        const finalSalary = monthlySalary - deduction;
+        
+        currentSalaryCalculations.push({
+            employeeId: employee.id,
+            name: employee.name,
+            monthlySalary,
+            absenceDays,
+            deduction,
+            finalSalary
+        });
+        
+        totalAmount += finalSalary;
+    });
+
+    // Afficher les résultats
+    const resultsContainer = document.getElementById('salary-results-list');
+    resultsContainer.innerHTML = '';
+    
+    currentSalaryCalculations.forEach(calc => {
+        const div = document.createElement('div');
+        div.className = 'bg-gray-50 p-3 rounded-lg';
+        div.innerHTML = `
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="font-semibold text-gray-900">${calc.name}</p>
+                    <p class="text-xs text-gray-600">Salaire base: ${calc.monthlySalary.toFixed(2)} Mad</p>
+                    ${calc.absenceDays > 0 ? `
+                        <p class="text-xs text-yellow-600">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            ${calc.absenceDays} jour(s) d'absence (-${calc.deduction.toFixed(2)} Mad)
+                        </p>
+                    ` : '<p class="text-xs text-green-600"><i class="fas fa-check"></i> Aucune absence</p>'}
+                </div>
+                <p class="text-lg font-bold text-gray-900">${calc.finalSalary.toFixed(2)} Mad</p>
+            </div>
+        `;
+        resultsContainer.appendChild(div);
+    });
+    
+    document.getElementById('total-salary-amount').textContent = `${totalAmount.toFixed(2)} Mad`;
+    document.getElementById('salary-calculations').classList.remove('hidden');
+});
+
+// Payer tous les salaires
+document.getElementById('pay-all-salaries-btn').addEventListener('click', async () => {
+    if (currentSalaryCalculations.length === 0) {
+        showToast('Aucun salaire à payer.');
+        return;
+    }
+
+    const monthInput = document.getElementById('salary-month').value;
+    
+    if (!confirm(`Confirmer le paiement de ${currentSalaryCalculations.length} salaire(s) pour le mois ${monthInput} ?`)) {
+        return;
+    }
+
+    try {
+        const totalAmount = currentSalaryCalculations.reduce((sum, calc) => sum + calc.finalSalary, 0);
+        
+        // Enregistrer le paiement global
+        await addDoc(salaryPaymentsCol, {
+            month: monthInput,
+            employees: currentSalaryCalculations,
+            totalAmount,
+            paymentDate: new Date(),
+            createdAt: serverTimestamp()
+        });
+
+        // Ajouter à la collection charges
+        await addDoc(chargesCol, {
+            name: `Salaires ${monthInput}`,
+            amount: totalAmount,
+            date: new Date(),
+            createdAt: serverTimestamp(),
+            type: 'salary' // Marqueur pour identifier les charges de salaires
+        });
+
+        showToast(`Paiement de ${totalAmount.toFixed(2)} Mad enregistré !`);
+        
+        // Réinitialiser
+        document.getElementById('salary-calculations').classList.add('hidden');
+        document.getElementById('salary-month').value = '';
+        currentSalaryCalculations = [];
+        
+    } catch (error) {
+        console.error("Erreur paiement salaires:", error);
+        showToast("Erreur lors du paiement.");
+    }
+});
+
+// ^ ^ ^ **FIN DU BLOC RH** ^ ^ ^
 // V V V **AJOUTEZ CE BLOC POUR LES CHARGES** V V V
 // --- CHARGES ---
 
