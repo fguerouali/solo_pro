@@ -1273,7 +1273,7 @@ card.innerHTML = `<div class="flex justify-between items-start">
                     <div class="flex justify-between items-center mt-3 pt-3 border-t">
                         <div>
                             <button data-id="${po.id}" class="reorder-po-btn text-blue-500 hover:text-blue-800 text-sm font-medium mr-3"><i class="fas fa-redo mr-1"></i> Relancer</button>
-                            ${!isReceived ? `<button data-id="${po.id}" class="edit-po-btn text-gray-500 hover:text-gray-800 text-sm font-medium mr-3"><i class="fas fa-edit mr-1"></i> Modifier</button>` : ''}
+                            <button data-id="${po.id}" class="edit-po-btn text-gray-500 hover:text-gray-800 text-sm font-medium mr-3"><i class="fas fa-edit mr-1"></i> Modifier</button>
                             ${!isReceived ? `<button data-id="${po.id}" class="delete-po-btn text-red-500 hover:text-red-800 text-sm font-medium"><i class="fas fa-trash mr-1"></i> Supprimer</button>` : ''}
                         </div>
                         <div class="flex gap-2">
@@ -2699,54 +2699,127 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 await batch.commit(); 
                 showToast('Stock mis à jour !'); 
             } else if (target.classList.contains('delete-po-btn')) { 
-                 const poToDelete = allPurchaseOrders.find(po => po.id === poId);
-                if (confirm('Voulez-vous vraiment supprimer cette commande fournisseur ? Cette action est irréversible.')) { 
-                    try { 
-                        // Delete associated invoice from storage if it exists
-                         if (poToDelete && poToDelete.invoiceUrl) {
-                             try {
-                                 const fileRef = ref(storage, poToDelete.invoiceUrl);
-                                 await deleteObject(fileRef);
-                                 console.log("Associated invoice deleted from storage.");
-                             } catch (storageError) {
-                                 // Log error but continue deleting the DB record
-                                 console.error("Error deleting invoice from storage:", storageError);
-                                 showToast("Erreur lors de la suppression de la facture associée, mais la commande sera supprimée.");
-                             }
-                         }
-                        await deleteDoc(doc(purchaseOrdersCol, poId)); 
-                        showToast('Commande fournisseur supprimée.'); 
-                    } catch (error) { 
-                        console.error("Error deleting purchase order:", error); 
-                        showToast('Erreur lors de la suppression.'); 
-                    } 
-                } 
-            } else if (target.classList.contains('edit-po-btn')) { 
+    const poToDelete = allPurchaseOrders.find(po => po.id === poId);
+    if (confirm('Voulez-vous vraiment supprimer cette commande fournisseur ? Cette action est irréversible.')) { 
+        try { 
+            if (poToDelete && poToDelete.invoiceUrl) {
+                try {
+                    const fileRef = ref(storage, poToDelete.invoiceUrl);
+                    await deleteObject(fileRef);
+                    console.log("Associated invoice deleted from storage.");
+                } catch (storageError) {
+                    console.error("Error deleting invoice from storage:", storageError);
+                    showToast("Erreur lors de la suppression de la facture associée, mais la commande sera supprimée.");
+                }
+            }
+            await deleteDoc(doc(purchaseOrdersCol, poId)); 
+            showToast('Commande fournisseur supprimée.'); 
+        } catch (error) { 
+            console.error("Error deleting purchase order:", error); 
+            showToast('Erreur lors de la suppression.'); 
+        } 
+    }
+} else if (target.classList.contains('edit-po-btn')) { 
+    const purchaseOrder = allPurchaseOrders.find(po => po.id === poId); 
+    if (!purchaseOrder) return; 
+    
+    const isReceived = purchaseOrder.status === 'received';
+    
+    document.getElementById('po-modal-title').textContent = isReceived 
+        ? 'Modifier le Montant (Commande Réceptionnée)' 
+        : 'Modifier la Commande Fournisseur'; 
+        
+    document.getElementById('po-id').value = poId; 
+    document.getElementById('po-supplier-select').value = purchaseOrder.supplierId; 
+    
+    // Désactiver les champs si réceptionné
+    document.getElementById('po-supplier-select').disabled = isReceived;
+    document.getElementById('po-ingredient-select').disabled = isReceived;
+    document.getElementById('po-quantity').disabled = isReceived;
+    document.getElementById('po-price').disabled = isReceived;
+    document.getElementById('add-po-item-btn').disabled = isReceived;
+    
+    // Utiliser setTimeout pour les éléments générés dynamiquement
+    setTimeout(() => {
+        const itemInputs = document.querySelectorAll('.po-item-input');
+        itemInputs.forEach(input => input.disabled = isReceived);
+        const removeButtons = document.querySelectorAll('.remove-po-item-btn');
+        removeButtons.forEach(btn => btn.style.display = isReceived ? 'none' : 'block');
+    }, 100);
+    
+    // Définir le statut de paiement
+    const paymentStatusValue = purchaseOrder.paymentStatus || 'unpaid';
+    document.querySelector(`input[name="po-payment-status"][value="${paymentStatusValue}"]`).checked = true;
+    
+    // Désactiver les radios de paiement si réceptionné
+    document.querySelectorAll('input[name="po-payment-status"]').forEach(radio => {
+        radio.disabled = isReceived;
+    });
+
+    // Préparer les items avec prix
+    currentPurchaseOrderItems = purchaseOrder.items.map(item => ({
+        ...item,
+        price: Number(item.price) || 0
+    }));
+    renderCurrentPurchaseOrderItems();
+    
+    // Le champ total reste TOUJOURS éditable
+    const calculatedTotal = currentPurchaseOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    document.getElementById('po-total-cost-input').value = (purchaseOrder.totalCost || calculatedTotal).toFixed(2);
+    document.getElementById('po-total-cost-input').disabled = false;
+    
+    document.getElementById('po-invoice-file').value = ''; 
+    openModal('purchase-order-modal');
                 const purchaseOrder = allPurchaseOrders.find(po => po.id === poId); 
                 if (!purchaseOrder) return; 
-                document.getElementById('po-modal-title').textContent = 'Modifier la Commande Fournisseur'; 
+                
+                const isReceived = purchaseOrder.status === 'received';
+                
+                document.getElementById('po-modal-title').textContent = isReceived 
+                    ? 'Modifier le Montant (Commande Réceptionnée)' 
+                    : 'Modifier la Commande Fournisseur'; 
+                    
                 document.getElementById('po-id').value = poId; 
                 document.getElementById('po-supplier-select').value = purchaseOrder.supplierId; 
                 
+                // *** NEW: Désactiver les champs si réceptionné ***
+                document.getElementById('po-supplier-select').disabled = isReceived;
+                document.getElementById('po-ingredient-select').disabled = isReceived;
+                document.getElementById('po-quantity').disabled = isReceived;
+                document.getElementById('po-price').disabled = isReceived;
+                document.getElementById('add-po-item-btn').disabled = isReceived;
+                
+                // Désactiver aussi les inputs dans la liste des items
+                const itemInputs = document.querySelectorAll('.po-item-input');
+                itemInputs.forEach(input => input.disabled = isReceived);
+                const removeButtons = document.querySelectorAll('.remove-po-item-btn');
+                removeButtons.forEach(btn => btn.style.display = isReceived ? 'none' : 'block');
+                // *** END NEW ***
+                
                 // *** NEW: Set payment status radio ***
-                const paymentStatusValue = purchaseOrder.paymentStatus || 'unpaid'; // Default to unpaid if not set
+                const paymentStatusValue = purchaseOrder.paymentStatus || 'unpaid';
                 document.querySelector(`input[name="po-payment-status"][value="${paymentStatusValue}"]`).checked = true;
+                
+                // Désactiver le choix du statut de paiement si réceptionné
+                document.querySelectorAll('input[name="po-payment-status"]').forEach(radio => {
+                    radio.disabled = isReceived;
+                });
                 // *** END NEW ***
 
-                // Ensure items have price (backward compatibility or just robustness)
-                 currentPurchaseOrderItems = purchaseOrder.items.map(item => ({
-                     ...item,
-                     price: Number(item.price) || 0 // Ensure price is a number, default to 0 if missing/invalid
-                 }));
-                renderCurrentPurchaseOrderItems(); // Calcule et affiche le total basé sur les items
+                // Ensure items have price
+                currentPurchaseOrderItems = purchaseOrder.items.map(item => ({
+                    ...item,
+                    price: Number(item.price) || 0
+                }));
+                renderCurrentPurchaseOrderItems();
                 
-                // *** MODIFICATION : Remplir l'input avec le total SAUVEGARDÉ (qui peut être manuel) ***
+                // Le champ total reste TOUJOURS éditable
                 const calculatedTotal = currentPurchaseOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                 document.getElementById('po-total-cost-input').value = (purchaseOrder.totalCost || calculatedTotal).toFixed(2);
-                // *** FIN MODIFICATION ***
-
+                document.getElementById('po-total-cost-input').disabled = false; // Toujours éditable
+                
                 document.getElementById('po-invoice-file').value = ''; 
-                openModal('purchase-order-modal'); 
+                openModal('purchase-order-modal');
             } else if (target.classList.contains('reorder-po-btn')) {
                  const poToReorder = allPurchaseOrders.find(po => po.id === poId);
                  if (!poToReorder) return;
@@ -3336,6 +3409,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
     </script>
 </body>
 </html>
+
 
 
 
