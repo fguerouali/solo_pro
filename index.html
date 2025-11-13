@@ -81,6 +81,7 @@
                     <button class="tab-link" data-tab="orders"><i class="fas fa-receipt mr-2"></i>Ventes & Pertes</button>
 					<button class="tab-link" data-tab="charges"><i class="fas fa-file-invoice-dollar mr-2"></i>Charges</button>
 					<button class="tab-link" data-tab="rh"><i class="fas fa-users mr-2"></i>RH</button>
+					<button class="tab-link" data-tab="finance"><i class="fas fa-coins mr-2"></i>Finance</button>
 
                 </nav>
             </div>
@@ -451,7 +452,69 @@
         </div>
     </div>
 </div>
+<!-- ONGLET FINANCE -->
+<div id="finance-content" class="tab-content">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Section Déclaration Journalière -->
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Déclaration Journalière</h2>
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <form id="daily-payment-form">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="payment-date" class="block text-sm font-medium text-gray-700">Date</label>
+                            <input type="date" id="payment-date" required class="mt-1 w-full input-style">
+                        </div>
+                        <div>
+                            <label for="tpe-amount" class="block text-sm font-medium text-gray-700">Montant TPE (Mad)</label>
+                            <input type="number" id="tpe-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                        </div>
+                        <div>
+                            <label for="glovo-amount" class="block text-sm font-medium text-gray-700">Montant Glovo (Mad)</label>
+                            <input type="number" id="glovo-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                        </div>
+                    </div>
+                    
+                    <!-- Calcul Automatique -->
+                    <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Total ventes du jour :</span>
+                                <span id="day-total-sales" class="font-semibold text-gray-900">0.00 Mad</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">TPE + Glovo :</span>
+                                <span id="day-digital-payments" class="font-semibold text-blue-600">0.00 Mad</span>
+                            </div>
+                            <div class="flex justify-between border-t pt-2 mt-2">
+                                <span class="text-gray-800 font-semibold">Espèces attendues en caisse :</span>
+                                <span id="day-expected-cash" class="font-bold text-green-600 text-lg">0.00 Mad</span>
+                            </div>
+                        </div>
+                    </div>
 
+                    <div class="mt-6">
+                        <button type="submit" class="btn-primary w-full">
+                            <i class="fas fa-save mr-2"></i>Enregistrer la déclaration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Section Historique -->
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Historique des Déclarations</h2>
+            <div id="daily-payments-list" class="space-y-3">
+                <div id="daily-payments-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
+                    <i class="fas fa-file-invoice fa-2x text-gray-400 mb-2"></i>
+                    <p>Aucune déclaration enregistrée.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 </main>
 
         
@@ -774,6 +837,7 @@
         // --- COLLECTIONS REFS ---
         let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol,chargesCol;
 		let employeesCol, absencesCol, salaryPaymentsCol;
+		let dailyPaymentsCol;
         // --- ETAT GLOBAL ---
         let allIngredients = [];
         let allProducts = [];
@@ -785,6 +849,7 @@
 		let allEmployees = []; // AJOUTEZ CETTE LIGNE
 let allAbsences = []; // AJOUTEZ CETTE LIGNE
 let allSalaryPayments = []; // AJOUTEZ CETTE LIGNE
+let allDailyPayments = [];
         let currentRecipe = [];
         let currentOrder = [];
         let currentPurchaseOrderItems = [];
@@ -807,7 +872,9 @@ let allSalaryPayments = []; // AJOUTEZ CETTE LIGNE
 				        employeesCol = collection(db, `artifacts/${appId}/public/data/employees`);
         absencesCol = collection(db, `artifacts/${appId}/public/data/absences`);
         salaryPaymentsCol = collection(db, `artifacts/${appId}/public/data/salaryPayments`);
+		dailyPaymentsCol = collection(db, `artifacts/${appId}/public/data/dailyPayments`);
                 listenToAllCollections();
+				document.getElementById('payment-date').value = getTodayDateString();
                 document.getElementById('sale-date').value = getTodayDateString();
                  // Set default dates for API import modal
                 document.getElementById('api-start-date').value = getTodayDateString();
@@ -849,6 +916,11 @@ onSnapshot(employeesCol, snapshot => {
         allSalaryPayments.sort((a, b) => (toDate(b.paymentDate)?.getTime() || 0) - (toDate(a.paymentDate)?.getTime() || 0));
         renderSalaryPaymentsHistory();
     });
+	onSnapshot(dailyPaymentsCol, snapshot => {
+    allDailyPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    allDailyPayments.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
+    renderDailyPayments();
+});
         }
         
         // --- HELPERS ---
@@ -1845,7 +1917,166 @@ const renderSalaryPaymentsHistory = () => {
         });
     }
 };
+// ======================
+// === SECTION FINANCE ===
+// ======================
 
+// Calculer les ventes d'une date spécifique
+const calculateSalesForDate = (dateInput) => {
+    const selectedDate = new Date(dateInput);
+    selectedDate.setHours(0, 0, 0, 0);
+    const nextDay = new Date(selectedDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    
+    return orderHistory.filter(order => {
+        const orderDate = toDate(order.saleDate || order.createdAt);
+        if (!orderDate) return false;
+        orderDate.setHours(0, 0, 0, 0);
+        return orderDate.getTime() === selectedDate.getTime();
+    }).reduce((sum, order) => sum + order.totalPrice, 0);
+};
+
+// Mettre à jour les calculs en temps réel
+const updateDailyPaymentCalculations = () => {
+    const dateValue = document.getElementById('payment-date').value;
+    const tpeAmount = parseFloat(document.getElementById('tpe-amount').value) || 0;
+    const glovoAmount = parseFloat(document.getElementById('glovo-amount').value) || 0;
+    
+    if (!dateValue) return;
+    
+    const totalSales = calculateSalesForDate(dateValue);
+    const digitalPayments = tpeAmount + glovoAmount;
+    const expectedCash = Math.max(0, totalSales - digitalPayments);
+    
+    document.getElementById('day-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
+    document.getElementById('day-digital-payments').textContent = `${digitalPayments.toFixed(2)} Mad`;
+    document.getElementById('day-expected-cash').textContent = `${expectedCash.toFixed(2)} Mad`;
+    document.getElementById('day-expected-cash').className = 
+        expectedCash < 0 ? 'font-bold text-red-600 text-lg' : 'font-bold text-green-600 text-lg';
+};
+
+// Render l'historique des déclarations
+const renderDailyPayments = () => {
+    const container = document.getElementById('daily-payments-list');
+    const placeholder = document.getElementById('daily-payments-placeholder');
+    container.innerHTML = '';
+    
+    if (allDailyPayments.length === 0) {
+        container.appendChild(placeholder);
+    } else {
+        allDailyPayments.forEach(payment => {
+            const card = document.createElement('div');
+            card.className = 'bg-white p-4 rounded-lg shadow-sm';
+            
+            const date = toDate(payment.date);
+            const formattedDate = date ? `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}` : 'Date inconnue';
+            
+            const totalDigital = payment.tpeAmount + payment.glovoAmount;
+            const expectedCash = payment.totalSales - totalDigital;
+            
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 class="font-semibold text-gray-900">${formattedDate}</h3>
+                        <p class="text-sm text-gray-600">Total ventes : ${payment.totalSales.toFixed(2)} Mad</p>
+                    </div>
+                    <button data-id="${payment.id}" class="delete-daily-payment-btn text-gray-400 hover:text-red-600 transition-colors">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-sm">
+                    <div class="bg-blue-50 p-2 rounded">
+                        <p class="text-xs text-blue-600">TPE</p>
+                        <p class="font-semibold">${payment.tpeAmount.toFixed(2)} Mad</p>
+                    </div>
+                    <div class="bg-purple-50 p-2 rounded">
+                        <p class="text-xs text-purple-600">Glovo</p>
+                        <p class="font-semibold">${payment.glovoAmount.toFixed(2)} Mad</p>
+                    </div>
+                    <div class="bg-green-50 p-2 rounded">
+                        <p class="text-xs text-green-600">Espèces</p>
+                        <p class="font-semibold">${expectedCash.toFixed(2)} Mad</p>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+};
+
+// Event Listeners pour Finance
+document.getElementById('payment-date').addEventListener('change', updateDailyPaymentCalculations);
+document.getElementById('tpe-amount').addEventListener('input', updateDailyPaymentCalculations);
+document.getElementById('glovo-amount').addEventListener('input', updateDailyPaymentCalculations);
+
+// Soumettre la déclaration journalière
+document.getElementById('daily-payment-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const dateValue = document.getElementById('payment-date').value;
+    const tpeAmount = parseFloat(document.getElementById('tpe-amount').value) || 0;
+    const glovoAmount = parseFloat(document.getElementById('glovo-amount').value) || 0;
+    
+    if (!dateValue) {
+        showToast("Veuillez sélectionner une date.");
+        return;
+    }
+    
+    const totalSales = calculateSalesForDate(dateValue);
+    const paymentDate = new Date(dateValue);
+    paymentDate.setHours(12, 0, 0, 0);
+    
+    // Vérifier si une déclaration existe déjà pour cette date
+    const existingPayment = allDailyPayments.find(p => {
+        const pDate = toDate(p.date);
+        return pDate && pDate.toDateString() === paymentDate.toDateString();
+    });
+    
+    try {
+        const data = {
+            date: paymentDate,
+            tpeAmount,
+            glovoAmount,
+            totalSales,
+            expectedCash: totalSales - (tpeAmount + glovoAmount),
+            createdAt: serverTimestamp()
+        };
+        
+        if (existingPayment) {
+            await updateDoc(doc(dailyPaymentsCol, existingPayment.id), data);
+            showToast('Déclaration mise à jour !');
+        } else {
+            await addDoc(dailyPaymentsCol, data);
+            showToast('Déclaration enregistrée !');
+        }
+        
+        // Réinitialiser le formulaire
+        document.getElementById('tpe-amount').value = '0';
+        document.getElementById('glovo-amount').value = '0';
+        updateDailyPaymentCalculations();
+        
+    } catch (error) {
+        console.error("Erreur déclaration:", error);
+        showToast("Erreur lors de l'enregistrement.");
+    }
+});
+
+// Supprimer une déclaration
+document.getElementById('daily-payments-list').addEventListener('click', async (e) => {
+    const deleteBtn = e.target.closest('.delete-daily-payment-btn');
+    if (deleteBtn) {
+        const paymentId = deleteBtn.dataset.id;
+        if (confirm('Supprimer cette déclaration ?')) {
+            try {
+                await deleteDoc(doc(dailyPaymentsCol, paymentId));
+                showToast('Déclaration supprimée.');
+            } catch (error) {
+                console.error("Erreur suppression:", error);
+                showToast("Erreur lors de la suppression.");
+            }
+        }
+    }
+});
 const renderAbsencesForEmployee = (employeeId) => {
     const container = document.getElementById('absences-list');
     const employeeAbsences = allAbsences.filter(a => a.employeeId === employeeId);
