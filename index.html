@@ -1055,7 +1055,7 @@ const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 const lossRate = totalSales > 0 ? (totalLossesValue / totalSales) * 100 : 0;
 const totalCharges = filteredCharges.reduce((sum, charge) => sum + charge.amount, 0);
 const netProfit = grossMargin - totalCharges;
-document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
+
 
 // ^ ^ ^ **FIN DES 4 CALCULS** ^ ^ ^
             // --- Update KPI DOM ---
