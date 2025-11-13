@@ -2771,7 +2771,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
     
     document.getElementById('po-invoice-file').value = ''; 
     openModal('purchase-order-modal');
-}
+
             } else if (target.classList.contains('reorder-po-btn')) {
                  const poToReorder = allPurchaseOrders.find(po => po.id === poId);
                  if (!poToReorder) return;
