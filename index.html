@@ -1903,12 +1903,15 @@ const renderSalaryPaymentsHistory = () => {
 
             card.innerHTML = `
                 <div class="flex justify-between items-start mb-2">
-                    <div>
+                    <div class="flex-grow">
                         <h3 class="font-semibold text-gray-900">Paiement du ${formattedDate}</h3>
                         <p class="text-xs text-gray-500">Mois: ${payment.month}</p>
                     </div>
-                    <div class="text-right">
+                    <div class="flex items-center gap-3">
                         <p class="text-lg font-bold text-red-600">${payment.totalAmount.toFixed(2)} Mad</p>
+                        <button data-id="${payment.id}" class="delete-salary-payment-btn text-gray-400 hover:text-red-600 transition-colors" title="Supprimer ce paiement">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
                     </div>
                 </div>
                 <ul class="space-y-1 border-t pt-2 mt-2">
@@ -2392,6 +2395,44 @@ document.getElementById('pay-all-salaries-btn').addEventListener('click', async 
 });
 
 // ^ ^ ^ **FIN DU BLOC RH** ^ ^ ^
+/ === AJOUT: SUPPRESSION DES PAIEMENTS DE SALAIRES ===
+// Supprimer un paiement de salaire
+document.getElementById('salary-payments-history').addEventListener('click', async (e) => {
+    const deleteBtn = e.target.closest('.delete-salary-payment-btn');
+    if (deleteBtn) {
+        const paymentId = deleteBtn.dataset.id;
+        const payment = allSalaryPayments.find(p => p.id === paymentId);
+        
+        if (!payment) return;
+        
+        if (confirm(`Voulez-vous vraiment supprimer ce paiement de salaires ?\n\nMontant: ${payment.totalAmount.toFixed(2)} Mad\nMois: ${payment.month}\n\nLa charge associée sera également supprimée.`)) {
+            try {
+                // 1. Supprimer le paiement de salaire
+                await deleteDoc(doc(salaryPaymentsCol, paymentId));
+                
+                // 2. Trouver et supprimer la charge associée dans les charges
+                // On cherche une charge de type 'salary' avec le même montant et le même mois
+                const associatedCharge = allCharges.find(charge => 
+                    charge.type === 'salary' && 
+                    charge.name === `Salaires ${payment.month}` &&
+                    Math.abs(charge.amount - payment.totalAmount) < 0.01 // Comparaison avec tolérance
+                );
+                
+                if (associatedCharge) {
+                    await deleteDoc(doc(chargesCol, associatedCharge.id));
+                    showToast(`Paiement supprimé. Charge de ${payment.totalAmount.toFixed(2)} Mad retirée.`);
+                } else {
+                    showToast('Paiement supprimé (charge associée non trouvée).');
+                }
+                
+            } catch (error) {
+                console.error("Erreur suppression paiement salaire:", error);
+                showToast("Erreur lors de la suppression.");
+            }
+        }
+    }
+});
+// === FIN AJOUT ===
 // V V V **AJOUTEZ CE BLOC POUR LES CHARGES** V V V
 // --- CHARGES ---
 
