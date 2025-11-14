@@ -471,8 +471,13 @@
                             <input type="number" id="tpe-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
                         </div>
                         <div>
-                            <label for="glovo-amount" class="block text-sm font-medium text-gray-700">Montant Glovo (Mad)</label>
+                            <label for="glovo-amount" class="block text-sm font-medium text-gray-700">Montant Glovo TPE (Mad)</label>
                             <input type="number" id="glovo-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                        </div>
+                        <!-- ✅ NOUVEAU CHAMP AJOUTÉ -->
+                        <div>
+                            <label for="glovo-cash-amount" class="block text-sm font-medium text-gray-700">Montant Glovo Espèces (Mad)</label>
+                            <input type="number" id="glovo-cash-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
                         </div>
                     </div>
                     
@@ -1977,6 +1982,7 @@ const renderDailyPayments = () => {
             const formattedDate = date ? `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}` : 'Date inconnue';
             
             const totalDigital = payment.tpeAmount + payment.glovoAmount;
+            const glovoCash = payment.glovoCashAmount || 0; // ✅ AJOUTÉ
             const expectedCash = payment.totalSales - totalDigital;
             
             card.innerHTML = `
@@ -1984,6 +1990,7 @@ const renderDailyPayments = () => {
                     <div>
                         <h3 class="font-semibold text-gray-900">${formattedDate}</h3>
                         <p class="text-sm text-gray-600">Total ventes : ${payment.totalSales.toFixed(2)} Mad</p>
+                        <p class="text-xs text-orange-600">Glovo Cash : ${glovoCash.toFixed(2)} Mad</p>
                     </div>
                     <button data-id="${payment.id}" class="delete-daily-payment-btn text-gray-400 hover:text-red-600 transition-colors">
                         <i class="fas fa-trash-alt"></i>
@@ -2013,6 +2020,8 @@ const renderDailyPayments = () => {
 document.getElementById('payment-date').addEventListener('change', updateDailyPaymentCalculations);
 document.getElementById('tpe-amount').addEventListener('input', updateDailyPaymentCalculations);
 document.getElementById('glovo-amount').addEventListener('input', updateDailyPaymentCalculations);
+document.getElementById('glovo-cash-amount').addEventListener('input', updateDailyPaymentCalculations);
+
 
 // Soumettre la déclaration journalière
 document.getElementById('daily-payment-form').addEventListener('submit', async (e) => {
@@ -2037,11 +2046,14 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
         return pDate && pDate.toDateString() === paymentDate.toDateString();
     });
     
-    try {
+   try {
+        const glovoCashAmount = parseFloat(document.getElementById('glovo-cash-amount').value) || 0; // ✅ AJOUTÉ
+        
         const data = {
             date: paymentDate,
             tpeAmount,
             glovoAmount,
+            glovoCashAmount, // ✅ AJOUTÉ
             totalSales,
             expectedCash: totalSales - (tpeAmount + glovoAmount),
             createdAt: serverTimestamp()
@@ -2058,6 +2070,7 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
         // Réinitialiser le formulaire
         document.getElementById('tpe-amount').value = '0';
         document.getElementById('glovo-amount').value = '0';
+        document.getElementById('glovo-cash-amount').value = '0'; // ✅ AJOUTÉ
         updateDailyPaymentCalculations();
         
     } catch (error) {
@@ -3404,6 +3417,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
     </script>
 </body>
 </html>
+
 
 
 
