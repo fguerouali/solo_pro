@@ -1621,13 +1621,14 @@ document.getElementById('current-order-list').addEventListener('click', e => { c
             } 
             
             for (const [ingId, qty] of tempDeductions.entries()) { 
-                const ing = allIngredients.find(i => i.id === ingId); 
-                if (!ing || ing.quantity < qty) { 
-                    showToast(`Stock insuffisant pour: ${ing ? ing.name : 'inconnu'}`); 
-                    return; 
-                } 
-                batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) }); 
-            } 
+    const ing = allIngredients.find(i => i.id === ingId); 
+    if (!ing) {
+        showToast(`Ingrédient inconnu détecté`);
+        return;
+    }
+    // ✅ ON DÉDUIT QUOI QU'IL ARRIVE (même si stock insuffisant)
+    batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) }); 
+}
             
             const saleDateInput = document.getElementById('sale-date').value;
             const saleDate = saleDateInput ? new Date(saleDateInput) : new Date();
@@ -1755,30 +1756,27 @@ document.getElementById('current-order-list').addEventListener('click', e => { c
                 } 
 
                 for (const [ingId, qtyToDeduct] of tempDeductions.entries()) { 
-                    const ing = allIngredients.find(i => i.id === ingId); 
-                    if (!ing || ing.quantity < qtyToDeduct) { 
-                        showToast(`Stock insuffisant pour: ${ing ? ing.name : 'inconnu'}`); 
-                        success = false; 
-                        break; 
-                    } 
-                    batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qtyToDeduct) }); 
-                } 
+    const ing = allIngredients.find(i => i.id === ingId); 
+    if (!ing) {
+        showToast(`Ingrédient inconnu détecté`);
+        success = false;
+        break;
+    }
+    // ✅ ON DÉDUIT QUOI QU'IL ARRIVE
+    batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qtyToDeduct) }); 
+}
             } else { 
-                const ingredientId = document.getElementById('loss-ingredient-select').value; 
-                const ingredient = allIngredients.find(i => i.id === ingredientId); 
-                if (!ingredient) return showToast("Ingrédient non trouvé."); 
-                
-                if (ingredient.quantity < quantity) { 
-                    showToast(`Stock insuffisant pour: ${ingredient.name}`); 
-                    success = false; 
-                } else { 
-                    lossData.itemId = ingredientId; 
-                    lossData.itemName = ingredient.name; 
-                    lossData.unit = ingredient.unit; 
-                    lossData.type = 'ingredient'; 
-                    batch.update(doc(ingredientsCol, ingredientId), { quantity: increment(-quantity) }); 
-                } 
-            } 
+    const ingredientId = document.getElementById('loss-ingredient-select').value; 
+    const ingredient = allIngredients.find(i => i.id === ingredientId); 
+    if (!ingredient) return showToast("Ingrédient non trouvé."); 
+    
+    // ✅ ON DÉDUIT QUOI QU'IL ARRIVE (plus de vérification de stock)
+    lossData.itemId = ingredientId; 
+    lossData.itemName = ingredient.name; 
+    lossData.unit = ingredient.unit; 
+    lossData.type = 'ingredient'; 
+    batch.update(doc(ingredientsCol, ingredientId), { quantity: increment(-quantity) });}
+                    
 
             if (success) { 
                 batch.set(doc(lossesCol), lossData); 
@@ -2897,8 +2895,8 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
             statusText.textContent = 'Authentification en cours...';
             submitButton.disabled = true;
             let salesImportedCount = 0; 
-            let salesSkippedCount = 0; 
-            let allSalesData = []; 
+            // ✅ Plus besoin de salesSkippedCount
+            let allSalesData = [];
 
             try {
                 // --- Step 1: Authenticate via Proxy ---
@@ -3097,8 +3095,8 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
 
                 // --- Step 4: Check Stock and Save Batch ---
                  const batch = writeBatch(db);
-                 const failedStockChecks = [];
-                 statusText.textContent = `Vérification du stock pour ${salesToSave.length} commandes...`;
+                 // ✅ Plus besoin de failedStockChecks ni de stockAvailable
+                 statusText.textContent = `Importation de ${salesToSave.length} commande(s)...`;
 
 
                  for (const sale of salesToSave) {
@@ -3126,54 +3124,32 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                      }
 
                      // Check stock for this specific sale
+                    // ✅ NOUVELLE LOGIQUE : On déduit toujours le stock, même s'il est insuffisant
+                     // Add stock deductions to batch
                      for (const [ingId, qty] of tempDeductions.entries()) {
-                         const ing = allIngredients.find(i => i.id === ingId);
-                         if (!ing || ing.quantity < qty) {
-                             stockAvailable = false;
-                             const failedProdName = sale.items.find(i => {
-                                 const p = allProducts.find(pr => pr.id === i.id);
-                                 return (p?.recipe?.some(r => r.id === ingId) || p?.linkedIngredientId === ingId);
-                             })?.name || 'inconnu';
-                             failedStockChecks.push(`Stock insuffisant pour facture ${sale.billNo} (produit: ${failedProdName}, ingrédient: ${ing?.name || 'inconnu'})`);
-                             break; // Stop checking stock for this sale
-                         }
+                         batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
                      }
-
-                     if (stockAvailable) {
-                         // Add stock deductions to batch
-                         for (const [ingId, qty] of tempDeductions.entries()) {
-                             batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
-                         }
-                         // Add sale record to batch
-                         batch.set(doc(collection(db, ordersCol.path)), { 
-                             items: sale.items,
-                             totalPrice: sale.totalPrice,
-                             createdAt: serverTimestamp(), 
-                             saleDate: sale.saleDate,
-								billNo: sale.billNo,
-								hadDiscount: sale.hadDiscount
-                         });
-                         salesImportedCount++;
-                     } else {
-                         salesSkippedCount++;
-                     }
+                     
+                     // Add sale record to batch
+                     batch.set(doc(collection(db, ordersCol.path)), { 
+                         items: sale.items,
+                         totalPrice: sale.totalPrice,
+                         createdAt: serverTimestamp(), 
+                         saleDate: sale.saleDate,
+                         billNo: sale.billNo,
+                         hadDiscount: sale.hadDiscount
+                     });
+                     salesImportedCount++;
                  }
 
                 // --- Step 5: Commit Batch ---
+                 // --- Step 5: Commit Batch ---
                  if (salesImportedCount > 0) {
                      statusText.textContent = `Enregistrement de ${salesImportedCount} vente(s)...`;
                      await batch.commit();
-                     let successMsg = `${salesImportedCount} vente(s) importée(s) avec succès via API.`;
-                     if (salesSkippedCount > 0) {
-                          successMsg += ` ${salesSkippedCount} vente(s) ignorée(s) (stock insuffisant).`;
-                          console.warn("Ventes ignorées (stock):", failedStockChecks.join('\n'));
-                      }
-                     showToast(successMsg);
-                 } else if (salesSkippedCount > 0) {
-                      showToast(`Aucune vente importée via API. ${salesSkippedCount} vente(s) ignorée(s) (stock insuffisant).`);
-                      console.warn("Ventes ignorées (stock):", failedStockChecks.join('\n'));
+                     showToast(`${salesImportedCount} vente(s) importée(s) avec succès via API.`);
                  } else {
-                       showToast("Aucune vente valide trouvée à importer via API."); 
+                     showToast("Aucune vente valide trouvée à importer via API."); 
                  }
 
 
@@ -3196,7 +3172,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 statusText.textContent = ''; // Clear status text
                 submitButton.disabled = false;
                  // Close modal only if there was some success or no data initially
-                 if(salesImportedCount > 0 || (salesSkippedCount === 0 && salesImportedCount === 0 && allSalesData.length === 0)) { 
+                 if(salesImportedCount > 0 || allSalesData.length === 0) { 
                      closeModal('api-import-modal');
                  }
             }
@@ -3417,6 +3393,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
     </script>
 </body>
 </html>
+
 
 
 
