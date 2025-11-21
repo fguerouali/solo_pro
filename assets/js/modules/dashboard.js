@@ -5,7 +5,7 @@
 
 import { LOW_STOCK_THRESHOLD } from '../core/constants.js';
 import { toDate, calculateProductCost } from '../core/helpers.js';
-import { renderTopProducts } from './renderers-extended.js';
+import { renderTopProducts } from '../ui/renderers-extended.js';
 import { getAllIngredients, getAllProducts, getOrderHistory, getAllPurchaseOrders, getAllLosses, getAllCharges } from '../core/state.js';
 
 /**
