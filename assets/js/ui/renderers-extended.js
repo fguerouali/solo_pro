@@ -256,15 +256,17 @@ export const renderTopProducts = (topProducts, containerId, emptyMessage) => {
 };
 
 // Additional renderers for dynamic lists with input fields
-import { currentOrder, currentPurchaseOrderItems, currentRecipe, allIngredients } from '../core/state.js';
+import { getCurrentOrder, getCurrentPurchaseOrderItems, getCurrentRecipe, getAllIngredients } from '../core/state.js';
 import { calculateProductCost } from '../core/helpers.js';
 
 export const updateOrderTotal = () => {
+    const currentOrder = getCurrentOrder();
     const total = currentOrder.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     document.getElementById('current-order-total-input').value = total.toFixed(2);
 };
 
 export const renderCurrentOrder = () => {
+    const currentOrder = getCurrentOrder();
     const list = document.getElementById('current-order-list');
     const orderListPlaceholder = document.getElementById('order-placeholder');
     const processBtn = document.getElementById('process-order-btn');
@@ -286,11 +288,13 @@ export const renderCurrentOrder = () => {
 };
 
 export const updatePurchaseOrderTotal = () => {
+    const currentPurchaseOrderItems = getCurrentPurchaseOrderItems();
     const total = currentPurchaseOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     document.getElementById('po-total-cost-input').value = total.toFixed(2);
 };
 
 export const renderCurrentPurchaseOrderItems = () => {
+    const currentPurchaseOrderItems = getCurrentPurchaseOrderItems();
     const list = document.getElementById('po-items-list');
     list.innerHTML = '';
 
@@ -335,6 +339,8 @@ export const renderCurrentPurchaseOrderItems = () => {
 };
 
 export const updateRecipeCost = () => {
+    const currentRecipe = getCurrentRecipe();
+    const allIngredients = getAllIngredients();
     const cost = currentRecipe.reduce((total, recipeItem) => {
         const ingredient = allIngredients.find(ing => ing.id === recipeItem.id);
         return total + ((ingredient?.cost || 0) * recipeItem.quantity);
@@ -343,6 +349,7 @@ export const updateRecipeCost = () => {
 };
 
 export const renderCurrentRecipe = () => {
+    const currentRecipe = getCurrentRecipe();
     const list = document.getElementById('recipe-ingredients-list');
     list.innerHTML = '';
     currentRecipe.forEach((item, index) => {
