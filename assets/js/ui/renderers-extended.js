@@ -255,3 +255,102 @@ export const renderTopProducts = (topProducts, containerId, emptyMessage) => {
     });
 };
 
+// Additional renderers for dynamic lists with input fields
+import { currentOrder, currentPurchaseOrderItems, currentRecipe, allIngredients } from '../core/state.js';
+import { calculateProductCost } from '../core/helpers.js';
+
+export const updateOrderTotal = () => {
+    const total = currentOrder.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    document.getElementById('current-order-total-input').value = total.toFixed(2);
+};
+
+export const renderCurrentOrder = () => {
+    const list = document.getElementById('current-order-list');
+    const orderListPlaceholder = document.getElementById('order-placeholder');
+    const processBtn = document.getElementById('process-order-btn');
+    list.innerHTML = '';
+
+    if (currentOrder.length === 0) {
+        list.appendChild(orderListPlaceholder);
+        processBtn.disabled = true;
+    } else {
+        currentOrder.forEach((item, index) => {
+            const li = document.createElement('li');
+            li.className = 'flex justify-between items-center';
+            li.innerHTML = `<span>${item.quantity} x ${item.name}</span><button data-index="${index}" class="remove-order-item text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>`;
+            list.appendChild(li);
+        });
+        processBtn.disabled = false;
+    }
+    updateOrderTotal();
+};
+
+export const updatePurchaseOrderTotal = () => {
+    const total = currentPurchaseOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    document.getElementById('po-total-cost-input').value = total.toFixed(2);
+};
+
+export const renderCurrentPurchaseOrderItems = () => {
+    const list = document.getElementById('po-items-list');
+    list.innerHTML = '';
+
+    if (currentPurchaseOrderItems.length > 0) {
+        list.innerHTML = `
+            <div class="flex justify-between items-center text-sm font-medium text-gray-500 mb-1 px-2">
+                <div class="flex-grow grid grid-cols-4 gap-2 items-center">
+                    <span class="col-span-2">Article</span>
+                    <span class="text-right">Quantité</span>
+                    <span class="text-right">Prix/Unité</span>
+                </div>
+                <span class="ml-2 w-6"></span>
+            </div>
+        `;
+    }
+
+    currentPurchaseOrderItems.forEach((item, index) => {
+        const li = document.createElement('div');
+        li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded';
+
+        li.innerHTML = `
+            <div class="flex-grow grid grid-cols-4 gap-2 items-center">
+                <span class="col-span-2 text-sm">${item.name} (${item.unit})</span>
+
+                <label class="sr-only" for="po-item-qty-${index}">Quantité ${item.name}</label>
+                <input type="number" step="any" min="0" value="${item.quantity}" data-index="${index}" data-field="quantity"
+                       id="po-item-qty-${index}"
+                       class="po-item-input w-full p-1 border border-gray-300 rounded-lg shadow-sm text-right">
+
+                <label class="sr-only" for="po-item-price-${index}">Prix ${item.name}</label>
+                <input type="number" step="any" min="0" value="${(item.price || 0).toFixed(2)}" data-index="${index}" data-field="price"
+                       id="po-item-price-${index}"
+                       class="po-item-input w-full p-1 border border-gray-300 rounded-lg shadow-sm text-right">
+            </div>
+            <button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700 ml-2 w-6 flex-shrink-0">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        `;
+        list.appendChild(li);
+    });
+    updatePurchaseOrderTotal();
+};
+
+export const updateRecipeCost = () => {
+    const cost = currentRecipe.reduce((total, recipeItem) => {
+        const ingredient = allIngredients.find(ing => ing.id === recipeItem.id);
+        return total + ((ingredient?.cost || 0) * recipeItem.quantity);
+    }, 0);
+    document.getElementById('current-recipe-cost').textContent = `${cost.toFixed(2)} Mad`;
+};
+
+export const renderCurrentRecipe = () => {
+    const list = document.getElementById('recipe-ingredients-list');
+    list.innerHTML = '';
+    currentRecipe.forEach((item, index) => {
+        const li = document.createElement('div');
+        li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded';
+        li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name}</span><button type="button" data-index="${index}" class="remove-recipe-item text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`;
+        list.appendChild(li);
+    });
+    updateRecipeCost();
+};
+
