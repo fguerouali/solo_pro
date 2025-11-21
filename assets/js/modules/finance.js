@@ -1,7 +1,7 @@
 import { firebase } from '../services/firebase-service.js';
 import { db, dailyPaymentsCol } from '../config/firebase.js';
 import { showToast, getTodayDateString, toDate } from '../core/helpers.js';
-import { orderHistory, allDailyPayments } from '../core/state.js';
+import { getOrderHistory, getAllDailyPayments } from '../core/state.js';
 import { doc, addDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 export const setupFinanceEventListeners = () => {

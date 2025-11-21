@@ -1,7 +1,7 @@
 import { firebase } from '../services/firebase-service.js';
 import { db, ordersCol, ingredientsCol } from '../config/firebase.js';
 import { showToast, getTodayDateString, formatDateToDDMMYYYY, toDate } from '../core/helpers.js';
-import { allProducts, allIngredients, orderHistory, currentOrder, setCurrentOrder } from '../core/state.js';
+import { getAllProducts, getAllIngredients, getOrderHistory, getCurrentOrder, setCurrentOrder } from '../core/state.js';
 import { renderCurrentOrder } from '../ui/renderers-extended.js';
 import { renderOrderHistory } from '../ui/renderers.js';
 import { doc, writeBatch, serverTimestamp, increment, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";

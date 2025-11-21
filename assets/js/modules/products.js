@@ -1,7 +1,7 @@
 import { firebase } from '../services/firebase-service.js';
 import { showToast } from '../core/helpers.js';
 import { openModal, closeModal } from '../ui/modals.js';
-import { allIngredients, allProducts, currentRecipe, setCurrentRecipe } from '../core/state.js';
+import { getAllIngredients, getAllProducts, getCurrentRecipe, setCurrentRecipe } from '../core/state.js';
 import { renderCurrentRecipe, updateRecipeCost } from '../ui/renderers-extended.js';
 
 export const setupProductsEventListeners = () => {
@@ -43,8 +43,9 @@ export const setupProductsEventListeners = () => {
             return showToast("Veuillez sélectionner un ingrédient et une quantité valide.");
         }
         
+        const allIngredients = getAllIngredients();
         const ingredient = allIngredients.find(ing => ing.id === ingredientId); 
-        const recipe = [...currentRecipe, { 
+        const recipe = [...getCurrentRecipe(), { 
             id: ingredient.id, 
             name: ingredient.name, 
             quantity: quantity, 
@@ -134,6 +135,7 @@ export const setupProductsEventListeners = () => {
                 showToast('Produit supprimé.'); 
             } 
         } else if (target.closest('.edit-product-btn')) { 
+            const allProducts = getAllProducts();
             const product = allProducts.find(p => p.id === id); 
             document.getElementById('product-modal-title').textContent = 'Modifier un Produit'; 
             document.getElementById('product-id').value = id; 
@@ -159,6 +161,8 @@ export const setupProductsEventListeners = () => {
     });
 
     document.getElementById('export-products-btn').addEventListener('click', () => {
+        const allProducts = getAllProducts();
+        const allIngredients = getAllIngredients();
         let csv = "nom,prix,type,details\n"; 
         allProducts.forEach(p => { 
             let d = ''; 
@@ -177,6 +181,7 @@ export const setupProductsEventListeners = () => {
 
 // Helper functions for populating selects
 export const populateIngredientSelects = () => {
+    const allIngredients = getAllIngredients();
     const recipeSelect = document.getElementById('recipe-ingredient-select');
     const linkedSelect = document.getElementById('linked-ingredient-select');
     const poSelect = document.getElementById('po-ingredient-select');
@@ -190,6 +195,7 @@ export const populateIngredientSelects = () => {
 };
 
 export const populateProductSelects = () => {
+    const allProducts = getAllProducts();
     const orderSelect = document.getElementById('order-product-select');
     const lossSelect = document.getElementById('loss-product-select');
     const options = allProducts.map(product => `<option value="${product.id}">${product.name}</option>`).join('');

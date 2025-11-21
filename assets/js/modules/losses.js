@@ -2,7 +2,7 @@ import { firebase } from '../services/firebase-service.js';
 import { db, lossesCol, ingredientsCol } from '../config/firebase.js';
 import { showToast, calculateProductCost } from '../core/helpers.js';
 import { openModal, closeModal } from '../ui/modals.js';
-import { allProducts, allIngredients, allLosses } from '../core/state.js';
+import { getAllProducts, getAllIngredients, getAllLosses } from '../core/state.js';
 import { doc, writeBatch, serverTimestamp, increment, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 export const setupLossesEventListeners = () => {

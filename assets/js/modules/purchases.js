@@ -2,7 +2,7 @@ import { firebase } from '../services/firebase-service.js';
 import { db, purchaseOrdersCol, ingredientsCol, storage, appId } from '../config/firebase.js';
 import { showToast, getTodayDateString } from '../core/helpers.js';
 import { openModal, closeModal } from '../ui/modals.js';
-import { allSuppliers, allPurchaseOrders, allIngredients, currentPurchaseOrderItems, setCurrentPurchaseOrderItems } from '../core/state.js';
+import { getAllSuppliers, getAllPurchaseOrders, getAllIngredients, getCurrentPurchaseOrderItems, setCurrentPurchaseOrderItems } from '../core/state.js';
 import { renderCurrentPurchaseOrderItems } from '../ui/renderers-extended.js';
 import { doc, updateDoc, getDoc, writeBatch, deleteDoc, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";

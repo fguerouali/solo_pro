@@ -2,7 +2,7 @@ import { firebase } from '../services/firebase-service.js';
 import { db, employeesCol, absencesCol, salaryPaymentsCol, chargesCol } from '../config/firebase.js';
 import { showToast, getTodayDateString, toDate, formatDateToDDMMYYYY } from '../core/helpers.js';
 import { openModal, closeModal } from '../ui/modals.js';
-import { allEmployees, allAbsences, allSalaryPayments, allCharges, currentSalaryCalculations, setCurrentSalaryCalculations } from '../core/state.js';
+import { getAllEmployees, getAllAbsences, getAllSalaryPayments, getAllCharges, getCurrentSalaryCalculations, setCurrentSalaryCalculations } from '../core/state.js';
 import { doc, addDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 export const setupRHEventListeners = () => {
