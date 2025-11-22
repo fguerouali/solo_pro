@@ -323,18 +323,28 @@
                  <!-- Section Historique -->
                  <div class="mt-12">
                        <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
-                           <h2 class="text-2xl font-semibold text-gray-800">Historique</h2>
+                            <div class="flex items-center gap-4">
+                                <h2 class="text-2xl font-semibold text-gray-800">Historique</h2>
+                                <div class="flex items-center gap-2 bg-gray-100 p-2 rounded-lg shadow-sm">
+                                    <input type="checkbox" id="select-all-orders" class="h-5 w-5 text-gray-800 rounded cursor-pointer border-gray-300 focus:ring-gray-800">
+                                    <span class="text-sm font-medium text-gray-600">Tout</span>
+                                    <button id="delete-selected-orders-btn" class="hidden bg-red-600 text-white text-xs font-bold px-3 py-2 rounded hover:bg-red-700 transition-colors flex items-center shadow-sm">
+                                        <i class="fas fa-trash mr-1"></i> Supprimer (<span id="selected-count">0</span>)
+                                    </button>
+                                </div>
+                            </div>
+
                             <div class="flex items-center gap-2">
                                 <label for="history-date-filter" class="text-sm font-medium text-gray-700">Filtrer par date :</label>
                                 <input type="date" id="history-date-filter" class="input-style p-1 text-sm">
                             </div>
-                           <div class="flex items-center gap-2 flex-wrap">
-                               <button id="declare-loss-btn" class="btn-secondary bg-yellow-400 hover:bg-yellow-500 text-yellow-900"><i class="fas fa-exclamation-triangle mr-2"></i>Déclarer une perte</button>
-                               <button id="import-api-sales-btn" class="btn-secondary bg-blue-400 hover:bg-blue-500 text-blue-900"><i class="fas fa-cloud-download-alt mr-2"></i>Importer Ventes (API)</button>
-                               <button id="import-orders-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer Ventes (CSV)</button>
-                               <button id="export-orders-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter Ventes</button>
-                           </div>
-                       </div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button id="declare-loss-btn" class="btn-secondary bg-yellow-400 hover:bg-yellow-500 text-yellow-900"><i class="fas fa-exclamation-triangle mr-2"></i>Déclarer une perte</button>
+                                <button id="import-api-sales-btn" class="btn-secondary bg-blue-400 hover:bg-blue-500 text-blue-900"><i class="fas fa-cloud-download-alt mr-2"></i>Importer Ventes (API)</button>
+                                <button id="import-orders-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer Ventes (CSV)</button>
+                                <button id="export-orders-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter Ventes</button>
+                            </div>
+                        </div>
                        <!-- Ventes -->
                        <h3 class="text-xl font-semibold text-gray-700 mb-3">Ventes</h3>
                        <div id="order-history-list" class="space-y-4">
@@ -1208,35 +1218,41 @@ document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)}
 const renderOrderHistory = (history) => { 
             const container = document.getElementById('order-history-list'); 
             const placeholder = document.getElementById('order-history-placeholder'); 
+            
+            // Réinitialiser le bouton de suppression massive à chaque affichage
+            const selectAllCheckbox = document.getElementById('select-all-orders');
+            const deleteBtn = document.getElementById('delete-selected-orders-btn');
+            if(selectAllCheckbox) selectAllCheckbox.checked = false;
+            if(deleteBtn) deleteBtn.classList.add('hidden');
+
             container.innerHTML = ''; 
+            
             if (history.length === 0) { 
-                container.innerHTML = ''; 
                 container.appendChild(placeholder); 
             } else { 
                 history.forEach(order => { 
                     const card = document.createElement('div'); 
-                    card.className = 'bg-white p-4 rounded-xl shadow-md'; 
+                    card.className = 'bg-white p-4 rounded-xl shadow-md border-l-4 border-gray-800 transition-all hover:shadow-lg'; 
                     const displayDate = formatDateToDDMMYYYY(order.saleDate || order.createdAt); 
-					// (vers la ligne 348)
-					const itemsHtml = order.items.map(item => {
-						// Vérifie si la propriété 'returned' existe ET est supérieure à 0
-						// (Les ventes manuelles n'auront pas cette propriété, elle sera 'undefined' et donc fausse)
-						const refundTag = (item.returned && item.returned > 0)
-							? `<span class="text-red-600 font-semibold ml-2">(remb)</span>`
-							: '';
-						
-						return `<li>${item.quantity} x ${item.name}${refundTag}</li>`;
-					}).join('');                    
-                    // V V V AJOUTEZ CETTE LIGNE V V V
+                    
+                    const itemsHtml = order.items.map(item => {
+                        const refundTag = (item.returned && item.returned > 0) ? `<span class="text-red-600 font-semibold ml-2">(remb)</span>` : '';
+                        return `<li>${item.quantity} x ${item.name}${refundTag}</li>`;
+                    }).join(''); 
+                    
                     const billNoHtml = order.billNo ? `<p class="text-xs text-gray-500 font-mono">Facture API: ${order.billNo}</p>` : '';
-                    const discountTagHtml = order.hadDiscount 
-                            ? `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold ml-2 px-2 py-0.5 rounded-full">Rabais</span>`
-                            : '';
-                    // V V V MODIFIEZ CETTE LIGNE V V V
-card.innerHTML = `<div class="flex justify-between items-start">
+                    const discountTagHtml = order.hadDiscount ? `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold ml-2 px-2 py-0.5 rounded-full">Rabais</span>` : '';
+                    
+                    card.innerHTML = `
+                    <div class="flex gap-4">
+                        <div class="flex flex-col justify-center border-r pr-3 border-gray-100">
+                            <input type="checkbox" class="order-checkbox h-5 w-5 text-gray-800 rounded cursor-pointer border-gray-300 focus:ring-gray-800" value="${order.id}">
+                        </div>
+
+                        <div class="flex-grow flex justify-between items-start">
                             <div>
                                 <p class="font-bold text-gray-700">Vente du ${displayDate}</p>
-                                <div class="flex items-center mt-1">
+                                <div class="flex items-center mt-1 gap-2">
                                     ${billNoHtml}
                                     ${discountTagHtml} 
                                 </div>
@@ -1244,12 +1260,14 @@ card.innerHTML = `<div class="flex justify-between items-start">
                             </div>
                             <div class="flex items-center gap-4 text-right">
                                 <p class="font-bold text-lg text-gray-800">${order.totalPrice.toFixed(2)} Mad</p>
-                                <button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button>
+                                <button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-600 transition-colors p-2" title="Supprimer cette vente">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
                             </div>
-                        </div>`; 
-                        // ^ ^ ^ **FIN DE LA MODIFICATION** ^ ^ ^
-                    
-                    container.appendChild(card);
+                        </div>
+                    </div>`; 
+                    
+                    container.appendChild(card);
                 }); 
             } 
         };
@@ -2882,135 +2900,107 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
             const statusText = document.getElementById('api-import-status');
             const submitButton = document.getElementById('process-api-import-btn');
 
-            if (!startDate || !endDate) {
-                showToast("Veuillez sélectionner les dates.");
-                return;
-            }
+            if (!startDate || !endDate) return showToast("Dates requises.");
 
-            // Initialisation
+            // 1. Initialisation
             loader.classList.remove('hidden');
-            statusText.textContent = 'Connexion au serveur...';
+            statusText.textContent = 'Connexion...';
             submitButton.disabled = true;
             
             let salesImportedCount = 0; 
             let skippedCount = 0;
-            
-            // Map pour l'unicité globale
             const uniqueRawLines = new Map(); 
 
             try {
-                // 1. Authentification
-                if (!PROXY_URL || PROXY_URL.includes("votre-proxy")) throw new Error("URL Proxy manquante");
-                
+                // 2. Authentification
+                if (!PROXY_URL) throw new Error("URL Proxy manquante");
                 const authResponse = await fetch(`${PROXY_URL}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
                 const authData = await authResponse.json();
-                if (!authResponse.ok || !authData.token) throw new Error("Échec authentification proxy.");
+                if (!authResponse.ok || !authData.token) throw new Error("Erreur Auth Proxy.");
                 const token = authData.token;
 
-                // 2. Récupération des pages
+                // 3. Téléchargement (LIMITÉ À 5 PAGES MAX)
                 statusText.textContent = 'Téléchargement...';
                 let currentPage = 1;
                 const pageSize = 100; 
+                const MAX_PAGES_SAFETY = 5; // <--- MODIFICATION ICI : On limite à 5 pages max (500 commandes)
                 let hasMorePages = true;
-                
-                // VARIABLE CLÉ POUR LE FIX : On mémorise le 1er ticket de la page précédente
-                let previousPageFirstBill = null; 
+                let previousPageFirstBill = null;
 
-                while(hasMorePages) {
+                while(hasMorePages && currentPage <= MAX_PAGES_SAFETY) {
                     const url = `${PROXY_URL}/api/sales?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${startDate}&endDate=${endDate}&token=${encodeURIComponent(token)}`;
                     
                     const response = await fetch(url);
                     const result = await response.json();
 
-                    if (!response.ok || result.code !== 200 || !result.data) {
-                        break; // Erreur ou fin
+                    if (!response.ok || result.code !== 200 || !result.data || result.data.length === 0) {
+                        break; // Fin des données
                     }
                     
                     const pageItems = result.data;
-                    
-                    if (pageItems.length === 0) {
-                        hasMorePages = false;
+
+                    // --- DETECTION DE BOUCLE ---
+                    // Si le 1er ticket est le même que la page d'avant, l'API bugue -> ON STOPPE
+                    if (pageItems[0].billNo === previousPageFirstBill) {
+                        console.warn("Page identique reçue. Arrêt.");
                         break;
                     }
+                    previousPageFirstBill = pageItems[0].billNo;
 
-                    // === LE FIX ULTIME ANTI-DOUBLONS DE 50 ===
-                    // On regarde le numéro de facture du premier élément de la page reçue
-                    const currentFirstBill = pageItems[0].billNo;
-
-                    // Si c'est exactement le même que celui de la page d'avant,
-                    // c'est que l'API bug et nous renvoie la même page en boucle.
-                    // ON COUPE TOUT DE SUITE.
-                    if (currentFirstBill === previousPageFirstBill) {
-                        console.warn("BOUCLE INFINIE DÉTECTÉE : L'API renvoie la même page. Arrêt forcé.");
-                        hasMorePages = false;
-                        break;
-                    }
-                    
-                    // Sinon, on mémorise ce numéro pour le prochain tour
-                    previousPageFirstBill = currentFirstBill;
-                    // =============================================
-
+                    // --- FILTRE INTELLIGENT ---
                     let newItemsOnPage = 0;
                     for (const item of pageItems) {
-                        // Signature unique : on retire l'heure (operDate) car elle peut varier et causer des faux doublons
-                        // On garde Facture + Produit + Quantité + Prix
+                        // Signature unique pour dédoublonner
                         const signature = `${item.billNo}|${item.goodsName}|${item.numNum}|${item.numPrice}`;
-                        
                         if (!uniqueRawLines.has(signature)) {
                             uniqueRawLines.set(signature, item);
                             newItemsOnPage++;
                         }
                     }
 
-                    statusText.textContent = `Page ${currentPage} chargée...`;
+                    statusText.textContent = `Page ${currentPage} : ${newItemsOnPage} nouvelles lignes...`;
+
+                    // --- ARRÊT SI AUCUNE NOUVELLE DONNÉE ---
+                    // Si la page est pleine mais qu'on a déjà tout vu, c'est qu'on tourne en rond ou qu'on a fini.
+                    if (pageItems.length > 0 && newItemsOnPage === 0) {
+                        console.warn("Aucune nouvelle donnée sur cette page. Arrêt.");
+                        break; // <--- ON COUPE LA BOUCLE ICI
+                    }
 
                     if (pageItems.length < pageSize) {
-                        hasMorePages = false;
+                        hasMorePages = false; // C'était la dernière page
                     } else {
                         currentPage++;
                     }
-
-                    // Sécurité max
-                    if (currentPage > 50) {
-                         console.warn("Sécurité 50 pages atteinte.");
-                         hasMorePages = false;
-                    }
+                }
+                // Si on a atteint la limite de sécurité
+                if (currentPage > MAX_PAGES_SAFETY) {
+                    console.warn("Limite de sécurité atteinte (5 pages).");
+                    showToast("Import limité aux 500 premières lignes pour éviter les lenteurs.");
                 }
 
                 const allSalesData = Array.from(uniqueRawLines.values());
-                console.log(`Total lignes uniques : ${allSalesData.length}`);
-
+                
                 if (allSalesData.length === 0) {
                      showToast("Aucune nouvelle vente trouvée.");
                      closeModal('api-import-modal');
                      return; 
                 }
 
-                // 3. Regroupement par Facture
+                // 4. Traitement (inchangé, mais sur des données propres)
                 statusText.textContent = 'Traitement...';
-                
                 const groupedSales = allSalesData.reduce((acc, item) => {
                       const billNo = item.billNo;
-                      
                       if (!acc[billNo]) {
-                          // Gestion Date
                           let saleDate = new Date();
                           if (item.operDate) {
-                              // On prend la date de l'API
                               const d = new Date(item.operDate.replace(' ', 'T') + 'Z');
                               if (!isNaN(d.getTime())) saleDate = d; 
                           }
-
-                          acc[billNo] = {
-                             billNo: billNo,
-                             items: [],
-                             totalPrice: 0,
-                             saleDate: saleDate,
-                             hadDiscount: false
-                          };
+                          acc[billNo] = { billNo, items: [], totalPrice: 0, saleDate, hadDiscount: false };
                       }
 
                       const productNameLower = (item.goodsName || '').trim().toLowerCase(); 
@@ -3021,7 +3011,6 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                           const price = parseFloat(item.numPrice) || 0; 
                           const priceAdd = parseFloat(item.numPriceAdd) || 0;
                           const numBack = parseFloat(item.numBack) || 0;
-                          
                           let discountPercent = parseFloat(item.discount);
                           if (isNaN(discountPercent)) discountPercent = 100; 
                           if (discountPercent < 100) acc[billNo].hadDiscount = true;
@@ -3032,19 +3021,13 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                               const lineTotal = ((price * netQuantity) + priceAdd) * (discountPercent / 100);
                               acc[billNo].totalPrice += lineTotal;
 
-                              // Fusion des lignes identiques dans le ticket
                               const existingItem = acc[billNo].items.find(i => i.id === matchedProduct.id);
-                              
                               if (existingItem) {
                                   existingItem.quantity += quantity;
                                   if (numBack > 0) existingItem.returned = (existingItem.returned || 0) + numBack;
                               } else {
                                   acc[billNo].items.push({
-                                      id: matchedProduct.id, 
-                                      name: matchedProduct.name, 
-                                      quantity: quantity, 
-                                      price: price,
-                                      returned: numBack 
+                                      id: matchedProduct.id, name: matchedProduct.name, quantity: quantity, price: price, returned: numBack 
                                   });
                               }
                           }
@@ -3054,24 +3037,18 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
 
                 const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
 
-                // 4. Sauvegarde Batch
+                // 5. Sauvegarde
                 statusText.textContent = `Sauvegarde...`;
                 const batch = writeBatch(db);
                 
                 for (const sale of salesToSave) {
-                     // On vérifie l'historique local pour ne pas importer un doublon
                      const alreadyImported = orderHistory.some(o => String(o.billNo) === String(sale.billNo));
-                     if (alreadyImported) {
-                         skippedCount++;
-                         continue; 
-                     }
+                     if (alreadyImported) { skippedCount++; continue; }
 
-                     // Déstockage
                      const tempDeductions = new Map();
                      for (const saleItem of sale.items) {
                          const product = allProducts.find(p => p.id === saleItem.id); 
                          if (!product) continue; 
-
                          const qtyToDeduct = Math.max(0, saleItem.quantity - (saleItem.returned || 0));
                          if (qtyToDeduct <= 0) continue;
 
@@ -3093,14 +3070,9 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                      
                      const safeDocId = String(sale.billNo).replace(/\//g, '_');
                      batch.set(doc(ordersCol, safeDocId), { 
-                         items: sale.items,
-                         totalPrice: sale.totalPrice,
-                         createdAt: serverTimestamp(), 
-                         saleDate: sale.saleDate,
-                         billNo: sale.billNo,
-                         hadDiscount: sale.hadDiscount
+                         items: sale.items, totalPrice: sale.totalPrice, createdAt: serverTimestamp(), 
+                         saleDate: sale.saleDate, billNo: sale.billNo, hadDiscount: sale.hadDiscount
                      });
-                     
                      salesImportedCount++;
                 }
 
@@ -3333,7 +3305,116 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
             }); 
             downloadCSV(csv, 'historique_ventes.csv'); 
         });
-        
+        // --- GESTION DE LA SUPPRESSION MASSIVE ---
+
+        // 1. Tout cocher / Tout décocher
+        document.getElementById('select-all-orders').addEventListener('change', (e) => {
+            const checkboxes = document.querySelectorAll('.order-checkbox');
+            checkboxes.forEach(cb => cb.checked = e.target.checked);
+            updateDeleteButtonVisibility();
+        });
+
+        // 2. Détecter le clic sur une case individuelle
+        document.getElementById('order-history-list').addEventListener('change', (e) => {
+            if (e.target.classList.contains('order-checkbox')) {
+                updateDeleteButtonVisibility();
+                
+                // Si on décoche une case, on décoche aussi "Tout sélectionner"
+                if (!e.target.checked) {
+                    document.getElementById('select-all-orders').checked = false;
+                }
+            }
+        });
+
+        // 3. Afficher ou cacher le bouton rouge
+        function updateDeleteButtonVisibility() {
+            const selectedCount = document.querySelectorAll('.order-checkbox:checked').length;
+            const btn = document.getElementById('delete-selected-orders-btn');
+            const countSpan = document.getElementById('selected-count');
+            
+            countSpan.textContent = selectedCount;
+            
+            if (selectedCount > 0) {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
+
+        // 4. LA FONCTION DE SUPPRESSION (Stock + Vente)
+        document.getElementById('delete-selected-orders-btn').addEventListener('click', async () => {
+            const checkboxes = document.querySelectorAll('.order-checkbox:checked');
+            const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (selectedIds.length === 0) return;
+
+            if (!confirm(`⚠️ ATTENTION ⚠️\n\nVous allez supprimer ${selectedIds.length} ventes définitivement.\n\nLe stock des ingrédients sera automatiquement RESTAURÉ.\n\nConfirmer la suppression ?`)) {
+                return;
+            }
+
+            // Désactiver le bouton pendant le traitement
+            const btn = document.getElementById('delete-selected-orders-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<div class="loader border-white border-t-transparent h-4 w-4"></div> Traitement...';
+            btn.disabled = true;
+
+            try {
+                const batch = writeBatch(db);
+                let operationsCount = 0;
+
+                // Pour chaque vente sélectionnée...
+                for (const orderId of selectedIds) {
+                    const order = orderHistory.find(o => o.id === orderId);
+                    if (!order) continue;
+
+                    // A. Restaurer le stock (Même logique que suppression unitaire)
+                    for (const item of order.items) {
+                        const prod = allProducts.find(p => p.id === item.id);
+                        if (!prod) continue;
+
+                        // Quantité à restaurer (Ventes - Retours)
+                        const qtyToRestore = Math.max(0, item.quantity - (item.returned || 0));
+                        if (qtyToRestore <= 0) continue;
+
+                        if (prod.recipe && prod.recipe.length > 0) {
+                            // Pizza/Plat composé
+                            for (const recipeItem of prod.recipe) {
+                                batch.update(doc(ingredientsCol, recipeItem.id), { 
+                                    quantity: increment(recipeItem.quantity * qtyToRestore) 
+                                });
+                                operationsCount++;
+                            }
+                        } else if (prod.linkedIngredientId) {
+                            // Boisson/Article simple
+                            const linkedQty = prod.linkedIngredientQuantity || 1;
+                            batch.update(doc(ingredientsCol, prod.linkedIngredientId), { 
+                                quantity: increment(linkedQty * qtyToRestore) 
+                            });
+                            operationsCount++;
+                        }
+                    }
+
+                    // B. Supprimer la vente
+                    batch.delete(doc(ordersCol, orderId));
+                    operationsCount++;
+                }
+
+                await batch.commit();
+                
+                showToast(`${selectedIds.length} ventes supprimées et stock restauré avec succès.`);
+                
+                // Reset UI
+                document.getElementById('select-all-orders').checked = false;
+                btn.classList.add('hidden');
+
+            } catch (error) {
+                console.error("Erreur suppression massive:", error);
+                showToast("Une erreur est survenue lors de la suppression.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
     </script>
 </body>
 </html>
