@@ -3084,63 +3084,36 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 }, {});
 
                 const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0); 
-                console.log(`Sales grouped and filtered: ${salesToSave.length} bills`);
+                 console.log(`Sales grouped and filtered: ${salesToSave.length} bills`);
                 
                 if (salesToSave.length === 0) {
-                    showToast("Aucune vente valide à importer (produits non trouvés ou données incorrectes).");
-                    closeModal('api-import-modal');
-                    return;
-                }
-
-                // ✅ NOUVEAU : Vérifier les doublons avant d'importer
-                statusText.textContent = 'Vérification des doublons...';
-                const billNosToCheck = salesToSave.map(s => s.billNo);
-                const existingBillNos = new Set();
-
-                // Importer getDocs et query
-                const { getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
-
-                // Vérifier par lots de 10 (limite Firebase pour 'in')
-                for (let i = 0; i < billNosToCheck.length; i += 10) {
-                    const chunk = billNosToCheck.slice(i, i + 10);
-                    const q = query(ordersCol, where('billNo', 'in', chunk));
-                    const snapshot = await getDocs(q);
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        if (data.billNo) existingBillNos.add(data.billNo);
-                    });
-                }
-
-                // Filtrer les ventes qui existent déjà
-                const newSalesToSave = salesToSave.filter(sale => !existingBillNos.has(sale.billNo));
-
-                if (newSalesToSave.length === 0) {
-                    showToast(`Toutes les ${salesToSave.length} ventes de cette période ont déjà été importées.`);
-                    closeModal('api-import-modal');
-                    return;
-                }
-
-                if (existingBillNos.size > 0) {
-                    console.log(`${existingBillNos.size} ventes déjà importées, ${newSalesToSave.length} nouvelles ventes à importer`);
-                    statusText.textContent = `${newSalesToSave.length} nouvelle(s) vente(s) à importer (${existingBillNos.size} déjà importées)`;
-                }
-
-                // Utiliser newSalesToSave au lieu de salesToSave
-                const salesToProcess = newSalesToSave;
-                // ✅ FIN DU NOUVEAU CODE
+                     showToast("Aucune vente valide à importer (produits non trouvés ou données incorrectes).");
+                     closeModal('api-import-modal');
+                     return;
+                 }
 
 
                 // --- Step 4: Check Stock and Save Batch ---
-                // --- Step 4: Check Stock and Save Batch ---
+                 // --- Step 4: Check Stock and Save Batch ---
+                 // --- Step 4: Check Stock and Save Batch (CORRIGÉ ANTI-DOUBLON) ---
                 const batch = writeBatch(db);
-                // ✅ Plus besoin de failedStockChecks ni de stockAvailable
-                statusText.textContent = `Importation de ${salesToProcess.length} commande(s)...`;
+                statusText.textContent = `Importation de ${salesToSave.length} commande(s)...`;
+                
+                let skippedCount = 0; // Compteur pour les factures ignorées
 
+                for (const sale of salesToSave) {
+                     // 1. VÉRIFICATION : Est-ce que ce numéro de facture existe déjà ?
+                     // On vérifie dans 'orderHistory' qui contient toutes les ventes déjà chargées
+                     const alreadyExists = orderHistory.some(o => o.billNo === sale.billNo);
+                     
+                     if (alreadyExists) {
+                         console.warn(`Doublon évité : Facture ${sale.billNo} existe déjà.`);
+                         skippedCount++;
+                         continue; // ⛔ ON STOPPE ICI pour cette vente et on passe à la suivante
+                     }
 
-                for (const sale of salesToProcess) {
-                     // ... (logique de vérification stock et création batch - INCHANGÉE) ...
+                     // 2. Calcul des ingrédients à déduire (seulement si c'est une nouvelle vente)
                      const tempDeductions = new Map();
-                     let stockAvailable = true;
 
                      for (const saleItem of sale.items) {
                          const product = allProducts.find(p => p.id === saleItem.id); 
@@ -3152,24 +3125,25 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                                  tempDeductions.set(recipeItem.id, current + recipeItem.quantity * saleItem.quantity);
                              }
                          } else if (product.linkedIngredientId) { 
-                             // *** MODIFIED: Use linkedIngredientQuantity ***
                              const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
                              const totalQtyToDeduct = linkedQtyPerProduct * saleItem.quantity;
                              const current = tempDeductions.get(product.linkedIngredientId) || 0;
                              tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct);
-                             // *** END MODIFICATION ***
                          }
                      }
 
-                     // Check stock for this specific sale
-                    // ✅ NOUVELLE LOGIQUE : On déduit toujours le stock, même s'il est insuffisant
-                     // Add stock deductions to batch
+                     // 3. Ajout des opérations au batch
+                     // A. Déduction du stock
                      for (const [ingId, qty] of tempDeductions.entries()) {
                          batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
                      }
                      
-                     // Add sale record to batch
-                     batch.set(doc(collection(db, ordersCol.path)), { 
+                     // B. Création de la vente
+                     // Astuce : On force l'ID du document à être le numéro de facture (converti en string)
+                     // Cela empêche physiquement Firebase de créer deux fois la même facture si vous relancez l'import
+                     const safeDocId = String(sale.billNo).replace(/\//g, '_'); // Remplace les / par _ au cas où
+                     
+                     batch.set(doc(ordersCol, safeDocId), { 
                          items: sale.items,
                          totalPrice: sale.totalPrice,
                          createdAt: serverTimestamp(), 
@@ -3177,18 +3151,26 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                          billNo: sale.billNo,
                          hadDiscount: sale.hadDiscount
                      });
+                     
                      salesImportedCount++;
-                 }
+                }
 
                 // --- Step 5: Commit Batch ---
-                 // --- Step 5: Commit Batch ---
-                 if (salesImportedCount > 0) {
-                     statusText.textContent = `Enregistrement de ${salesImportedCount} vente(s)...`;
+                if (salesImportedCount > 0) {
+                     statusText.textContent = `Finalisation...`;
                      await batch.commit();
-                     showToast(`${salesImportedCount} vente(s) importée(s) avec succès via API.`);
-                 } else {
-                     showToast("Aucune vente valide trouvée à importer via API."); 
-                 }
+                     
+                     let message = `${salesImportedCount} nouvelles vente(s) importée(s).`;
+                     if (skippedCount > 0) message += ` (${skippedCount} doublons ignorés)`;
+                     
+                     showToast(message);
+                } else {
+                     if (skippedCount > 0) {
+                        showToast(`Aucune nouvelle vente. ${skippedCount} doublons ignorés.`);
+                     } else {
+                        showToast("Aucune vente valide trouvée à importer."); 
+                     }
+                }
 
 
             } catch (error) {
