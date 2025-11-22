@@ -2922,13 +2922,14 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 if (!authResponse.ok || !authData.token) throw new Error("Erreur Auth Proxy.");
                 const token = authData.token;
 
-                // 3. Téléchargement (LIMITÉ À 5 PAGES MAX)
+                // 3. Téléchargement
                 statusText.textContent = 'Téléchargement...';
                 let currentPage = 1;
                 const pageSize = 100; 
-                const MAX_PAGES_SAFETY = 5; // <--- MODIFICATION ICI : On limite à 5 pages max (500 commandes)
+                const MAX_PAGES_SAFETY = 10; // Augmenté un peu par sécurité
                 let hasMorePages = true;
                 let previousPageFirstBill = null;
+                let globalIndex = 0; // Pour rendre la signature unique
 
                 while(hasMorePages && currentPage <= MAX_PAGES_SAFETY) {
                     const url = `${PROXY_URL}/api/sales?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${startDate}&endDate=${endDate}&token=${encodeURIComponent(token)}`;
@@ -2937,24 +2938,25 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                     const result = await response.json();
 
                     if (!response.ok || result.code !== 200 || !result.data || result.data.length === 0) {
-                        break; // Fin des données
+                        break; 
                     }
                     
                     const pageItems = result.data;
 
-                    // --- DETECTION DE BOUCLE ---
-                    // Si le 1er ticket est le même que la page d'avant, l'API bugue -> ON STOPPE
+                    // DETECTION DE BOUCLE
                     if (pageItems[0].billNo === previousPageFirstBill) {
                         console.warn("Page identique reçue. Arrêt.");
                         break;
                     }
                     previousPageFirstBill = pageItems[0].billNo;
 
-                    // --- FILTRE INTELLIGENT ---
                     let newItemsOnPage = 0;
                     for (const item of pageItems) {
-                        // Signature unique pour dédoublonner
-                        const signature = `${item.billNo}|${item.goodsName}|${item.numNum}|${item.numPrice}`;
+                        globalIndex++;
+                        // --- CORRECTION 1: Signature Unique ---
+                        // On ajoute globalIndex pour que 2 lignes identiques (ex: 2 cafés distincts) ne s'écrasent pas
+                        const signature = `${item.billNo}|${item.goodsName}|${item.numNum}|${item.numPrice}|${globalIndex}`;
+                        
                         if (!uniqueRawLines.has(signature)) {
                             uniqueRawLines.set(signature, item);
                             newItemsOnPage++;
@@ -2963,23 +2965,15 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
 
                     statusText.textContent = `Page ${currentPage} : ${newItemsOnPage} nouvelles lignes...`;
 
-                    // --- ARRÊT SI AUCUNE NOUVELLE DONNÉE ---
-                    // Si la page est pleine mais qu'on a déjà tout vu, c'est qu'on tourne en rond ou qu'on a fini.
                     if (pageItems.length > 0 && newItemsOnPage === 0) {
-                        console.warn("Aucune nouvelle donnée sur cette page. Arrêt.");
-                        break; // <--- ON COUPE LA BOUCLE ICI
+                        break; 
                     }
 
                     if (pageItems.length < pageSize) {
-                        hasMorePages = false; // C'était la dernière page
+                        hasMorePages = false; 
                     } else {
                         currentPage++;
                     }
-                }
-                // Si on a atteint la limite de sécurité
-                if (currentPage > MAX_PAGES_SAFETY) {
-                    console.warn("Limite de sécurité atteinte (5 pages).");
-                    showToast("Import limité aux 500 premières lignes pour éviter les lenteurs.");
                 }
 
                 const allSalesData = Array.from(uniqueRawLines.values());
@@ -2990,14 +2984,16 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                      return; 
                 }
 
-                // 4. Traitement (inchangé, mais sur des données propres)
+                // 4. Traitement
                 statusText.textContent = 'Traitement...';
+                
                 const groupedSales = allSalesData.reduce((acc, item) => {
                       const billNo = item.billNo;
                       if (!acc[billNo]) {
                           let saleDate = new Date();
                           if (item.operDate) {
-                              const d = new Date(item.operDate.replace(' ', 'T') + 'Z');
+                              // Remplacement simple pour compatibilité Safari/Chrome
+                              const d = new Date(item.operDate.replace(' ', 'T')); 
                               if (!isNaN(d.getTime())) saleDate = d; 
                           }
                           acc[billNo] = { billNo, items: [], totalPrice: 0, saleDate, hadDiscount: false };
@@ -3006,30 +3002,48 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                       const productNameLower = (item.goodsName || '').trim().toLowerCase(); 
                       const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
 
-                      if (matchedProduct) {
-                          const quantity = parseFloat(item.numNum) || 0;
-                          const price = parseFloat(item.numPrice) || 0; 
-                          const priceAdd = parseFloat(item.numPriceAdd) || 0;
-                          const numBack = parseFloat(item.numBack) || 0;
-                          let discountPercent = parseFloat(item.discount);
-                          if (isNaN(discountPercent)) discountPercent = 100; 
-                          if (discountPercent < 100) acc[billNo].hadDiscount = true;
-                          
-                          const netQuantity = Math.max(0, quantity - numBack);
+                      const quantity = parseFloat(item.numNum) || 0;
+                      const price = parseFloat(item.numPrice) || 0; 
+                      const priceAdd = parseFloat(item.numPriceAdd) || 0;
+                      const numBack = parseFloat(item.numBack) || 0; // Retours/Remboursements
+                      let discountPercent = parseFloat(item.discount);
+                      if (isNaN(discountPercent)) discountPercent = 100; 
+                      if (discountPercent < 100) acc[billNo].hadDiscount = true;
+                      
+                      const netQuantity = Math.max(0, quantity - numBack);
 
-                          if (netQuantity > 0) {
-                              const lineTotal = ((price * netQuantity) + priceAdd) * (discountPercent / 100);
-                              acc[billNo].totalPrice += lineTotal;
+                      if (netQuantity > 0) {
+                          // Calcul du prix total de la ligne (avec réductions)
+                          const lineTotal = ((price * netQuantity) + priceAdd) * (discountPercent / 100);
+                          acc[billNo].totalPrice += lineTotal;
 
+                          // --- CORRECTION 2 : Gestion des produits inconnus ---
+                          if (matchedProduct) {
+                              // Cas 1 : Produit trouvé localement -> On lie l'ID pour le stock
                               const existingItem = acc[billNo].items.find(i => i.id === matchedProduct.id);
                               if (existingItem) {
                                   existingItem.quantity += quantity;
                                   if (numBack > 0) existingItem.returned = (existingItem.returned || 0) + numBack;
                               } else {
                                   acc[billNo].items.push({
-                                      id: matchedProduct.id, name: matchedProduct.name, quantity: quantity, price: price, returned: numBack 
+                                      id: matchedProduct.id, 
+                                      name: matchedProduct.name, 
+                                      quantity: quantity, 
+                                      price: price, 
+                                      returned: numBack 
                                   });
                               }
+                          } else {
+                              // Cas 2 : Produit NON trouvé -> On l'ajoute quand même pour le CA !
+                              // On met un ID null ou spécial pour ne pas casser la boucle de stock plus tard
+                              acc[billNo].items.push({
+                                  id: 'UNKNOWN_' + item.goodsName, // ID fictif
+                                  name: item.goodsName + ' (Non lié)', // Indication visuelle
+                                  quantity: quantity,
+                                  price: price,
+                                  returned: numBack,
+                                  isUnknown: true // Marqueur pour le filtrage de stock
+                              });
                           }
                       }
                       return acc;
@@ -3046,9 +3060,14 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                      if (alreadyImported) { skippedCount++; continue; }
 
                      const tempDeductions = new Map();
+                     
                      for (const saleItem of sale.items) {
+                         // Si c'est un produit inconnu, on saute la déduction de stock mais on garde la vente
+                         if (saleItem.isUnknown) continue; 
+
                          const product = allProducts.find(p => p.id === saleItem.id); 
                          if (!product) continue; 
+                         
                          const qtyToDeduct = Math.max(0, saleItem.quantity - (saleItem.returned || 0));
                          if (qtyToDeduct <= 0) continue;
 
@@ -3064,14 +3083,26 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                          }
                      }
 
+                     // Application des déductions de stock
                      for (const [ingId, qty] of tempDeductions.entries()) {
                          batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
                      }
                      
                      const safeDocId = String(sale.billNo).replace(/\//g, '_');
+                     
+                     // Nettoyage des items avant sauvegarde (on enlève le marqueur isUnknown si on veut, ou on le garde)
+                     const itemsToSave = sale.items.map(i => {
+                         const { isUnknown, ...rest } = i; // On garde l'objet propre
+                         return rest;
+                     });
+
                      batch.set(doc(ordersCol, safeDocId), { 
-                         items: sale.items, totalPrice: sale.totalPrice, createdAt: serverTimestamp(), 
-                         saleDate: sale.saleDate, billNo: sale.billNo, hadDiscount: sale.hadDiscount
+                         items: itemsToSave, 
+                         totalPrice: sale.totalPrice, 
+                         createdAt: serverTimestamp(), 
+                         saleDate: sale.saleDate, 
+                         billNo: sale.billNo, 
+                         hadDiscount: sale.hadDiscount
                      });
                      salesImportedCount++;
                 }
