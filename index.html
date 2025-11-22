@@ -2891,239 +2891,232 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
         });
         document.getElementById('cancel-api-import').addEventListener('click', () => closeModal('api-import-modal'));
 
-        document.getElementById('api-import-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const startDate = document.getElementById('api-start-date').value;
-            const endDate = document.getElementById('api-end-date').value;
-            const loader = document.getElementById('api-import-loader');
-            const statusText = document.getElementById('api-import-status');
-            const submitButton = document.getElementById('process-api-import-btn');
+document.getElementById('api-import-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const startDate = document.getElementById('api-start-date').value;
+    const endDate = document.getElementById('api-end-date').value;
+    const loader = document.getElementById('api-import-loader');
+    const statusText = document.getElementById('api-import-status');
+    const submitButton = document.getElementById('process-api-import-btn');
 
-            if (!startDate || !endDate) return showToast("Dates requises.");
+    if (!startDate || !endDate) return showToast("Dates requises.");
 
-            // 1. Initialisation
-            loader.classList.remove('hidden');
-            statusText.textContent = 'Connexion...';
-            submitButton.disabled = true;
-            
-            let salesImportedCount = 0; 
-            let skippedCount = 0;
-            const uniqueRawLines = new Map(); 
+    // 1. Initialisation
+    loader.classList.remove('hidden');
+    statusText.textContent = 'Connexion...';
+    submitButton.disabled = true;
+    
+    let salesImportedCount = 0; 
+    let skippedCount = 0;
+    const uniqueRawLines = new Map(); 
 
-            try {
-                // 2. Authentification
-                if (!PROXY_URL) throw new Error("URL Proxy manquante");
-                const authResponse = await fetch(`${PROXY_URL}/api/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const authData = await authResponse.json();
-                if (!authResponse.ok || !authData.token) throw new Error("Erreur Auth Proxy.");
-                const token = authData.token;
-
-                // 3. Téléchargement
-                statusText.textContent = 'Téléchargement...';
-                let currentPage = 1;
-                const pageSize = 100; 
-                const MAX_PAGES_SAFETY = 10; // Augmenté un peu par sécurité
-                let hasMorePages = true;
-                let previousPageFirstBill = null;
-                let globalIndex = 0; // Pour rendre la signature unique
-
-                while(hasMorePages && currentPage <= MAX_PAGES_SAFETY) {
-                    const url = `${PROXY_URL}/api/sales?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${startDate}&endDate=${endDate}&token=${encodeURIComponent(token)}`;
-                    
-                    const response = await fetch(url);
-                    const result = await response.json();
-
-                    if (!response.ok || result.code !== 200 || !result.data || result.data.length === 0) {
-                        break; 
-                    }
-                    
-                    const pageItems = result.data;
-
-                    // DETECTION DE BOUCLE
-                    if (pageItems[0].billNo === previousPageFirstBill) {
-                        console.warn("Page identique reçue. Arrêt.");
-                        break;
-                    }
-                    previousPageFirstBill = pageItems[0].billNo;
-
-                    let newItemsOnPage = 0;
-                    for (const item of pageItems) {
-                        globalIndex++;
-                        // --- CORRECTION 1: Signature Unique ---
-                        // On ajoute globalIndex pour que 2 lignes identiques (ex: 2 cafés distincts) ne s'écrasent pas
-                        const signature = `${item.billNo}|${item.goodsName}|${item.numNum}|${item.numPrice}|${globalIndex}`;
-                        
-                        if (!uniqueRawLines.has(signature)) {
-                            uniqueRawLines.set(signature, item);
-                            newItemsOnPage++;
-                        }
-                    }
-
-                    statusText.textContent = `Page ${currentPage} : ${newItemsOnPage} nouvelles lignes...`;
-
-                    if (pageItems.length > 0 && newItemsOnPage === 0) {
-                        break; 
-                    }
-
-                    if (pageItems.length < pageSize) {
-                        hasMorePages = false; 
-                    } else {
-                        currentPage++;
-                    }
-                }
-
-                const allSalesData = Array.from(uniqueRawLines.values());
-                
-                if (allSalesData.length === 0) {
-                     showToast("Aucune nouvelle vente trouvée.");
-                     closeModal('api-import-modal');
-                     return; 
-                }
-
-                // 4. Traitement
-                statusText.textContent = 'Traitement...';
-                
-                const groupedSales = allSalesData.reduce((acc, item) => {
-                      const billNo = item.billNo;
-                      if (!acc[billNo]) {
-                          let saleDate = new Date();
-                          if (item.operDate) {
-                              // Remplacement simple pour compatibilité Safari/Chrome
-                              const d = new Date(item.operDate.replace(' ', 'T')); 
-                              if (!isNaN(d.getTime())) saleDate = d; 
-                          }
-                          acc[billNo] = { billNo, items: [], totalPrice: 0, saleDate, hadDiscount: false };
-                      }
-
-                      const productNameLower = (item.goodsName || '').trim().toLowerCase(); 
-                      const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
-
-                      const quantity = parseFloat(item.numNum) || 0;
-                      const price = parseFloat(item.numPrice) || 0; 
-                      const priceAdd = parseFloat(item.numPriceAdd) || 0;
-                      const numBack = parseFloat(item.numBack) || 0; // Retours/Remboursements
-                      let discountPercent = parseFloat(item.discount);
-                      if (isNaN(discountPercent)) discountPercent = 100; 
-                      if (discountPercent < 100) acc[billNo].hadDiscount = true;
-                      
-                      const netQuantity = Math.max(0, quantity - numBack);
-
-                      if (netQuantity > 0) {
-                          // Calcul du prix total de la ligne (avec réductions)
-                          const lineTotal = ((price * netQuantity) + priceAdd) * (discountPercent / 100);
-                          acc[billNo].totalPrice += lineTotal;
-
-                          // --- CORRECTION 2 : Gestion des produits inconnus ---
-                          if (matchedProduct) {
-                              // Cas 1 : Produit trouvé localement -> On lie l'ID pour le stock
-                              const existingItem = acc[billNo].items.find(i => i.id === matchedProduct.id);
-                              if (existingItem) {
-                                  existingItem.quantity += quantity;
-                                  if (numBack > 0) existingItem.returned = (existingItem.returned || 0) + numBack;
-                              } else {
-                                  acc[billNo].items.push({
-                                      id: matchedProduct.id, 
-                                      name: matchedProduct.name, 
-                                      quantity: quantity, 
-                                      price: price, 
-                                      returned: numBack 
-                                  });
-                              }
-                          } else {
-                              // Cas 2 : Produit NON trouvé -> On l'ajoute quand même pour le CA !
-                              // On met un ID null ou spécial pour ne pas casser la boucle de stock plus tard
-                              acc[billNo].items.push({
-                                  id: 'UNKNOWN_' + item.goodsName, // ID fictif
-                                  name: item.goodsName + ' (Non lié)', // Indication visuelle
-                                  quantity: quantity,
-                                  price: price,
-                                  returned: numBack,
-                                  isUnknown: true // Marqueur pour le filtrage de stock
-                              });
-                          }
-                      }
-                      return acc;
-                }, {});
-
-                const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
-
-                // 5. Sauvegarde
-                statusText.textContent = `Sauvegarde...`;
-                const batch = writeBatch(db);
-                
-                for (const sale of salesToSave) {
-                     const alreadyImported = orderHistory.some(o => String(o.billNo) === String(sale.billNo));
-                     if (alreadyImported) { skippedCount++; continue; }
-
-                     const tempDeductions = new Map();
-                     
-                     for (const saleItem of sale.items) {
-                         // Si c'est un produit inconnu, on saute la déduction de stock mais on garde la vente
-                         if (saleItem.isUnknown) continue; 
-
-                         const product = allProducts.find(p => p.id === saleItem.id); 
-                         if (!product) continue; 
-                         
-                         const qtyToDeduct = Math.max(0, saleItem.quantity - (saleItem.returned || 0));
-                         if (qtyToDeduct <= 0) continue;
-
-                         if (product.recipe && product.recipe.length > 0) {
-                             for (const recipeItem of product.recipe) {
-                                 const current = tempDeductions.get(recipeItem.id) || 0;
-                                 tempDeductions.set(recipeItem.id, current + (recipeItem.quantity * qtyToDeduct));
-                             }
-                         } else if (product.linkedIngredientId) { 
-                             const linkedQty = product.linkedIngredientQuantity || 1;
-                             const current = tempDeductions.get(product.linkedIngredientId) || 0;
-                             tempDeductions.set(product.linkedIngredientId, current + (linkedQty * qtyToDeduct));
-                         }
-                     }
-
-                     // Application des déductions de stock
-                     for (const [ingId, qty] of tempDeductions.entries()) {
-                         batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
-                     }
-                     
-                     const safeDocId = String(sale.billNo).replace(/\//g, '_');
-                     
-                     // Nettoyage des items avant sauvegarde (on enlève le marqueur isUnknown si on veut, ou on le garde)
-                     const itemsToSave = sale.items.map(i => {
-                         const { isUnknown, ...rest } = i; // On garde l'objet propre
-                         return rest;
-                     });
-
-                     batch.set(doc(ordersCol, safeDocId), { 
-                         items: itemsToSave, 
-                         totalPrice: sale.totalPrice, 
-                         createdAt: serverTimestamp(), 
-                         saleDate: sale.saleDate, 
-                         billNo: sale.billNo, 
-                         hadDiscount: sale.hadDiscount
-                     });
-                     salesImportedCount++;
-                }
-
-                if (salesImportedCount > 0) {
-                     await batch.commit();
-                     showToast(`${salesImportedCount} ventes importées.`);
-                } else {
-                     showToast(skippedCount > 0 ? "Tout est déjà à jour." : "Aucune donnée.");
-                }
-
-            } catch (error) {
-                console.error(error);
-                showToast("Erreur: " + error.message);
-            } finally {
-                loader.classList.add('hidden');
-                statusText.textContent = '';
-                submitButton.disabled = false;
-                closeModal('api-import-modal');
-            }
+    try {
+        // 2. Authentification
+        if (!PROXY_URL) throw new Error("URL Proxy manquante");
+        const authResponse = await fetch(`${PROXY_URL}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
         });
+        const authData = await authResponse.json();
+        if (!authResponse.ok || !authData.token) throw new Error("Erreur Auth Proxy.");
+        const token = authData.token;
+
+        // 3. Téléchargement
+        statusText.textContent = 'Téléchargement...';
+        let currentPage = 1;
+        const pageSize = 100; 
+        const MAX_PAGES_SAFETY = 15; // Sécurité augmentée
+        let hasMorePages = true;
+        let previousPageFirstBill = null;
+        let globalIndex = 0; 
+
+        while(hasMorePages && currentPage <= MAX_PAGES_SAFETY) {
+            const url = `${PROXY_URL}/api/sales?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${startDate}&endDate=${endDate}&token=${encodeURIComponent(token)}`;
+            
+            const response = await fetch(url);
+            const result = await response.json();
+
+            if (!response.ok || result.code !== 200 || !result.data || result.data.length === 0) {
+                break; 
+            }
+            
+            const pageItems = result.data;
+
+            // DETECTION DE BOUCLE
+            if (pageItems[0].billNo === previousPageFirstBill) {
+                console.warn("Page identique reçue. Arrêt.");
+                break;
+            }
+            previousPageFirstBill = pageItems[0].billNo;
+
+            let newItemsOnPage = 0;
+            for (const item of pageItems) {
+                globalIndex++;
+                // Signature unique incluant l'index global pour différencier absolument tout
+                const signature = `${item.billNo}|${item.goodsName}|${item.numNum}|${item.numPrice}|${globalIndex}`;
+                
+                if (!uniqueRawLines.has(signature)) {
+                    uniqueRawLines.set(signature, item);
+                    newItemsOnPage++;
+                }
+            }
+
+            statusText.textContent = `Page ${currentPage} : ${newItemsOnPage} nouvelles lignes...`;
+
+            if (pageItems.length > 0 && newItemsOnPage === 0) {
+                break; 
+            }
+
+            if (pageItems.length < pageSize) {
+                hasMorePages = false; 
+            } else {
+                currentPage++;
+            }
+        }
+
+        const allSalesData = Array.from(uniqueRawLines.values());
+        
+        if (allSalesData.length === 0) {
+             showToast("Aucune nouvelle vente trouvée.");
+             closeModal('api-import-modal');
+             return; 
+        }
+
+        // 4. Traitement
+        statusText.textContent = 'Traitement...';
+        
+        const groupedSales = allSalesData.reduce((acc, item) => {
+              const billNo = item.billNo;
+              if (!acc[billNo]) {
+                  let saleDate = new Date();
+                  if (item.operDate) {
+                      const d = new Date(item.operDate.replace(' ', 'T')); 
+                      if (!isNaN(d.getTime())) saleDate = d; 
+                  }
+                  acc[billNo] = { billNo, items: [], totalPrice: 0, saleDate, hadDiscount: false };
+              }
+
+              const productNameLower = (item.goodsName || '').trim().toLowerCase(); 
+              const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
+
+              const quantity = parseFloat(item.numNum) || 0;
+              const price = parseFloat(item.numPrice) || 0; 
+              const priceAdd = parseFloat(item.numPriceAdd) || 0;
+              const numBack = parseFloat(item.numBack) || 0;
+              let discountPercent = parseFloat(item.discount);
+              if (isNaN(discountPercent)) discountPercent = 100; 
+              if (discountPercent < 100) acc[billNo].hadDiscount = true;
+              
+              const netQuantity = Math.max(0, quantity - numBack);
+
+              if (netQuantity > 0) {
+                  const lineTotal = ((price * netQuantity) + priceAdd) * (discountPercent / 100);
+                  acc[billNo].totalPrice += lineTotal;
+
+                  // === MODIFICATION PRINCIPALE ICI ===
+                  // Nous ne vérifions plus "existingItem". Nous ajoutons tout avec un UUID.
+                  
+                  if (matchedProduct) {
+                      // Cas 1 : Produit identifié
+                      acc[billNo].items.push({
+                          uuid: crypto.randomUUID(), // IDENTIFIANT UNIQUE
+                          id: matchedProduct.id, 
+                          name: matchedProduct.name, 
+                          quantity: quantity, 
+                          price: price, 
+                          returned: numBack 
+                      });
+                  } else {
+                      // Cas 2 : Produit inconnu
+                      acc[billNo].items.push({
+                          uuid: crypto.randomUUID(), // IDENTIFIANT UNIQUE
+                          id: 'UNKNOWN_' + globalIndex, // ID unique temporaire
+                          name: item.goodsName + ' (Non lié)',
+                          quantity: quantity,
+                          price: price,
+                          returned: numBack,
+                          isUnknown: true
+                      });
+                  }
+              }
+              return acc;
+        }, {});
+
+        const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
+
+        // 5. Sauvegarde
+        statusText.textContent = `Sauvegarde...`;
+        const batch = writeBatch(db);
+        
+        for (const sale of salesToSave) {
+             const alreadyImported = orderHistory.some(o => String(o.billNo) === String(sale.billNo));
+             if (alreadyImported) { skippedCount++; continue; }
+
+             const tempDeductions = new Map();
+             
+             for (const saleItem of sale.items) {
+                 if (saleItem.isUnknown) continue; 
+
+                 const product = allProducts.find(p => p.id === saleItem.id); 
+                 if (!product) continue; 
+                 
+                 const qtyToDeduct = Math.max(0, saleItem.quantity - (saleItem.returned || 0));
+                 if (qtyToDeduct <= 0) continue;
+
+                 if (product.recipe && product.recipe.length > 0) {
+                     for (const recipeItem of product.recipe) {
+                         const current = tempDeductions.get(recipeItem.id) || 0;
+                         tempDeductions.set(recipeItem.id, current + (recipeItem.quantity * qtyToDeduct));
+                     }
+                 } else if (product.linkedIngredientId) { 
+                     const linkedQty = product.linkedIngredientQuantity || 1;
+                     const current = tempDeductions.get(product.linkedIngredientId) || 0;
+                     tempDeductions.set(product.linkedIngredientId, current + (linkedQty * qtyToDeduct));
+                 }
+             }
+
+             // Déduction du stock
+             for (const [ingId, qty] of tempDeductions.entries()) {
+                 batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
+             }
+             
+             const safeDocId = String(sale.billNo).replace(/\//g, '_');
+             
+             // Nettoyage avant sauvegarde
+             const itemsToSave = sale.items.map(i => {
+                 const { isUnknown, ...rest } = i; 
+                 return rest;
+             });
+
+             batch.set(doc(ordersCol, safeDocId), { 
+                 items: itemsToSave, 
+                 totalPrice: sale.totalPrice, 
+                 createdAt: serverTimestamp(), 
+                 saleDate: sale.saleDate, 
+                 billNo: sale.billNo, 
+                 hadDiscount: sale.hadDiscount
+             });
+             salesImportedCount++;
+        }
+
+        if (salesImportedCount > 0) {
+             await batch.commit();
+             showToast(`${salesImportedCount} ventes importées.`);
+        } else {
+             showToast(skippedCount > 0 ? "Tout est déjà à jour." : "Aucune donnée.");
+        }
+
+    } catch (error) {
+        console.error(error);
+        showToast("Erreur: " + error.message);
+    } finally {
+        loader.classList.add('hidden');
+        statusText.textContent = '';
+        submitButton.disabled = false;
+        closeModal('api-import-modal');
+    }
+});
 
 
         // --- IMPORT/EXPORT CSV ---
