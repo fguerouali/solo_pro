@@ -2875,6 +2875,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
 
         document.getElementById('api-import-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
             const startDate = document.getElementById('api-start-date').value;
             const endDate = document.getElementById('api-end-date').value;
             const loader = document.getElementById('api-import-loader');
@@ -2885,112 +2886,122 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 showToast("Veuillez sélectionner les dates.");
                 return;
             }
-             if (!PROXY_URL || PROXY_URL.includes("votre-proxy")) {
-                 showToast("Erreur: URL Proxy non configurée.");
-                 return;
-            }
 
+            // Initialisation
             loader.classList.remove('hidden');
-            statusText.textContent = 'Authentification...';
+            statusText.textContent = 'Connexion au serveur...';
             submitButton.disabled = true;
             
             let salesImportedCount = 0; 
             let skippedCount = 0;
-            let allSalesData = [];
+            
+            // Map pour l'unicité globale
+            const uniqueRawLines = new Map(); 
 
             try {
                 // 1. Authentification
+                if (!PROXY_URL || PROXY_URL.includes("votre-proxy")) throw new Error("URL Proxy manquante");
+                
                 const authResponse = await fetch(`${PROXY_URL}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
                 const authData = await authResponse.json();
-                if (!authResponse.ok || !authData.token) throw new Error("Échec authentification API.");
+                if (!authResponse.ok || !authData.token) throw new Error("Échec authentification proxy.");
                 const token = authData.token;
 
-                // 2. Récupération des pages (Boucle)
-                statusText.textContent = 'Récupération des données...';
+                // 2. Récupération des pages
+                statusText.textContent = 'Téléchargement...';
                 let currentPage = 1;
                 const pageSize = 100; 
                 let hasMorePages = true;
-                let totalFetched = 0;
+                
+                // VARIABLE CLÉ POUR LE FIX : On mémorise le 1er ticket de la page précédente
+                let previousPageFirstBill = null; 
 
                 while(hasMorePages) {
-                    const proxySalesUrl = `${PROXY_URL}/api/sales?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${startDate}&endDate=${endDate}&token=${encodeURIComponent(token)}`;
+                    const url = `${PROXY_URL}/api/sales?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${startDate}&endDate=${endDate}&token=${encodeURIComponent(token)}`;
                     
-                    const salesResponse = await fetch(proxySalesUrl);
-                    const salesResult = await salesResponse.json();
+                    const response = await fetch(url);
+                    const result = await response.json();
 
-                    if (!salesResponse.ok || salesResult.code !== 200 || !salesResult.data) {
-                        console.warn(`Arrêt ou erreur page ${currentPage}`, salesResult);
-                        hasMorePages = false;
-                        break;
+                    if (!response.ok || result.code !== 200 || !result.data) {
+                        break; // Erreur ou fin
                     }
                     
-                    const newItems = salesResult.data;
+                    const pageItems = result.data;
                     
-                    // --- PROTECTION ANTI-BOUCLE ---
-                    // Si la page est vide, on arrête
-                    if (newItems.length === 0) {
+                    if (pageItems.length === 0) {
                         hasMorePages = false;
                         break;
                     }
 
-                    // Ajout des données
-                    allSalesData = allSalesData.concat(newItems);
-                    totalFetched += newItems.length;
-                    statusText.textContent = `Récupération: ${totalFetched} lignes...`;
+                    // === LE FIX ULTIME ANTI-DOUBLONS DE 50 ===
+                    // On regarde le numéro de facture du premier élément de la page reçue
+                    const currentFirstBill = pageItems[0].billNo;
 
-                    // Si on a reçu moins que la taille max, c'est la dernière page
-                    if (newItems.length < pageSize) {
+                    // Si c'est exactement le même que celui de la page d'avant,
+                    // c'est que l'API bug et nous renvoie la même page en boucle.
+                    // ON COUPE TOUT DE SUITE.
+                    if (currentFirstBill === previousPageFirstBill) {
+                        console.warn("BOUCLE INFINIE DÉTECTÉE : L'API renvoie la même page. Arrêt forcé.");
+                        hasMorePages = false;
+                        break;
+                    }
+                    
+                    // Sinon, on mémorise ce numéro pour le prochain tour
+                    previousPageFirstBill = currentFirstBill;
+                    // =============================================
+
+                    let newItemsOnPage = 0;
+                    for (const item of pageItems) {
+                        // Signature unique : on retire l'heure (operDate) car elle peut varier et causer des faux doublons
+                        // On garde Facture + Produit + Quantité + Prix
+                        const signature = `${item.billNo}|${item.goodsName}|${item.numNum}|${item.numPrice}`;
+                        
+                        if (!uniqueRawLines.has(signature)) {
+                            uniqueRawLines.set(signature, item);
+                            newItemsOnPage++;
+                        }
+                    }
+
+                    statusText.textContent = `Page ${currentPage} chargée...`;
+
+                    if (pageItems.length < pageSize) {
                         hasMorePages = false;
                     } else {
                         currentPage++;
                     }
 
-                    // Sécurité absolue : arrêt à 50 pages pour éviter boucle infinie
+                    // Sécurité max
                     if (currentPage > 50) {
-                         console.warn("Limite de 50 pages atteinte, arrêt forcé.");
+                         console.warn("Sécurité 50 pages atteinte.");
                          hasMorePages = false;
                     }
                 }
 
-                // 3. --- DÉDOUBLONNAGE STRICT (LE FIX) ---
-                // On élimine les lignes identiques reçues à cause du bug de pagination
-                statusText.textContent = 'Nettoyage des doublons...';
-                const uniqueSales = [];
-                const seenRows = new Set();
+                const allSalesData = Array.from(uniqueRawLines.values());
+                console.log(`Total lignes uniques : ${allSalesData.length}`);
 
-                for (const item of allSalesData) {
-                    // On crée une signature unique pour chaque ligne
-                    // (NumFacture + NomProduit + Quantité + HeureExacte)
-                    const signature = `${item.billNo}|${item.goodsName}|${item.numNum}|${item.operDate}`;
-                    
-                    if (!seenRows.has(signature)) {
-                        seenRows.add(signature);
-                        uniqueSales.push(item);
-                    }
-                }
-                
-                console.log(`Lignes brutes: ${allSalesData.length} -> Lignes uniques: ${uniqueSales.length}`);
-                
-                if (uniqueSales.length === 0) {
-                     showToast("Aucune vente trouvée.");
+                if (allSalesData.length === 0) {
+                     showToast("Aucune nouvelle vente trouvée.");
                      closeModal('api-import-modal');
                      return; 
                 }
 
-                // 4. Traitement et Regroupement
-                statusText.textContent = 'Traitement des commandes...';
+                // 3. Regroupement par Facture
+                statusText.textContent = 'Traitement...';
                 
-                const groupedSales = uniqueSales.reduce((acc, item) => {
+                const groupedSales = allSalesData.reduce((acc, item) => {
                       const billNo = item.billNo;
+                      
                       if (!acc[billNo]) {
-                          // Gestion de la date
+                          // Gestion Date
                           let saleDate = new Date();
                           if (item.operDate) {
+                              // On prend la date de l'API
                               const d = new Date(item.operDate.replace(' ', 'T') + 'Z');
-                              if (!isNaN(d.getTime())) saleDate = d;
+                              if (!isNaN(d.getTime())) saleDate = d; 
                           }
 
                           acc[billNo] = {
@@ -3006,31 +3017,32 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                       const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
 
                       if (matchedProduct) {
-                          const quantity = parseFloat(item.numNum);
-                          const price = parseFloat(item.numPrice); 
+                          const quantity = parseFloat(item.numNum) || 0;
+                          const price = parseFloat(item.numPrice) || 0; 
                           const priceAdd = parseFloat(item.numPriceAdd) || 0;
+                          const numBack = parseFloat(item.numBack) || 0;
+                          
                           let discountPercent = parseFloat(item.discount);
-                          if (isNaN(discountPercent)) discountPercent = 100;
+                          if (isNaN(discountPercent)) discountPercent = 100; 
                           if (discountPercent < 100) acc[billNo].hadDiscount = true;
                           
-                          const numBack = parseFloat(item.numBack) || 0;
                           const netQuantity = Math.max(0, quantity - numBack);
 
                           if (netQuantity > 0) {
-                              const itemTotal = ((price * netQuantity) + priceAdd) * (discountPercent / 100);
-                              acc[billNo].totalPrice += itemTotal;
+                              const lineTotal = ((price * netQuantity) + priceAdd) * (discountPercent / 100);
+                              acc[billNo].totalPrice += lineTotal;
 
-                              // --- FUSION DES ARTICLES IDENTIQUES DANS LA MÊME COMMANDE ---
-                              // Si j'ai 2 lignes de "1 Pizza", je veux "2 Pizzas" dans ma commande
+                              // Fusion des lignes identiques dans le ticket
                               const existingItem = acc[billNo].items.find(i => i.id === matchedProduct.id);
+                              
                               if (existingItem) {
-                                  existingItem.quantity += quantity; // On ajoute la quantité brute
-                                  // Note: le prix est géré globalement dans totalPrice
+                                  existingItem.quantity += quantity;
+                                  if (numBack > 0) existingItem.returned = (existingItem.returned || 0) + numBack;
                               } else {
                                   acc[billNo].items.push({
                                       id: matchedProduct.id, 
                                       name: matchedProduct.name, 
-                                      quantity: quantity, // Quantité originale commandée
+                                      quantity: quantity, 
                                       price: price,
                                       returned: numBack 
                                   });
@@ -3042,15 +3054,16 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
 
                 const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
 
-                // 5. Sauvegarde (Batch)
+                // 4. Sauvegarde Batch
+                statusText.textContent = `Sauvegarde...`;
                 const batch = writeBatch(db);
                 
                 for (const sale of salesToSave) {
-                     // Vérif doublon commande existante
-                     const exists = orderHistory.some(o => o.billNo === sale.billNo);
-                     if (exists) {
+                     // On vérifie l'historique local pour ne pas importer un doublon
+                     const alreadyImported = orderHistory.some(o => String(o.billNo) === String(sale.billNo));
+                     if (alreadyImported) {
                          skippedCount++;
-                         continue;
+                         continue; 
                      }
 
                      // Déstockage
@@ -3059,15 +3072,18 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                          const product = allProducts.find(p => p.id === saleItem.id); 
                          if (!product) continue; 
 
+                         const qtyToDeduct = Math.max(0, saleItem.quantity - (saleItem.returned || 0));
+                         if (qtyToDeduct <= 0) continue;
+
                          if (product.recipe && product.recipe.length > 0) {
                              for (const recipeItem of product.recipe) {
                                  const current = tempDeductions.get(recipeItem.id) || 0;
-                                 tempDeductions.set(recipeItem.id, current + recipeItem.quantity * saleItem.quantity);
+                                 tempDeductions.set(recipeItem.id, current + (recipeItem.quantity * qtyToDeduct));
                              }
                          } else if (product.linkedIngredientId) { 
                              const linkedQty = product.linkedIngredientQuantity || 1;
                              const current = tempDeductions.get(product.linkedIngredientId) || 0;
-                             tempDeductions.set(product.linkedIngredientId, current + linkedQty * saleItem.quantity);
+                             tempDeductions.set(product.linkedIngredientId, current + (linkedQty * qtyToDeduct));
                          }
                      }
 
@@ -3090,19 +3106,19 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
 
                 if (salesImportedCount > 0) {
                      await batch.commit();
-                     showToast(`${salesImportedCount} ventes importées (${skippedCount} ignorées).`);
+                     showToast(`${salesImportedCount} ventes importées.`);
                 } else {
-                     showToast(skippedCount > 0 ? "Aucune nouvelle vente (toutes déjà importées)." : "Aucune vente valide trouvée.");
+                     showToast(skippedCount > 0 ? "Tout est déjà à jour." : "Aucune donnée.");
                 }
 
             } catch (error) {
-                console.error("Erreur Import:", error);
+                console.error(error);
                 showToast("Erreur: " + error.message);
             } finally {
                 loader.classList.add('hidden');
                 statusText.textContent = '';
                 submitButton.disabled = false;
-                if(salesImportedCount > 0) closeModal('api-import-modal');
+                closeModal('api-import-modal');
             }
         });
 
