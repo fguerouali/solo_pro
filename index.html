@@ -3084,22 +3084,60 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 }, {});
 
                 const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0); 
-                 console.log(`Sales grouped and filtered: ${salesToSave.length} bills`);
+                console.log(`Sales grouped and filtered: ${salesToSave.length} bills`);
                 
                 if (salesToSave.length === 0) {
-                     showToast("Aucune vente valide à importer (produits non trouvés ou données incorrectes).");
-                     closeModal('api-import-modal');
-                     return;
-                 }
+                    showToast("Aucune vente valide à importer (produits non trouvés ou données incorrectes).");
+                    closeModal('api-import-modal');
+                    return;
+                }
+
+                // ✅ NOUVEAU : Vérifier les doublons avant d'importer
+                statusText.textContent = 'Vérification des doublons...';
+                const billNosToCheck = salesToSave.map(s => s.billNo);
+                const existingBillNos = new Set();
+
+                // Importer getDocs et query
+                const { getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+
+                // Vérifier par lots de 10 (limite Firebase pour 'in')
+                for (let i = 0; i < billNosToCheck.length; i += 10) {
+                    const chunk = billNosToCheck.slice(i, i + 10);
+                    const q = query(ordersCol, where('billNo', 'in', chunk));
+                    const snapshot = await getDocs(q);
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.billNo) existingBillNos.add(data.billNo);
+                    });
+                }
+
+                // Filtrer les ventes qui existent déjà
+                const newSalesToSave = salesToSave.filter(sale => !existingBillNos.has(sale.billNo));
+
+                if (newSalesToSave.length === 0) {
+                    showToast(`Toutes les ${salesToSave.length} ventes de cette période ont déjà été importées.`);
+                    closeModal('api-import-modal');
+                    return;
+                }
+
+                if (existingBillNos.size > 0) {
+                    console.log(`${existingBillNos.size} ventes déjà importées, ${newSalesToSave.length} nouvelles ventes à importer`);
+                    statusText.textContent = `${newSalesToSave.length} nouvelle(s) vente(s) à importer (${existingBillNos.size} déjà importées)`;
+                }
+
+                // Utiliser newSalesToSave au lieu de salesToSave
+                const salesToProcess = newSalesToSave;
+                // ✅ FIN DU NOUVEAU CODE
 
 
                 // --- Step 4: Check Stock and Save Batch ---
-                 const batch = writeBatch(db);
-                 // ✅ Plus besoin de failedStockChecks ni de stockAvailable
-                 statusText.textContent = `Importation de ${salesToSave.length} commande(s)...`;
+                // --- Step 4: Check Stock and Save Batch ---
+                const batch = writeBatch(db);
+                // ✅ Plus besoin de failedStockChecks ni de stockAvailable
+                statusText.textContent = `Importation de ${salesToProcess.length} commande(s)...`;
 
 
-                 for (const sale of salesToSave) {
+                for (const sale of salesToProcess) {
                      // ... (logique de vérification stock et création batch - INCHANGÉE) ...
                      const tempDeductions = new Map();
                      let stockAvailable = true;
