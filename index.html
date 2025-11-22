@@ -2882,239 +2882,179 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
             const submitButton = document.getElementById('process-api-import-btn');
 
             if (!startDate || !endDate) {
-                showToast("Veuillez sélectionner les dates de début et de fin.");
+                showToast("Veuillez sélectionner les dates.");
                 return;
             }
-             if (!PROXY_URL || PROXY_URL === "https://votre-proxy-url-ici.onrender.com") {
-                 showToast("Erreur: L'URL du PROXY_URL n'est pas configurée dans le script.");
+             if (!PROXY_URL || PROXY_URL.includes("votre-proxy")) {
+                 showToast("Erreur: URL Proxy non configurée.");
                  return;
             }
 
-
             loader.classList.remove('hidden');
-            statusText.textContent = 'Authentification en cours...';
+            statusText.textContent = 'Authentification...';
             submitButton.disabled = true;
+            
             let salesImportedCount = 0; 
-            // ✅ Plus besoin de salesSkippedCount
+            let skippedCount = 0;
             let allSalesData = [];
 
             try {
-                // --- Step 1: Authenticate via Proxy ---
-                console.log("Attempting API authentication via proxy...");
+                // 1. Authentification
                 const authResponse = await fetch(`${PROXY_URL}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
-                    // Le corps (username/password) est géré par le proxy
                 });
+                const authData = await authResponse.json();
+                if (!authResponse.ok || !authData.token) throw new Error("Échec authentification API.");
+                const token = authData.token;
 
-                 const authData = await authResponse.json(); // Toujours essayer de parser JSON
-
-                if (!authResponse.ok) {
-                    console.error("Proxy Auth failed response:", authData);
-                     // Essayer d'afficher un message plus clair si possible
-                    const detailMsg = authData?.details?.message || authData?.details || authData?.message || `Status ${authResponse.status}`;
-                    throw new Error(`Échec d'authentification via proxy: ${detailMsg}`);
-                }
-
-                const token = authData?.token; 
-                
-                if (!token) {
-                    console.error("Proxy Auth response data (token not found):", authData);
-                    throw new Error("Jeton non reçu du proxy.");
-                }
-                console.log("Proxy Authentication successful.");
-                statusText.textContent = 'Récupération des ventes...';
-
-
-                // --- Step 2: Fetch Sales Data via Proxy (using obtained token) ---
-                console.log(`Fetching sales from ${startDate} to ${endDate} via proxy...`);
-
-                // Fetch potentially multiple pages
+                // 2. Récupération des pages (Boucle)
+                statusText.textContent = 'Récupération des données...';
                 let currentPage = 1;
                 const pageSize = 100; 
                 let hasMorePages = true;
+                let totalFetched = 0;
 
                 while(hasMorePages) {
-                     // Construire l'URL pour appeler NOTRE proxy
                     const proxySalesUrl = `${PROXY_URL}/api/sales?pageNum=${currentPage}&pageSize=${pageSize}&startDate=${startDate}&endDate=${endDate}&token=${encodeURIComponent(token)}`;
-
-                    console.log(`Fetching page ${currentPage} from Proxy: ${proxySalesUrl}`);
-
-                    const salesResponse = await fetch(proxySalesUrl, {
-                        method: 'GET'
-                        // Les en-têtes (Authorization) sont gérés par le proxy
-                    });
                     
-                    const salesResult = await salesResponse.json(); // Toujours essayer de parser
+                    const salesResponse = await fetch(proxySalesUrl);
+                    const salesResult = await salesResponse.json();
 
-                    if (!salesResponse.ok) {
-                         console.error(`Proxy Sales API Error Response (Page ${currentPage}):`, salesResult);
-                         const detailMsg = salesResult?.details?.message || salesResult?.details || salesResult?.message || `Status ${salesResponse.status}`;
-                        throw new Error(`Erreur Proxy Ventes (Page ${currentPage}): ${detailMsg}`);
-                    }
-
-
-                     console.log(`Page ${currentPage} response code: ${salesResult.code}, msg: ${salesResult.msg}`);
-
-                    if (salesResult.code !== 200 || !salesResult.data) {
-                         console.error("Proxy Sales API invalid data structure:", salesResult);
-                        throw new Error(`Erreur Proxy Ventes (Page ${currentPage}): ${salesResult.msg || 'Données invalides ou code non 200 renvoyé par le proxy'}`);
+                    if (!salesResponse.ok || salesResult.code !== 200 || !salesResult.data) {
+                        console.warn(`Arrêt ou erreur page ${currentPage}`, salesResult);
+                        hasMorePages = false;
+                        break;
                     }
                     
-                    allSalesData = allSalesData.concat(salesResult.data);
+                    const newItems = salesResult.data;
+                    
+                    // --- PROTECTION ANTI-BOUCLE ---
+                    // Si la page est vide, on arrête
+                    if (newItems.length === 0) {
+                        hasMorePages = false;
+                        break;
+                    }
 
-                    // Check if there might be more pages 
-                    if (!salesResult.data || salesResult.data.length < pageSize) { 
+                    // Ajout des données
+                    allSalesData = allSalesData.concat(newItems);
+                    totalFetched += newItems.length;
+                    statusText.textContent = `Récupération: ${totalFetched} lignes...`;
+
+                    // Si on a reçu moins que la taille max, c'est la dernière page
+                    if (newItems.length < pageSize) {
                         hasMorePages = false;
                     } else {
                         currentPage++;
                     }
-                     // Safety break
-                     if (currentPage > 50) { 
-                         console.warn("Stopped fetching after 50 pages.");
-                         hasMorePages = false; 
-                     }
+
+                    // Sécurité absolue : arrêt à 50 pages pour éviter boucle infinie
+                    if (currentPage > 50) {
+                         console.warn("Limite de 50 pages atteinte, arrêt forcé.");
+                         hasMorePages = false;
+                    }
                 }
 
-                 console.log(`Total sales items fetched via proxy: ${allSalesData.length}`);
-                 statusText.textContent = `Traitement de ${allSalesData.length} articles...`;
+                // 3. --- DÉDOUBLONNAGE STRICT (LE FIX) ---
+                // On élimine les lignes identiques reçues à cause du bug de pagination
+                statusText.textContent = 'Nettoyage des doublons...';
+                const uniqueSales = [];
+                const seenRows = new Set();
 
-                if (allSalesData.length === 0) {
-                     showToast("Aucune vente trouvée pour la période sélectionnée via API.");
+                for (const item of allSalesData) {
+                    // On crée une signature unique pour chaque ligne
+                    // (NumFacture + NomProduit + Quantité + HeureExacte)
+                    const signature = `${item.billNo}|${item.goodsName}|${item.numNum}|${item.operDate}`;
+                    
+                    if (!seenRows.has(signature)) {
+                        seenRows.add(signature);
+                        uniqueSales.push(item);
+                    }
+                }
+                
+                console.log(`Lignes brutes: ${allSalesData.length} -> Lignes uniques: ${uniqueSales.length}`);
+                
+                if (uniqueSales.length === 0) {
+                     showToast("Aucune vente trouvée.");
                      closeModal('api-import-modal');
                      return; 
-                 }
+                }
 
+                // 4. Traitement et Regroupement
+                statusText.textContent = 'Traitement des commandes...';
+                
+                const groupedSales = uniqueSales.reduce((acc, item) => {
+                      const billNo = item.billNo;
+                      if (!acc[billNo]) {
+                          // Gestion de la date
+                          let saleDate = new Date();
+                          if (item.operDate) {
+                              const d = new Date(item.operDate.replace(' ', 'T') + 'Z');
+                              if (!isNaN(d.getTime())) saleDate = d;
+                          }
 
-                // --- Step 3: Process and Save Sales Data ---
-                const groupedSales = allSalesData.reduce((acc, item) => {
-                    // ... (logique de regroupement et de matching produit - INCHANGÉE) ...
-                     const billNo = item.billNo;
-                     if (!acc[billNo]) {
-                         acc[billNo] = {
-// ... (code précédent)
-                             billNo: billNo,
-                             items: [],
-                             totalPrice: 0,
-                             saleDate: null, // On initialise à null
-							 hadDiscount: false
-                         };
+                          acc[billNo] = {
+                             billNo: billNo,
+                             items: [],
+                             totalPrice: 0,
+                             saleDate: saleDate,
+                             hadDiscount: false
+                          };
+                      }
 
-                         // On essaie de parser la date de l'API (qui contient l'heure)
-                         if (item.operDate) {
-                             const tempDate = new Date(item.operDate.replace(' ', 'T') + 'Z');
-                             // Si la date est valide, on l'utilise (avec l'heure)
-                             if (!isNaN(tempDate.getTime())) {
-                                 acc[billNo].saleDate = tempDate;
-                             } else {
-                                 console.warn(`Invalid operDate '${item.operDate}' for bill ${billNo}. Using current date and time.`);
-                             }
-                         }
-                         // Si la date API est absente ou invalide, on prend la date et l'heure actuelles
-                         if (!acc[billNo].saleDate) {
-                             acc[billNo].saleDate = new Date();
-                         }
-// ... (suite du code)
-                     }
                       const productNameLower = (item.goodsName || '').trim().toLowerCase(); 
                       const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
 
                       if (matchedProduct) {
-                         const quantity = parseFloat(item.numNum);
-                         const price = parseFloat(item.numPrice); 
-								 // V V V AJOUTEZ CES LIGNES V V V
-		// V V V NOUVELLE LOGIQUE CORRIGÉE V V V
-						const priceAdd = parseFloat(item.numPriceAdd) || 0;
-						
-						let discountPercent = parseFloat(item.discount);
-						
-						// Si 'discount' n'est pas un nombre (ex: undefined, null, ""),
-						// on considère qu'il n'y a pas de rabais (donc on paie 100%).
-						if (isNaN(discountPercent)) {
-							discountPercent = 100;
-						}
-						if (discountPercent < 100) {
-                            acc[billNo].hadDiscount = true;
-                        }
-						// On convertit le pourcentage en multiplicateur
-						const discountMultiplier = discountPercent / 100;
-						// ^ ^ ^ FIN DE LA NOUVELLE LOGIQUE ^ ^ ^
-						// ^ ^ ^ FIN DES AJOUTS ^ ^ ^
-                        // ... (code pour priceAdd et discountMultiplier) ...
+                          const quantity = parseFloat(item.numNum);
+                          const price = parseFloat(item.numPrice); 
+                          const priceAdd = parseFloat(item.numPriceAdd) || 0;
+                          let discountPercent = parseFloat(item.discount);
+                          if (isNaN(discountPercent)) discountPercent = 100;
+                          if (discountPercent < 100) acc[billNo].hadDiscount = true;
+                          
+                          const numBack = parseFloat(item.numBack) || 0;
+                          const netQuantity = Math.max(0, quantity - numBack);
 
-                        // V V V MODIFICATION POUR GÉRER numBack V V V
-                        
-                        // 1. On récupère la nouvelle variable numBack
-                        const numBack = parseFloat(item.numBack) || 0;
+                          if (netQuantity > 0) {
+                              const itemTotal = ((price * netQuantity) + priceAdd) * (discountPercent / 100);
+                              acc[billNo].totalPrice += itemTotal;
 
-                         if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
-                             acc[billNo].items.push({
-                                 id: matchedProduct.id, 
-                                 name: matchedProduct.name, 
-                                 quantity: quantity,
-                                 price: price,
-								 returned: numBack // <-- AJOUTE CETTE LIGNE 
-                             });
-
-						// 2. On calcule la quantité nette (vendue - retournée)
-						const netQuantity = Math.max(0, quantity - numBack);
-
-						// 3. On calcule le prix de l'article avant remise
-						let itemTotalBeforeDiscount = 0;
-
-						if (netQuantity > 0) {
-							// On facture les articles restants + les frais sup.
-							// (On suppose que priceAdd s'applique à la ligne, pas par article)
-							itemTotalBeforeDiscount = (price * netQuantity) + priceAdd;
-						}
-						// Si netQuantity est 0, itemTotalBeforeDiscount reste 0 (remboursement total)
-                            
-                            // 4. On ajoute le prix (0 ou le prix normal) au total de la facture, après remise
-							acc[billNo].totalPrice += itemTotalBeforeDiscount * discountMultiplier;
-
-                         } else {
-                        // ...
-                             console.warn(`Produit ${item.goodsName || 'N/A'} ignoré dans la facture ${billNo}: quantité ou prix invalide.`);
-                         }
-                      } else {
-                           console.warn(`Produit API "${item.goodsName || 'N/A'}" non trouvé dans la liste des produits Solo. Ignoré pour la facture ${billNo}.`);
+                              // --- FUSION DES ARTICLES IDENTIQUES DANS LA MÊME COMMANDE ---
+                              // Si j'ai 2 lignes de "1 Pizza", je veux "2 Pizzas" dans ma commande
+                              const existingItem = acc[billNo].items.find(i => i.id === matchedProduct.id);
+                              if (existingItem) {
+                                  existingItem.quantity += quantity; // On ajoute la quantité brute
+                                  // Note: le prix est géré globalement dans totalPrice
+                              } else {
+                                  acc[billNo].items.push({
+                                      id: matchedProduct.id, 
+                                      name: matchedProduct.name, 
+                                      quantity: quantity, // Quantité originale commandée
+                                      price: price,
+                                      returned: numBack 
+                                  });
+                              }
+                          }
                       }
-                    
-                    return acc;
+                      return acc;
                 }, {});
 
-                const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0); 
-                 console.log(`Sales grouped and filtered: ${salesToSave.length} bills`);
-                
-                if (salesToSave.length === 0) {
-                     showToast("Aucune vente valide à importer (produits non trouvés ou données incorrectes).");
-                     closeModal('api-import-modal');
-                     return;
-                 }
+                const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
 
-
-                // --- Step 4: Check Stock and Save Batch ---
-                 // --- Step 4: Check Stock and Save Batch ---
-                 // --- Step 4: Check Stock and Save Batch (CORRIGÉ ANTI-DOUBLON) ---
+                // 5. Sauvegarde (Batch)
                 const batch = writeBatch(db);
-                statusText.textContent = `Importation de ${salesToSave.length} commande(s)...`;
                 
-                let skippedCount = 0; // Compteur pour les factures ignorées
-
                 for (const sale of salesToSave) {
-                     // 1. VÉRIFICATION : Est-ce que ce numéro de facture existe déjà ?
-                     // On vérifie dans 'orderHistory' qui contient toutes les ventes déjà chargées
-                     const alreadyExists = orderHistory.some(o => o.billNo === sale.billNo);
-                     
-                     if (alreadyExists) {
-                         console.warn(`Doublon évité : Facture ${sale.billNo} existe déjà.`);
+                     // Vérif doublon commande existante
+                     const exists = orderHistory.some(o => o.billNo === sale.billNo);
+                     if (exists) {
                          skippedCount++;
-                         continue; // ⛔ ON STOPPE ICI pour cette vente et on passe à la suivante
+                         continue;
                      }
 
-                     // 2. Calcul des ingrédients à déduire (seulement si c'est une nouvelle vente)
+                     // Déstockage
                      const tempDeductions = new Map();
-
                      for (const saleItem of sale.items) {
                          const product = allProducts.find(p => p.id === saleItem.id); 
                          if (!product) continue; 
@@ -3125,24 +3065,17 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                                  tempDeductions.set(recipeItem.id, current + recipeItem.quantity * saleItem.quantity);
                              }
                          } else if (product.linkedIngredientId) { 
-                             const linkedQtyPerProduct = product.linkedIngredientQuantity || 1;
-                             const totalQtyToDeduct = linkedQtyPerProduct * saleItem.quantity;
+                             const linkedQty = product.linkedIngredientQuantity || 1;
                              const current = tempDeductions.get(product.linkedIngredientId) || 0;
-                             tempDeductions.set(product.linkedIngredientId, current + totalQtyToDeduct);
+                             tempDeductions.set(product.linkedIngredientId, current + linkedQty * saleItem.quantity);
                          }
                      }
 
-                     // 3. Ajout des opérations au batch
-                     // A. Déduction du stock
                      for (const [ingId, qty] of tempDeductions.entries()) {
                          batch.update(doc(ingredientsCol, ingId), { quantity: increment(-qty) });
                      }
                      
-                     // B. Création de la vente
-                     // Astuce : On force l'ID du document à être le numéro de facture (converti en string)
-                     // Cela empêche physiquement Firebase de créer deux fois la même facture si vous relancez l'import
-                     const safeDocId = String(sale.billNo).replace(/\//g, '_'); // Remplace les / par _ au cas où
-                     
+                     const safeDocId = String(sale.billNo).replace(/\//g, '_');
                      batch.set(doc(ordersCol, safeDocId), { 
                          items: sale.items,
                          totalPrice: sale.totalPrice,
@@ -3155,46 +3088,21 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                      salesImportedCount++;
                 }
 
-                // --- Step 5: Commit Batch ---
                 if (salesImportedCount > 0) {
-                     statusText.textContent = `Finalisation...`;
                      await batch.commit();
-                     
-                     let message = `${salesImportedCount} nouvelles vente(s) importée(s).`;
-                     if (skippedCount > 0) message += ` (${skippedCount} doublons ignorés)`;
-                     
-                     showToast(message);
+                     showToast(`${salesImportedCount} ventes importées (${skippedCount} ignorées).`);
                 } else {
-                     if (skippedCount > 0) {
-                        showToast(`Aucune nouvelle vente. ${skippedCount} doublons ignorés.`);
-                     } else {
-                        showToast("Aucune vente valide trouvée à importer."); 
-                     }
+                     showToast(skippedCount > 0 ? "Aucune nouvelle vente (toutes déjà importées)." : "Aucune vente valide trouvée.");
                 }
 
-
             } catch (error) {
-                console.error("Erreur détaillée lors de l'importation API via proxy:", error);
-                 let userMessage = `Erreur: ${error.message}`;
-                 // Adapter les messages d'erreur pour le contexte proxy
-                  if (error.message.includes("authentification via proxy")) {
-                       userMessage = `Échec d'authentification proxy. Vérifiez les logs du proxy.`;
-                 } else if (error.message.includes("Jeton non reçu du proxy")) {
-                       userMessage = "Le proxy n'a pas réussi à obtenir un jeton. Vérifiez les logs du proxy.";
-                 } else if (error.message.includes("Proxy Ventes")) {
-                       userMessage = "Erreur lors de la récupération des ventes via le proxy.";
-                 } else if (error instanceof TypeError && error.message.includes('fetch')) {
-                       userMessage = `Erreur réseau en contactant le proxy (${PROXY_URL}). Est-il déployé et l'URL est-elle correcte ?`;
-                 }
-                showToast(userMessage);
+                console.error("Erreur Import:", error);
+                showToast("Erreur: " + error.message);
             } finally {
                 loader.classList.add('hidden');
-                statusText.textContent = ''; // Clear status text
+                statusText.textContent = '';
                 submitButton.disabled = false;
-                 // Close modal only if there was some success or no data initially
-                 if(salesImportedCount > 0 || allSalesData.length === 0) { 
-                     closeModal('api-import-modal');
-                 }
+                if(salesImportedCount > 0) closeModal('api-import-modal');
             }
         });
 
