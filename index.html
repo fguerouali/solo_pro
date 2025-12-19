@@ -57,13 +57,97 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Styles pour la page de login */
+        #login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+        }
     </style>
 </head>
 <body class="text-gray-800">
 
+    <!-- Page de Login -->
+    <div id="login-page">
+        <div class="login-card">
+            <div class="text-center mb-8">
+                <h1 class="header-font text-4xl font-extrabold text-gray-900 mb-2">solo</h1>
+                <p class="text-gray-500 uppercase tracking-widest text-sm">Pizzeria Napoletana</p>
+            </div>
+            
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-user mr-2"></i>Nom d'utilisateur
+                    </label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition-all"
+                        placeholder="Entrez votre nom d'utilisateur"
+                        autocomplete="username"
+                    >
+                </div>
+                
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-lock mr-2"></i>Mot de passe
+                    </label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition-all"
+                        placeholder="Entrez votre mot de passe"
+                        autocomplete="current-password"
+                    >
+                </div>
+                
+                <div id="login-error" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <span id="login-error-message"></span>
+                </div>
+                
+                <button 
+                    type="submit" 
+                    id="login-submit-btn"
+                    class="w-full bg-gray-800 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-gray-900 transition-all transform hover:scale-105 flex items-center justify-center"
+                >
+                    <span id="login-submit-text">Se connecter</span>
+                    <div id="login-loader" class="loader hidden ml-2"></div>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application principale (masquée jusqu'à authentification) -->
+    <div id="app-container" class="hidden">
     <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
         <!-- En-tête -->
-        <header class="mb-8 text-center">
+        <header class="mb-8 text-center relative">
+            <button 
+                onclick="logout()" 
+                class="absolute top-0 right-0 btn-secondary text-sm"
+                title="Se déconnecter"
+            >
+                <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
+            </button>
             <h1 class="header-font text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight">
                 solo
             </h1>
@@ -3440,6 +3524,119 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
             }
         });
     </script>
+
+    <!-- Script d'authentification -->
+    <script>
+        // Configuration des utilisateurs
+        const VALID_USERS = [
+            { username: 'admin', password: 'admin123' },
+            { username: 'test', password: 'test123' }
+        ];
+
+        const AUTH_SESSION_KEY = 'solo_auth_session';
+        const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 heures
+
+        // Fonctions d'authentification
+        function verifyCredentials(username, password) {
+            return VALID_USERS.some(user => 
+                user.username === username && user.password === password
+            );
+        }
+
+        function createSession(username) {
+            const session = {
+                username: username,
+                timestamp: Date.now(),
+                expiresAt: Date.now() + SESSION_DURATION
+            };
+            localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+            return session;
+        }
+
+        function getSession() {
+            const sessionStr = localStorage.getItem(AUTH_SESSION_KEY);
+            if (!sessionStr) return null;
+            
+            try {
+                const session = JSON.parse(sessionStr);
+                if (Date.now() > session.expiresAt) {
+                    localStorage.removeItem(AUTH_SESSION_KEY);
+                    return null;
+                }
+                return session;
+            } catch (e) {
+                localStorage.removeItem(AUTH_SESSION_KEY);
+                return null;
+            }
+        }
+
+        function clearSession() {
+            localStorage.removeItem(AUTH_SESSION_KEY);
+        }
+
+        function showApp() {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+        }
+
+        function showLogin() {
+            document.getElementById('login-page').classList.remove('hidden');
+            document.getElementById('app-container').classList.add('hidden');
+            document.getElementById('login-form').reset();
+            document.getElementById('login-error').classList.add('hidden');
+        }
+
+        // Gestion du formulaire de login
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('login-submit-btn');
+            const submitText = document.getElementById('login-submit-text');
+            const loader = document.getElementById('login-loader');
+            const errorDiv = document.getElementById('login-error');
+            const errorMessage = document.getElementById('login-error-message');
+
+            // Afficher le loader
+            submitBtn.disabled = true;
+            submitText.textContent = 'Connexion...';
+            loader.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+
+            // Simuler un délai pour l'authentification
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Vérifier les identifiants
+            if (verifyCredentials(username, password)) {
+                createSession(username);
+                showApp();
+            } else {
+                errorMessage.textContent = 'Nom d\'utilisateur ou mot de passe incorrect';
+                errorDiv.classList.remove('hidden');
+                submitBtn.disabled = false;
+                submitText.textContent = 'Se connecter';
+                loader.classList.add('hidden');
+            }
+        });
+
+        // Vérification de la session au chargement
+        window.addEventListener('DOMContentLoaded', () => {
+            const session = getSession();
+            if (session) {
+                showApp();
+            } else {
+                showLogin();
+            }
+        });
+
+        // Fonction de déconnexion
+        window.logout = function() {
+            clearSession();
+            showLogin();
+        };
+    </script>
+    </div>
 </body>
 </html>
 

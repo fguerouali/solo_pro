@@ -1,0 +1,27 @@
+services:
+  # Service Proxy pour l'environnement de test
+  - type: web
+    name: solo-proxy-test
+    env: node
+    plan: free
+    buildCommand: cd proxy && npm install
+    startCommand: cd proxy && npm start
+    envVars:
+      - key: NODE_ENV
+        value: test
+      - key: POS_USERNAME
+        sync: false  # À configurer manuellement dans le dashboard Render
+      - key: POS_PASSWORD
+        sync: false  # À configurer manuellement dans le dashboard Render
+      - key: FRONTEND_URL
+        fromService:
+          type: static
+          name: solo-pro-frontend-test
+          property: host
+
+  # Service Frontend pour l'environnement de test
+  - type: static
+    name: solo-pro-frontend-test
+    buildCommand: echo "No build needed for static site"
+    staticPublishPath: .
+
