@@ -520,7 +520,33 @@
 
         <!-- Section Historique -->
         <div>
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Historique des Déclarations</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold text-gray-800">Historique des Déclarations</h2>
+                <button id="export-declarations-btn" class="btn-primary">
+                    <i class="fas fa-download mr-2"></i>Exporter CSV
+                </button>
+            </div>
+            
+            <!-- Section Export CSV -->
+            <div class="bg-white p-6 rounded-2xl shadow-lg mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Exporter l'historique</h3>
+                <form id="export-declarations-form" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="export-start-date" class="block text-sm font-medium text-gray-700 mb-2">Date de début</label>
+                            <input type="date" id="export-start-date" required class="w-full input-style">
+                        </div>
+                        <div>
+                            <label for="export-end-date" class="block text-sm font-medium text-gray-700 mb-2">Date de fin</label>
+                            <input type="date" id="export-end-date" required class="w-full input-style">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary w-full">
+                        <i class="fas fa-file-csv mr-2"></i>Télécharger le fichier CSV
+                    </button>
+                </form>
+            </div>
+            
             <div id="daily-payments-list" class="space-y-3">
                 <div id="daily-payments-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
                     <i class="fas fa-file-invoice fa-2x text-gray-400 mb-2"></i>
@@ -895,6 +921,12 @@ let allDailyPayments = [];
                 document.getElementById('api-start-date').value = getTodayDateString();
                 document.getElementById('api-end-date').value = getTodayDateString();
 				document.getElementById('charge-date').value = getTodayDateString();
+                // Set default dates for export declarations (dernier mois)
+                const today = new Date();
+                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                document.getElementById('export-start-date').value = `${firstDayOfMonth.getFullYear()}-${String(firstDayOfMonth.getMonth() + 1).padStart(2, '0')}-${String(firstDayOfMonth.getDate()).padStart(2, '0')}`;
+                document.getElementById('export-end-date').value = `${lastDayOfMonth.getFullYear()}-${String(lastDayOfMonth.getMonth() + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`;
             } else {
                 try {
                     if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
@@ -2110,6 +2142,71 @@ document.getElementById('daily-payments-list').addEventListener('click', async (
             }
         }
     }
+});
+
+// Export CSV des déclarations
+document.getElementById('export-declarations-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    const startDate = document.getElementById('export-start-date').value;
+    const endDate = document.getElementById('export-end-date').value;
+    
+    if (!startDate || !endDate) {
+        showToast('Veuillez sélectionner une période');
+        return;
+    }
+    
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    
+    // Filtrer les déclarations dans la période
+    const filteredPayments = allDailyPayments.filter(payment => {
+        const paymentDate = toDate(payment.date);
+        if (!paymentDate) return false;
+        return paymentDate >= start && paymentDate <= end;
+    });
+    
+    if (filteredPayments.length === 0) {
+        showToast('Aucune déclaration trouvée pour cette période');
+        return;
+    }
+    
+    // Trier par date (plus ancienne en premier)
+    filteredPayments.sort((a, b) => {
+        const dateA = toDate(a.date);
+        const dateB = toDate(b.date);
+        return (dateA?.getTime() || 0) - (dateB?.getTime() || 0);
+    });
+    
+    // Générer le CSV avec séparateur point-virgule
+    let csv = "Date;Total Vente;TPE;Espèce;Glovo TPE;Glovo Cash\n";
+    
+    filteredPayments.forEach(payment => {
+        const date = toDate(payment.date);
+        const formattedDate = date ? 
+            `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}` : 
+            'Date inconnue';
+        
+        const totalSales = payment.totalSales || 0;
+        const tpe = payment.tpeAmount || 0;
+        const glovoTPE = payment.glovoAmount || 0;
+        const glovoCash = payment.glovoCashAmount || 0;
+        const espece = totalSales - tpe - glovoTPE - glovoCash;
+        
+        // Utiliser le point-virgule comme séparateur et le point pour les décimales
+        csv += `${formattedDate};${totalSales.toFixed(2)};${tpe.toFixed(2)};${espece.toFixed(2)};${glovoTPE.toFixed(2)};${glovoCash.toFixed(2)}\n`;
+    });
+    
+    // Générer le nom de fichier avec la période
+    const startStr = startDate.replace(/-/g, '');
+    const endStr = endDate.replace(/-/g, '');
+    const filename = `declarations_${startStr}_${endStr}.csv`;
+    
+    // Télécharger le fichier
+    downloadCSV(csv, filename);
+    showToast(`Fichier CSV téléchargé : ${filteredPayments.length} déclaration(s)`);
 });
 const renderAbsencesForEmployee = (employeeId) => {
     const container = document.getElementById('absences-list');
