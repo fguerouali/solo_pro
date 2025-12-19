@@ -3575,60 +3575,89 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
         }
 
         function showApp() {
-            document.getElementById('login-page').classList.add('hidden');
-            document.getElementById('app-container').classList.remove('hidden');
+            const loginPage = document.getElementById('login-page');
+            const appContainer = document.getElementById('app-container');
+            if (loginPage) loginPage.classList.add('hidden');
+            if (appContainer) appContainer.classList.remove('hidden');
         }
 
         function showLogin() {
-            document.getElementById('login-page').classList.remove('hidden');
-            document.getElementById('app-container').classList.add('hidden');
-            document.getElementById('login-form').reset();
-            document.getElementById('login-error').classList.add('hidden');
+            const loginPage = document.getElementById('login-page');
+            const appContainer = document.getElementById('app-container');
+            const loginForm = document.getElementById('login-form');
+            const errorDiv = document.getElementById('login-error');
+            
+            if (loginPage) loginPage.classList.remove('hidden');
+            if (appContainer) appContainer.classList.add('hidden');
+            if (loginForm) loginForm.reset();
+            if (errorDiv) errorDiv.classList.add('hidden');
         }
 
         // Gestion du formulaire de login
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const submitBtn = document.getElementById('login-submit-btn');
-            const submitText = document.getElementById('login-submit-text');
-            const loader = document.getElementById('login-loader');
-            const errorDiv = document.getElementById('login-error');
-            const errorMessage = document.getElementById('login-error-message');
-
-            // Afficher le loader
-            submitBtn.disabled = true;
-            submitText.textContent = 'Connexion...';
-            loader.classList.remove('hidden');
-            errorDiv.classList.add('hidden');
-
-            // Simuler un délai pour l'authentification
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Vérifier les identifiants
-            if (verifyCredentials(username, password)) {
-                createSession(username);
-                showApp();
-            } else {
-                errorMessage.textContent = 'Nom d\'utilisateur ou mot de passe incorrect';
-                errorDiv.classList.remove('hidden');
-                submitBtn.disabled = false;
-                submitText.textContent = 'Se connecter';
-                loader.classList.add('hidden');
+        function initLoginForm() {
+            const loginForm = document.getElementById('login-form');
+            if (!loginForm) {
+                console.error('Formulaire de login non trouvé');
+                return;
             }
-        });
+
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value;
+                const submitBtn = document.getElementById('login-submit-btn');
+                const submitText = document.getElementById('login-submit-text');
+                const loader = document.getElementById('login-loader');
+                const errorDiv = document.getElementById('login-error');
+                const errorMessage = document.getElementById('login-error-message');
+
+                if (!username || !password) {
+                    if (errorMessage) errorMessage.textContent = 'Veuillez remplir tous les champs';
+                    if (errorDiv) errorDiv.classList.remove('hidden');
+                    return;
+                }
+
+                // Afficher le loader
+                if (submitBtn) submitBtn.disabled = true;
+                if (submitText) submitText.textContent = 'Connexion...';
+                if (loader) loader.classList.remove('hidden');
+                if (errorDiv) errorDiv.classList.add('hidden');
+
+                // Simuler un délai pour l'authentification
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Vérifier les identifiants
+                if (verifyCredentials(username, password)) {
+                    createSession(username);
+                    showApp();
+                } else {
+                    if (errorMessage) errorMessage.textContent = 'Nom d\'utilisateur ou mot de passe incorrect';
+                    if (errorDiv) errorDiv.classList.remove('hidden');
+                    if (submitBtn) submitBtn.disabled = false;
+                    if (submitText) submitText.textContent = 'Se connecter';
+                    if (loader) loader.classList.add('hidden');
+                }
+            });
+        }
 
         // Vérification de la session au chargement
-        window.addEventListener('DOMContentLoaded', () => {
+        function initAuth() {
             const session = getSession();
             if (session) {
                 showApp();
             } else {
                 showLogin();
             }
-        });
+            initLoginForm();
+        }
+
+        // Initialiser quand le DOM est prêt
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAuth);
+        } else {
+            initAuth();
+        }
 
         // Fonction de déconnexion
         window.logout = function() {
