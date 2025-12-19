@@ -57,97 +57,13 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        /* Styles pour la page de login */
-        #login-page {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-        }
-
-        .login-card {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 40px;
-            width: 100%;
-            max-width: 400px;
-        }
     </style>
 </head>
 <body class="text-gray-800">
 
-    <!-- Page de Login -->
-    <div id="login-page">
-        <div class="login-card">
-            <div class="text-center mb-8">
-                <h1 class="header-font text-4xl font-extrabold text-gray-900 mb-2">solo</h1>
-                <p class="text-gray-500 uppercase tracking-widest text-sm">Pizzeria Napoletana</p>
-            </div>
-            
-            <form id="login-form" class="space-y-6">
-                <div>
-                    <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-user mr-2"></i>Nom d'utilisateur
-                    </label>
-                    <input 
-                        type="text" 
-                        id="username" 
-                        name="username" 
-                        required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition-all"
-                        placeholder="Entrez votre nom d'utilisateur"
-                        autocomplete="username"
-                    >
-                </div>
-                
-                <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-lock mr-2"></i>Mot de passe
-                    </label>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        name="password" 
-                        required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition-all"
-                        placeholder="Entrez votre mot de passe"
-                        autocomplete="current-password"
-                    >
-                </div>
-                
-                <div id="login-error" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                    <i class="fas fa-exclamation-circle mr-2"></i>
-                    <span id="login-error-message"></span>
-                </div>
-                
-                <button 
-                    type="submit" 
-                    id="login-submit-btn"
-                    class="w-full bg-gray-800 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-gray-900 transition-all transform hover:scale-105 flex items-center justify-center"
-                >
-                    <span id="login-submit-text">Se connecter</span>
-                    <div id="login-loader" class="loader hidden ml-2"></div>
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Application principale (masquée jusqu'à authentification) -->
-    <div id="app-container" class="hidden">
     <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
         <!-- En-tête -->
-        <header class="mb-8 text-center relative">
-            <button 
-                onclick="logout()" 
-                class="absolute top-0 right-0 btn-secondary text-sm"
-                title="Se déconnecter"
-            >
-                <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
-            </button>
+        <header class="mb-8 text-center">
             <h1 class="header-font text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight">
                 solo
             </h1>
@@ -926,8 +842,12 @@
         // Par exemple: "https://solo-proxy.onrender.com"
         const PROXY_URL = "https://solo-proxy.onrender.com"; // <= MODIFIEZ CETTE LIGNE
 
-        // --- VARIABLES FIREBASE (initialisées après authentification) ---
-        let app, auth, db, storage;
+
+        // --- INITIALISATION FIREBASE ---
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
 
         // --- COLLECTIONS REFS ---
         let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol,chargesCol;
@@ -954,29 +874,8 @@ let allDailyPayments = [];
         // --- SEUILS ---
         const LOW_STOCK_THRESHOLD = 10;
         
-        // --- INITIALISATION FIREBASE (après authentification) ---
-        function initFirebase() {
-            if (!app) {
-                try {
-                    app = initializeApp(firebaseConfig);
-                    auth = getAuth(app);
-                    // Initialiser Firestore avec une configuration pour éviter les erreurs CORS
-                    db = getFirestore(app);
-                    storage = getStorage(app);
-                } catch (error) {
-                    console.error("Erreur lors de l'initialisation Firebase:", error);
-                    alert("Erreur de connexion à Firebase. Vérifiez que votre domaine est autorisé dans Firebase Console.");
-                    return;
-                }
-            }
-            initFirebaseAuth();
-        }
-
-        // --- AUTHENTIFICATION FIREBASE ---
-        function initFirebaseAuth() {
-            if (!auth) return;
-            
-            onAuthStateChanged(auth, async (user) => {
+        // --- AUTHENTIFICATION ---
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 ingredientsCol = collection(db, `artifacts/${appId}/public/data/ingredients`);
                 productsCol = collection(db, `artifacts/${appId}/public/data/products`);
@@ -1003,13 +902,6 @@ let allDailyPayments = [];
                 } catch (error) { console.error("Auth failed:", error); }
             }
         });
-        }
-
-        // --- INITIALISER FIREBASE APRÈS AUTHENTIFICATION APP ---
-        // Cette fonction sera appelée après l'authentification réussie
-        window.initAppAfterAuth = function() {
-            initFirebase();
-        };
         
         function listenToAllCollections() {
             onSnapshot(suppliersCol, snapshot => { allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSuppliers(); populateSupplierSelects(); });
@@ -3548,162 +3440,6 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
             }
         });
     </script>
-
-    <!-- Script d'authentification -->
-    <script>
-        // Configuration des utilisateurs
-        const VALID_USERS = [
-            { username: 'admin', password: 'admin123' },
-            { username: 'test', password: 'test123' }
-        ];
-
-        const AUTH_SESSION_KEY = 'solo_auth_session';
-        const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 heures
-
-        // Fonctions d'authentification
-        function verifyCredentials(username, password) {
-            return VALID_USERS.some(user => 
-                user.username === username && user.password === password
-            );
-        }
-
-        function createSession(username) {
-            const session = {
-                username: username,
-                timestamp: Date.now(),
-                expiresAt: Date.now() + SESSION_DURATION
-            };
-            localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
-            return session;
-        }
-
-        function getSession() {
-            const sessionStr = localStorage.getItem(AUTH_SESSION_KEY);
-            if (!sessionStr) return null;
-            
-            try {
-                const session = JSON.parse(sessionStr);
-                if (Date.now() > session.expiresAt) {
-                    localStorage.removeItem(AUTH_SESSION_KEY);
-                    return null;
-                }
-                return session;
-            } catch (e) {
-                localStorage.removeItem(AUTH_SESSION_KEY);
-                return null;
-            }
-        }
-
-        function clearSession() {
-            localStorage.removeItem(AUTH_SESSION_KEY);
-        }
-
-        function showApp() {
-            const loginPage = document.getElementById('login-page');
-            const appContainer = document.getElementById('app-container');
-            if (loginPage) loginPage.classList.add('hidden');
-            if (appContainer) appContainer.classList.remove('hidden');
-        }
-
-        function showLogin() {
-            const loginPage = document.getElementById('login-page');
-            const appContainer = document.getElementById('app-container');
-            const loginForm = document.getElementById('login-form');
-            const errorDiv = document.getElementById('login-error');
-            
-            if (loginPage) loginPage.classList.remove('hidden');
-            if (appContainer) appContainer.classList.add('hidden');
-            if (loginForm) loginForm.reset();
-            if (errorDiv) errorDiv.classList.add('hidden');
-        }
-
-        // Gestion du formulaire de login
-        function initLoginForm() {
-            const loginForm = document.getElementById('login-form');
-            if (!loginForm) {
-                console.error('Formulaire de login non trouvé');
-                return;
-            }
-
-            loginForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                
-                const username = document.getElementById('username').value.trim();
-                const password = document.getElementById('password').value;
-                const submitBtn = document.getElementById('login-submit-btn');
-                const submitText = document.getElementById('login-submit-text');
-                const loader = document.getElementById('login-loader');
-                const errorDiv = document.getElementById('login-error');
-                const errorMessage = document.getElementById('login-error-message');
-
-                if (!username || !password) {
-                    if (errorMessage) errorMessage.textContent = 'Veuillez remplir tous les champs';
-                    if (errorDiv) errorDiv.classList.remove('hidden');
-                    return;
-                }
-
-                // Afficher le loader
-                if (submitBtn) submitBtn.disabled = true;
-                if (submitText) submitText.textContent = 'Connexion...';
-                if (loader) loader.classList.remove('hidden');
-                if (errorDiv) errorDiv.classList.add('hidden');
-
-                // Simuler un délai pour l'authentification
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Vérifier les identifiants
-            if (verifyCredentials(username, password)) {
-                createSession(username);
-                showApp();
-                // Initialiser Firebase après authentification réussie
-                if (typeof initAppAfterAuth === 'function') {
-                    initAppAfterAuth();
-                }
-            } else {
-                    if (errorMessage) errorMessage.textContent = 'Nom d\'utilisateur ou mot de passe incorrect';
-                    if (errorDiv) errorDiv.classList.remove('hidden');
-                    if (submitBtn) submitBtn.disabled = false;
-                    if (submitText) submitText.textContent = 'Se connecter';
-                    if (loader) loader.classList.add('hidden');
-                }
-            });
-        }
-
-        // Vérification de la session au chargement
-        function initAuth() {
-            const session = getSession();
-            if (session) {
-                showApp();
-            } else {
-                showLogin();
-            }
-            initLoginForm();
-        }
-
-        // Initialiser quand le DOM est prêt
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initAuth);
-        } else {
-            initAuth();
-        }
-
-        // Si l'utilisateur est déjà authentifié (session existante), initialiser Firebase
-        if (getSession()) {
-            // Attendre un peu pour que le DOM soit prêt
-            setTimeout(() => {
-                if (typeof initAppAfterAuth === 'function') {
-                    initAppAfterAuth();
-                }
-            }, 100);
-        }
-
-        // Fonction de déconnexion
-        window.logout = function() {
-            clearSession();
-            showLogin();
-        };
-    </script>
-    </div>
 </body>
 </html>
 
