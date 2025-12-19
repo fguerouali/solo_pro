@@ -926,12 +926,8 @@
         // Par exemple: "https://solo-proxy.onrender.com"
         const PROXY_URL = "https://solo-proxy.onrender.com"; // <= MODIFIEZ CETTE LIGNE
 
-
-        // --- INITIALISATION FIREBASE ---
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
+        // --- VARIABLES FIREBASE (initialisées après authentification) ---
+        let app, auth, db, storage;
 
         // --- COLLECTIONS REFS ---
         let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol,chargesCol;
@@ -958,8 +954,22 @@ let allDailyPayments = [];
         // --- SEUILS ---
         const LOW_STOCK_THRESHOLD = 10;
         
-        // --- AUTHENTIFICATION ---
-        onAuthStateChanged(auth, async (user) => {
+        // --- INITIALISATION FIREBASE (après authentification) ---
+        function initFirebase() {
+            if (!app) {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                storage = getStorage(app);
+            }
+            initFirebaseAuth();
+        }
+
+        // --- AUTHENTIFICATION FIREBASE ---
+        function initFirebaseAuth() {
+            if (!auth) return;
+            
+            onAuthStateChanged(auth, async (user) => {
             if (user) {
                 ingredientsCol = collection(db, `artifacts/${appId}/public/data/ingredients`);
                 productsCol = collection(db, `artifacts/${appId}/public/data/products`);
@@ -986,6 +996,13 @@ let allDailyPayments = [];
                 } catch (error) { console.error("Auth failed:", error); }
             }
         });
+        }
+
+        // --- INITIALISER FIREBASE APRÈS AUTHENTIFICATION APP ---
+        // Cette fonction sera appelée après l'authentification réussie
+        window.initAppAfterAuth = function() {
+            initFirebase();
+        };
         
         function listenToAllCollections() {
             onSnapshot(suppliersCol, snapshot => { allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSuppliers(); populateSupplierSelects(); });
@@ -3627,11 +3644,15 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
                 // Simuler un délai pour l'authentification
                 await new Promise(resolve => setTimeout(resolve, 500));
 
-                // Vérifier les identifiants
-                if (verifyCredentials(username, password)) {
-                    createSession(username);
-                    showApp();
-                } else {
+            // Vérifier les identifiants
+            if (verifyCredentials(username, password)) {
+                createSession(username);
+                showApp();
+                // Initialiser Firebase après authentification réussie
+                if (typeof initAppAfterAuth === 'function') {
+                    initAppAfterAuth();
+                }
+            } else {
                     if (errorMessage) errorMessage.textContent = 'Nom d\'utilisateur ou mot de passe incorrect';
                     if (errorDiv) errorDiv.classList.remove('hidden');
                     if (submitBtn) submitBtn.disabled = false;
@@ -3657,6 +3678,16 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
             document.addEventListener('DOMContentLoaded', initAuth);
         } else {
             initAuth();
+        }
+
+        // Si l'utilisateur est déjà authentifié (session existante), initialiser Firebase
+        if (getSession()) {
+            // Attendre un peu pour que le DOM soit prêt
+            setTimeout(() => {
+                if (typeof initAppAfterAuth === 'function') {
+                    initAppAfterAuth();
+                }
+            }, 100);
         }
 
         // Fonction de déconnexion
