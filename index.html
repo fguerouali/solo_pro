@@ -957,10 +957,17 @@ let allDailyPayments = [];
         // --- INITIALISATION FIREBASE (après authentification) ---
         function initFirebase() {
             if (!app) {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                storage = getStorage(app);
+                try {
+                    app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    // Initialiser Firestore avec une configuration pour éviter les erreurs CORS
+                    db = getFirestore(app);
+                    storage = getStorage(app);
+                } catch (error) {
+                    console.error("Erreur lors de l'initialisation Firebase:", error);
+                    alert("Erreur de connexion à Firebase. Vérifiez que votre domaine est autorisé dans Firebase Console.");
+                    return;
+                }
             }
             initFirebaseAuth();
         }
