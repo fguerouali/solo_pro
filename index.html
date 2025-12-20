@@ -267,8 +267,42 @@
                     <div>
                          <div class="flex justify-between items-center mb-4">
                              <h2 class="text-2xl font-semibold text-gray-800">Commandes Fournisseurs</h2>
-                             <button id="add-purchase-order-btn" class="btn-primary"><i class="fas fa-plus mr-2"></i>Nouvelle Commande</button>
+                             <div class="flex gap-2">
+                                 <button id="export-purchase-orders-btn" class="btn-secondary">
+                                     <i class="fas fa-download mr-2"></i>Exporter CSV
+                                 </button>
+                                 <button id="add-purchase-order-btn" class="btn-primary"><i class="fas fa-plus mr-2"></i>Nouvelle Commande</button>
+                             </div>
                         </div>
+                        
+                        <!-- Filtres -->
+                        <div class="bg-white p-4 rounded-lg shadow-lg mb-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label for="filter-po-supplier" class="block text-sm font-medium text-gray-700 mb-2">Fournisseur</label>
+                                    <select id="filter-po-supplier" class="w-full input-style">
+                                        <option value="">Tous les fournisseurs</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="filter-po-status" class="block text-sm font-medium text-gray-700 mb-2">Statut réception</label>
+                                    <select id="filter-po-status" class="w-full input-style">
+                                        <option value="">Toutes</option>
+                                        <option value="received">Réceptionnées</option>
+                                        <option value="pending">Non réceptionnées</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="filter-po-payment" class="block text-sm font-medium text-gray-700 mb-2">Statut paiement</label>
+                                    <select id="filter-po-payment" class="w-full input-style">
+                                        <option value="">Tous</option>
+                                        <option value="paid">Payées</option>
+                                        <option value="unpaid">Non payées</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div id="purchase-orders-list" class="space-y-3">
                             <div id="purchase-orders-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-lg">
                                 <p>Aucune commande fournisseur.</p>
@@ -937,7 +971,7 @@ let allDailyPayments = [];
         
         function listenToAllCollections() {
             onSnapshot(suppliersCol, snapshot => { allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSuppliers(); populateSupplierSelects(); });
-            onSnapshot(purchaseOrdersCol, snapshot => { allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderPurchaseOrders(allPurchaseOrders); updateAndRenderKPIs(); });
+            onSnapshot(purchaseOrdersCol, snapshot => { allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); applyPurchaseOrderFilters(); updateAndRenderKPIs(); });
             onSnapshot(ingredientsCol, snapshot => { allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allIngredients.sort((a,b) => a.name.localeCompare(b.name)); renderIngredients(); updateAndRenderKPIs(); populateIngredientSelects(); renderProducts(); });
             onSnapshot(productsCol, snapshot => { allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allProducts.sort((a,b) => a.name.localeCompare(b.name)); renderProducts(); populateProductSelects(); updateAndRenderKPIs(); });
             onSnapshot(ordersCol, snapshot => { orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0)); renderOrderHistory(orderHistory); updateAndRenderKPIs(); });
@@ -1304,6 +1338,36 @@ const renderOrderHistory = (history) => {
             } 
         };
         const renderSuppliers = () => { const container = document.getElementById('suppliers-list'); const placeholder = document.getElementById('suppliers-placeholder'); container.innerHTML = ''; if (allSuppliers.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allSuppliers.forEach(sup => { const div = document.createElement('div'); div.className = "bg-white p-3 rounded-lg shadow-sm flex justify-between items-center"; div.innerHTML = `<div><p class="font-semibold">${sup.name}</p><p class="text-sm text-gray-500">${sup.contact || ''}</p></div><div><button data-id="${sup.id}" class="edit-supplier-btn text-gray-400 hover:text-gray-800 mr-2"><i class="fas fa-edit"></i></button><button data-id="${sup.id}" class="delete-supplier-btn text-gray-400 hover:text-red-600"><i class="fas fa-trash"></i></button></div>`; container.appendChild(div); }); } };
+        // Fonction pour filtrer les commandes fournisseurs
+        const applyPurchaseOrderFilters = () => {
+            const supplierFilter = document.getElementById('filter-po-supplier')?.value || '';
+            const statusFilter = document.getElementById('filter-po-status')?.value || '';
+            const paymentFilter = document.getElementById('filter-po-payment')?.value || '';
+            
+            let filtered = [...allPurchaseOrders];
+            
+            // Filtre par fournisseur
+            if (supplierFilter) {
+                filtered = filtered.filter(po => po.supplierId === supplierFilter);
+            }
+            
+            // Filtre par statut de réception
+            if (statusFilter === 'received') {
+                filtered = filtered.filter(po => po.status === 'received');
+            } else if (statusFilter === 'pending') {
+                filtered = filtered.filter(po => po.status !== 'received');
+            }
+            
+            // Filtre par statut de paiement
+            if (paymentFilter === 'paid') {
+                filtered = filtered.filter(po => po.paymentStatus === 'paid');
+            } else if (paymentFilter === 'unpaid') {
+                filtered = filtered.filter(po => po.paymentStatus !== 'paid');
+            }
+            
+            renderPurchaseOrders(filtered);
+        };
+        
         const renderPurchaseOrders = (purchaseOrders) => { 
             const container = document.getElementById('purchase-orders-list'); 
             const placeholder = document.getElementById('purchase-orders-placeholder'); 
@@ -2616,7 +2680,18 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
 // ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
         // --- FOURNISSEURS & ACHATS ---
         document.getElementById('add-supplier-btn').addEventListener('click', () => { document.getElementById('supplier-modal-title').textContent = 'Ajouter un Fournisseur'; document.getElementById('supplier-form').reset(); document.getElementById('supplier-id').value = ''; openModal('supplier-modal'); }); document.getElementById('cancel-supplier').addEventListener('click', () => closeModal('supplier-modal')); document.getElementById('supplier-form').addEventListener('submit', async e => { e.preventDefault(); const id = document.getElementById('supplier-id').value; const data = { name: document.getElementById('supplier-name').value, contact: document.getElementById('supplier-contact').value }; try { if (id) await updateDoc(doc(suppliersCol, id), data); else await addDoc(suppliersCol, data); showToast(id ? 'Fournisseur mis à jour' : 'Fournisseur ajouté'); closeModal('supplier-modal'); } catch(error) { showToast('Erreur'); } }); document.getElementById('suppliers-list').addEventListener('click', async e => { const target = e.target.closest('button'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-supplier-btn')) { if (confirm('Supprimer ce fournisseur ?')) await deleteDoc(doc(suppliersCol, id)); } else if (target.classList.contains('edit-supplier-btn')) { const sup = allSuppliers.find(s => s.id === id); document.getElementById('supplier-id').value = id; document.getElementById('supplier-name').value = sup.name; document.getElementById('supplier-contact').value = sup.contact; openModal('supplier-modal'); } });
-        const populateSupplierSelects = () => { const select = document.getElementById('po-supplier-select'); select.innerHTML = '<option value="">Choisir...</option>'; allSuppliers.forEach(s => select.innerHTML += `<option value="${s.id}">${s.name}</option>`); }; 
+        const populateSupplierSelects = () => { 
+            const select = document.getElementById('po-supplier-select'); 
+            select.innerHTML = '<option value="">Choisir...</option>'; 
+            allSuppliers.forEach(s => select.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+            
+            // Populer aussi le filtre des commandes
+            const filterSelect = document.getElementById('filter-po-supplier');
+            if (filterSelect) {
+                filterSelect.innerHTML = '<option value="">Tous les fournisseurs</option>';
+                allSuppliers.forEach(s => filterSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+            }
+        }; 
         
         document.getElementById('add-purchase-order-btn').addEventListener('click', () => { 
             document.getElementById('purchase-order-form').reset(); 
@@ -2977,6 +3052,82 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 }
                 // *** END NEW ***
             }
+        });
+
+        // Event listeners pour les filtres des commandes fournisseurs
+        document.getElementById('filter-po-supplier').addEventListener('change', applyPurchaseOrderFilters);
+        document.getElementById('filter-po-status').addEventListener('change', applyPurchaseOrderFilters);
+        document.getElementById('filter-po-payment').addEventListener('change', applyPurchaseOrderFilters);
+
+        // Export CSV des commandes fournisseurs
+        document.getElementById('export-purchase-orders-btn').addEventListener('click', () => {
+            // Appliquer les filtres actuels pour l'export
+            const supplierFilter = document.getElementById('filter-po-supplier')?.value || '';
+            const statusFilter = document.getElementById('filter-po-status')?.value || '';
+            const paymentFilter = document.getElementById('filter-po-payment')?.value || '';
+            
+            let filtered = [...allPurchaseOrders];
+            
+            if (supplierFilter) {
+                filtered = filtered.filter(po => po.supplierId === supplierFilter);
+            }
+            if (statusFilter === 'received') {
+                filtered = filtered.filter(po => po.status === 'received');
+            } else if (statusFilter === 'pending') {
+                filtered = filtered.filter(po => po.status !== 'received');
+            }
+            if (paymentFilter === 'paid') {
+                filtered = filtered.filter(po => po.paymentStatus === 'paid');
+            } else if (paymentFilter === 'unpaid') {
+                filtered = filtered.filter(po => po.paymentStatus !== 'paid');
+            }
+            
+            if (filtered.length === 0) {
+                showToast('Aucune commande à exporter');
+                return;
+            }
+            
+            // Trier par date (plus ancienne en premier)
+            filtered.sort((a, b) => {
+                const dateA = toDate(a.createdAt);
+                const dateB = toDate(b.createdAt);
+                return (dateA?.getTime() || 0) - (dateB?.getTime() || 0);
+            });
+            
+            // Générer le CSV avec séparateur point-virgule
+            let csv = "Date;Fournisseur;Produit;Quantité;Prix Unitaire;Total\n";
+            
+            filtered.forEach(po => {
+                const date = toDate(po.createdAt);
+                const formattedDate = date ? 
+                    `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}` : 
+                    'Date inconnue';
+                
+                const supplier = allSuppliers.find(s => s.id === po.supplierId);
+                const supplierName = supplier ? supplier.name : 'Fournisseur inconnu';
+                
+                // Une ligne par produit dans la commande
+                po.items.forEach((item, index) => {
+                    const priceUnit = item.price || 0;
+                    const quantity = item.quantity || 0;
+                    const totalItem = priceUnit * quantity;
+                    
+                    // Première ligne : date et fournisseur, lignes suivantes : vides
+                    if (index === 0) {
+                        csv += `${formattedDate};${supplierName};${item.name};${quantity};${priceUnit.toFixed(2)};${totalItem.toFixed(2)}\n`;
+                    } else {
+                        csv += `;;${item.name};${quantity};${priceUnit.toFixed(2)};${totalItem.toFixed(2)}\n`;
+                    }
+                });
+                
+                // Ligne de total de la commande
+                csv += `;;TOTAL COMMANDE;;;${(po.totalCost || 0).toFixed(2)}\n`;
+                csv += `\n`; // Ligne vide entre les commandes
+            });
+            
+            const filename = `commandes_fournisseurs_${new Date().toISOString().split('T')[0]}.csv`;
+            downloadCSV(csv, filename);
+            showToast(`Fichier CSV téléchargé : ${filtered.length} commande(s)`);
         });
         
        // --- IMPORT API SALES (Using Proxy for Auth) ---
