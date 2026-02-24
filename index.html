@@ -219,9 +219,10 @@
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ingrédient</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité en stock</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-moyenne" title="Cliquer pour trier">Conso mensuelle moyenne <i class="fas fa-sort ml-1 text-gray-400"></i></th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-mois" title="Cliquer pour trier">Conso mois en cours <i class="fas fa-sort ml-1 text-gray-400"></i></th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-moyenne" title="Cliquer pour trier">Conso mensuelle moyenne <i class="fas fa-sort ml-1 text-gray-400"></i></th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coût / Unité</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coût mensuel moyen</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
@@ -1260,9 +1261,10 @@ document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)}
                     const row = document.createElement('tr');
                     row.className = isLow ? 'low-stock' : '';
                     const costDisplay = (ing.cost && ing.cost > 0) ? `${ing.cost.toFixed(2)} Mad` : 'N/A';
-                    const consoMoyenneDisplay = ing.consoMoyenne > 0 ? `${ing.consoMoyenne.toFixed(2)} ${ing.unit}` : '-';
                     const consoMoisDisplay = ing.consoMois > 0 ? `${ing.consoMois.toFixed(2)} ${ing.unit}` : '-';
-                    row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td><td class="px-6 py-4 whitespace-nowrap"><span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> <span class="text-gray-500">${ing.unit}</span></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${consoMoyenneDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${consoMoisDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${costDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-medium"><button data-id="${ing.id}" class="edit-ingredient-btn text-gray-600 hover:text-gray-900 mr-4">Modifier</button><button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button></td>`;
+                    const consoMoyenneDisplay = ing.consoMoyenne > 0 ? `${ing.consoMoyenne.toFixed(2)} ${ing.unit}` : '-';
+                    const coutMensuelMoyen = ing.consoMoyenne > 0 && (ing.cost || 0) > 0 ? (ing.consoMoyenne * (ing.cost || 0)).toFixed(2) + ' Mad' : '-';
+                    row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td><td class="px-6 py-4 whitespace-nowrap"><span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> <span class="text-gray-500">${ing.unit}</span></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${consoMoisDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${consoMoyenneDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${costDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${coutMensuelMoyen}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-medium"><button data-id="${ing.id}" class="edit-ingredient-btn text-gray-600 hover:text-gray-900 mr-4">Modifier</button><button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button></td>`;
                     list.appendChild(row);
                 });
             }
