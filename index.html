@@ -222,7 +222,7 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-mois" title="Cliquer pour trier">Conso mois en cours <i class="fas fa-sort ml-1 text-gray-400"></i></th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-moyenne" title="Cliquer pour trier">Conso mensuelle moyenne <i class="fas fa-sort ml-1 text-gray-400"></i></th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coût / Unité</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coût mensuel moyen</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-cout-moyen" title="Cliquer pour trier">Coût mensuel moyen <i class="fas fa-sort ml-1 text-gray-400"></i></th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
@@ -1249,12 +1249,15 @@ document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)}
                 let ingredientsToRender = allIngredients.map(ing => ({
                     ...ing,
                     consoMoyenne: stats.consoMoyenneMensuelle.get(ing.id) || 0,
-                    consoMois: stats.consoMoisEnCours.get(ing.id) || 0
+                    consoMois: stats.consoMoisEnCours.get(ing.id) || 0,
+                    coutMensuelMoyen: (stats.consoMoyenneMensuelle.get(ing.id) || 0) * (ing.cost || 0)
                 }));
                 if (ingredientsSortState.column === 'consoMoyenne') {
                     ingredientsToRender.sort((a, b) => (a.consoMoyenne - b.consoMoyenne) * ingredientsSortState.dir);
                 } else if (ingredientsSortState.column === 'consoMois') {
                     ingredientsToRender.sort((a, b) => (a.consoMois - b.consoMois) * ingredientsSortState.dir);
+                } else if (ingredientsSortState.column === 'coutMensuelMoyen') {
+                    ingredientsToRender.sort((a, b) => (a.coutMensuelMoyen - b.coutMensuelMoyen) * ingredientsSortState.dir);
                 }
                 ingredientsToRender.forEach(ing => {
                     const isLow = ing.quantity < LOW_STOCK_THRESHOLD;
@@ -1270,20 +1273,30 @@ document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)}
             }
         };
 
+        const resetSortIcons = (activeColumn) => {
+            document.getElementById('th-conso-moyenne').innerHTML = `Conso mensuelle moyenne <i class="fas fa-sort${activeColumn === 'consoMoyenne' ? '-' + (ingredientsSortState.dir === 1 ? 'up' : 'down') : ''} ml-1 ${activeColumn === 'consoMoyenne' ? 'text-gray-600' : 'text-gray-400'}"></i>`;
+            document.getElementById('th-conso-mois').innerHTML = `Conso mois en cours <i class="fas fa-sort${activeColumn === 'consoMois' ? '-' + (ingredientsSortState.dir === 1 ? 'up' : 'down') : ''} ml-1 ${activeColumn === 'consoMois' ? 'text-gray-600' : 'text-gray-400'}"></i>`;
+            document.getElementById('th-conso-cout-moyen').innerHTML = `Coût mensuel moyen <i class="fas fa-sort${activeColumn === 'coutMensuelMoyen' ? '-' + (ingredientsSortState.dir === 1 ? 'up' : 'down') : ''} ml-1 ${activeColumn === 'coutMensuelMoyen' ? 'text-gray-600' : 'text-gray-400'}"></i>`;
+        };
         document.getElementById('th-conso-moyenne')?.addEventListener('click', () => {
             const wasConsoMoyenne = ingredientsSortState.column === 'consoMoyenne';
             ingredientsSortState.column = 'consoMoyenne';
             ingredientsSortState.dir = wasConsoMoyenne ? -ingredientsSortState.dir : 1;
-            document.getElementById('th-conso-moyenne').innerHTML = `Conso mensuelle moyenne <i class="fas fa-sort-${ingredientsSortState.dir === 1 ? 'up' : 'down'} ml-1 text-gray-600"></i>`;
-            document.getElementById('th-conso-mois').innerHTML = `Conso mois en cours <i class="fas fa-sort ml-1 text-gray-400"></i>`;
+            resetSortIcons('consoMoyenne');
             renderIngredients();
         });
         document.getElementById('th-conso-mois')?.addEventListener('click', () => {
             const wasConsoMois = ingredientsSortState.column === 'consoMois';
             ingredientsSortState.column = 'consoMois';
             ingredientsSortState.dir = wasConsoMois ? -ingredientsSortState.dir : 1;
-            document.getElementById('th-conso-mois').innerHTML = `Conso mois en cours <i class="fas fa-sort-${ingredientsSortState.dir === 1 ? 'up' : 'down'} ml-1 text-gray-600"></i>`;
-            document.getElementById('th-conso-moyenne').innerHTML = `Conso mensuelle moyenne <i class="fas fa-sort ml-1 text-gray-400"></i>`;
+            resetSortIcons('consoMois');
+            renderIngredients();
+        });
+        document.getElementById('th-conso-cout-moyen')?.addEventListener('click', () => {
+            const wasCoutMoyen = ingredientsSortState.column === 'coutMensuelMoyen';
+            ingredientsSortState.column = 'coutMensuelMoyen';
+            ingredientsSortState.dir = wasCoutMoyen ? -ingredientsSortState.dir : 1;
+            resetSortIcons('coutMensuelMoyen');
             renderIngredients();
         });
             // --- TOP FUNCTIONS ---
