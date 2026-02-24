@@ -238,10 +238,24 @@
             <div id="products-content" class="tab-content">
                  <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
                     <h2 class="text-2xl font-semibold text-gray-800">Gestion des Produits</h2>
-                    <div class="flex gap-2">
-                        <button id="import-products-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer</button>
-                        <button id="export-products-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter</button>
-                        <button id="add-product-btn" class="btn-primary"><i class="fas fa-plus mr-2"></i>Créer un Produit</button>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-2">
+                            <label for="product-type-filter" class="text-sm font-medium text-gray-700">Type:</label>
+                            <select id="product-type-filter" class="input-style py-1.5 px-3 text-sm">
+                                <option value="">Tous les types</option>
+                                <option value="Entrée">Entrée</option>
+                                <option value="Pizza">Pizza</option>
+                                <option value="Panuozzo">Panuozzo</option>
+                                <option value="Dessert">Dessert</option>
+                                <option value="Boisson">Boisson</option>
+                                <option value="Autre">Autre</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="import-products-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer</button>
+                            <button id="export-products-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter</button>
+                            <button id="add-product-btn" class="btn-primary"><i class="fas fa-plus mr-2"></i>Créer un Produit</button>
+                        </div>
                     </div>
                 </div>
                 <div id="products-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1375,7 +1389,7 @@ document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)}
             return 0;
         };
 
-        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); container.innerHTML = ''; if(allProducts.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Entrée: '<i class="fas fa-concierge-bell"></i>', Pizza: '<i class="fas fa-pizza-slice"></i>', Panuozzo: '<i class="fas fa-bread-slice"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Autre: '<i class="fas fa-box"></i>' }; 
+        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); const typeFilter = document.getElementById('product-type-filter')?.value || ''; container.innerHTML = ''; const filteredProducts = typeFilter ? allProducts.filter(p => p.type === typeFilter) : allProducts; if(filteredProducts.length === 0) { const pEl = placeholder?.querySelector('p'); if(pEl) pEl.textContent = typeFilter ? 'Aucun produit pour ce type.' : 'Aucun produit créé. Créez votre premier produit !'; container.appendChild(placeholder); } else { filteredProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Entrée: '<i class="fas fa-concierge-bell"></i>', Pizza: '<i class="fas fa-pizza-slice"></i>', Panuozzo: '<i class="fas fa-bread-slice"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Autre: '<i class="fas fa-box"></i>' }; 
         
         let contentHtml = '';
         if (product.recipe && product.recipe.length > 0) {
@@ -1668,6 +1682,7 @@ const renderOrderHistory = (history) => {
         // --- PRODUITS ---
         const populateIngredientSelects = () => {  const recipeSelect = document.getElementById('recipe-ingredient-select');  const linkedSelect = document.getElementById('linked-ingredient-select');  const poSelect = document.getElementById('po-ingredient-select'); const lossIngredientSelect = document.getElementById('loss-ingredient-select'); const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join('');  recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`;  linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`; poSelect.innerHTML = `<option value="">Choisir...</option>${options}`; lossIngredientSelect.innerHTML = `<option value="">Choisir...</option>${options}`};
         const populateProductSelects = () => { const orderSelect = document.getElementById('order-product-select'); const lossSelect = document.getElementById('loss-product-select'); const options = allProducts.map(product => `<option value="${product.id}">${product.name}</option>`).join(''); orderSelect.innerHTML = options; lossSelect.innerHTML = options; }
+        document.getElementById('product-type-filter')?.addEventListener('change', () => renderProducts());
         document.getElementById('add-product-btn').addEventListener('click', () => { 
             document.getElementById('product-modal-title').textContent = 'Créer un Produit'; 
             document.getElementById('product-form').reset(); 
