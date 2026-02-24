@@ -1201,6 +1201,8 @@ document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)}
             return consumption;
         };
 
+        const CONSO_MOYENNE_START_DATE = new Date(2025, 10, 1); // 1er novembre 2025
+
         const getConsumptionStats = () => {
             const now = new Date();
             const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -1210,13 +1212,17 @@ document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)}
             });
             const consoMoisEnCours = calculateIngredientConsumptionFromOrders(ordersLast30Days);
 
+            const ordersFromNov2025 = orderHistory.filter(o => {
+                const d = toDate(o.saleDate || o.createdAt);
+                return d && d.getTime() >= CONSO_MOYENNE_START_DATE.getTime();
+            });
             const monthsSet = new Set();
-            orderHistory.forEach(o => {
+            ordersFromNov2025.forEach(o => {
                 const d = toDate(o.saleDate || o.createdAt);
                 if (d) monthsSet.add(`${d.getFullYear()}-${d.getMonth()}`);
             });
             const monthsCount = Math.max(1, monthsSet.size);
-            const consoTotale = calculateIngredientConsumptionFromOrders(orderHistory);
+            const consoTotale = calculateIngredientConsumptionFromOrders(ordersFromNov2025);
             const consoMoyenneMensuelle = new Map();
             consoTotale.forEach((qty, ingId) => {
                 consoMoyenneMensuelle.set(ingId, qty / monthsCount);
