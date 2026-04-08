@@ -1085,6 +1085,16 @@ onSnapshot(employeesCol, snapshot => {
                            receivedDate >= startDate && 
                            receivedDate <= endDate;
                 });
+            const filteredPaidPurchases = !startDate
+                ? allPurchaseOrders.filter(p => p.status === 'received' && p.paymentStatus === 'paid')
+                : allPurchaseOrders.filter(p => {
+                    const paidDate = toDate(p.paidAt || p.receivedAt);
+                    return p.status === 'received' &&
+                           p.paymentStatus === 'paid' &&
+                           paidDate &&
+                           paidDate >= startDate &&
+                           paidDate <= endDate;
+                });
             // *** END NEW ***
 
 
@@ -1153,7 +1163,8 @@ const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 // On vérifie si totalSales > 0
 const lossRate = totalSales > 0 ? (totalLossesValue / totalSales) * 100 : 0;
 const totalCharges = filteredCharges.reduce((sum, charge) => sum + charge.amount, 0);
-const netProfit = grossMargin - totalCharges;
+const totalPaidPurchases = filteredPaidPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
+const netProfit = grossMargin - totalCharges - totalPaidPurchases;
 
 
 // ^ ^ ^ **FIN DES 4 CALCULS** ^ ^ ^
