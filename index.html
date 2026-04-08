@@ -444,7 +444,12 @@
         </div>
 
         <div>
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Historique des Charges</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold text-gray-800">Historique des Charges</h2>
+                <button id="export-charges-btn" class="btn-secondary">
+                    <i class="fas fa-download mr-2"></i>Exporter CSV
+                </button>
+            </div>
             <div id="charges-list" class="space-y-3">
                 <div id="charges-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
                     <i class="fas fa-file-invoice-dollar fa-2x text-gray-400 mb-2"></i>
@@ -3724,6 +3729,17 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
                 csv += `${date},"${p}","${q}",${o.totalPrice.toFixed(2)}\n`; 
             }); 
             downloadCSV(csv, 'historique_ventes.csv'); 
+        });
+        document.getElementById('export-charges-btn').addEventListener('click', () => {
+            let csv = "date,nom,montant,type\n";
+            allCharges.forEach(charge => {
+                const date = formatDateToDDMMYYYY(charge.date || charge.createdAt);
+                const name = (charge.name || '').replace(/"/g, '""');
+                const amount = Number(charge.amount || 0).toFixed(2);
+                const type = (charge.type || 'charge').replace(/"/g, '""');
+                csv += `"${date}","${name}",${amount},"${type}"\n`;
+            });
+            downloadCSV(csv, `historique_charges_${new Date().toISOString().split('T')[0]}.csv`);
         });
         // --- GESTION DE LA SUPPRESSION MASSIVE ---
 
