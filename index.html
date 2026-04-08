@@ -1168,8 +1168,7 @@ const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 // On vérifie si totalSales > 0
 const lossRate = totalSales > 0 ? (totalLossesValue / totalSales) * 100 : 0;
 const totalCharges = filteredCharges.reduce((sum, charge) => sum + charge.amount, 0);
-const totalPaidPurchases = filteredPaidPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
-const netProfit = grossMargin - totalCharges - totalPaidPurchases;
+const netProfit = totalSales - (totalCharges + totalPurchases);
 
 
 // ^ ^ ^ **FIN DES 4 CALCULS** ^ ^ ^
