@@ -1123,6 +1123,23 @@ let allDailyPayments = [];
 
         const clearLoginError = () => document.getElementById('login-error')?.classList.add('hidden');
 
+        const formatAuthError = (error) => {
+            switch (error.code) {
+                case 'auth/operation-not-allowed':
+                    return 'Connexion Email/Mot de passe désactivée dans Firebase. Allez dans Authentication → Sign-in method → Email/Password → Activer.';
+                case 'auth/email-already-in-use':
+                    return 'Cet identifiant existe déjà. Connectez-vous.';
+                case 'auth/invalid-credential':
+                case 'auth/wrong-password':
+                case 'auth/user-not-found':
+                    return 'Identifiant ou mot de passe incorrect.';
+                case 'auth/weak-password':
+                    return 'Mot de passe trop faible (minimum 6 caractères).';
+                default:
+                    return error.message || 'Erreur d\'authentification.';
+            }
+        };
+
         const showAppShell = () => {
             document.getElementById('login-screen')?.classList.add('hidden');
             document.getElementById('app-shell')?.classList.remove('hidden');
@@ -1337,9 +1354,7 @@ let allDailyPayments = [];
             try {
                 await signInWithEmailAndPassword(auth, usernameToEmail(username), password);
             } catch (error) {
-                showLoginError(error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password'
-                    ? 'Identifiant ou mot de passe incorrect.'
-                    : 'Connexion impossible : ' + error.message);
+                showLoginError(formatAuthError(error));
             }
         });
 
@@ -1352,9 +1367,7 @@ let allDailyPayments = [];
                 await createUserAccount(username, password, 'superadmin', true);
                 showToast('Super administrateur créé.');
             } catch (error) {
-                showLoginError(error.code === 'auth/email-already-in-use'
-                    ? 'Un compte existe déjà. Connectez-vous.'
-                    : 'Création impossible : ' + error.message);
+                showLoginError(formatAuthError(error));
             }
         });
 
@@ -1373,9 +1386,7 @@ let allDailyPayments = [];
                 e.target.reset();
                 showToast(`Utilisateur "${username}" créé.`);
             } catch (error) {
-                showToast(error.code === 'auth/email-already-in-use'
-                    ? 'Cet identifiant existe déjà.'
-                    : 'Erreur : ' + error.message);
+                showToast(formatAuthError(error));
             }
         });
 
