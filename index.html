@@ -250,6 +250,28 @@
             <p class="text-center text-gray-500 py-4">Aucune donnée disponible</p>
         </div>
     </div>
+
+    <!-- Top 10 Panuozzo -->
+    <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <i class="fas fa-bread-slice text-amber-600 mr-2"></i>
+            Top 10 Panuozzo
+        </h3>
+        <div id="top-panuozzo-list" class="space-y-3">
+            <p class="text-center text-gray-500 py-4">Aucune donnée disponible</p>
+        </div>
+    </div>
+
+    <!-- Top 10 Desserts -->
+    <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <i class="fas fa-ice-cream text-pink-500 mr-2"></i>
+            Top 10 Desserts
+        </h3>
+        <div id="top-desserts-list" class="space-y-3">
+            <p class="text-center text-gray-500 py-4">Aucune donnée disponible</p>
+        </div>
+    </div>
 </div>
                 <h2 class="text-2xl font-semibold mb-4 text-gray-800">Alertes de Stock</h2>
                 <div id="low-stock-alerts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -1770,9 +1792,13 @@ document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)}
   // --- TOP 10 PIZZAS ET TOP 5 BOISSONS ---
             const topPizzas = calculateTop(filteredOrders, 'Pizza', 10);
             const topDrinks = calculateTop(filteredOrders, 'Boisson', 5);
+            const topPanuozzo = calculateTop(filteredOrders, 'Panuozzo', 10);
+            const topDesserts = calculateTop(filteredOrders, 'Dessert', 10);
 
             renderTopProducts(topPizzas, 'top-pizzas-list', 'Aucune pizza vendue dans cette période');
             renderTopProducts(topDrinks, 'top-drinks-list', 'Aucune boisson vendue dans cette période');
+            renderTopProducts(topPanuozzo, 'top-panuozzo-list', 'Aucun panuozzo vendu dans cette période');
+            renderTopProducts(topDesserts, 'top-desserts-list', 'Aucun dessert vendu dans cette période');
             // --- Low Stock Alerts (unfiltered) ---
             const container = document.getElementById('low-stock-alerts');
             const placeholder = document.getElementById('low-stock-placeholder');
