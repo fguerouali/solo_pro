@@ -1058,6 +1058,129 @@ onSnapshot(employeesCol, snapshot => {
             return timestamp.seconds ? new Date(timestamp.seconds * 1000) : timestamp;
         };
 
+        const PANUOZZO_COMBO_CODES = {
+            'TONNO': 'TONNO PANNUOZZO',
+            'VEGETARIANO': 'VEGETARIANO PANNUOZZO',
+            'DOLCE PARMA': 'DOLCE PARMA PANNUOZZO',
+            'DOLCEPARMA': 'DOLCE PARMA PANNUOZZO'
+        };
+
+        const parsePrintMemoPart = (part) => {
+            const match = (part || '').trim().match(/^(.+?)\s*X(\d+(?:\.\d+)?)$/i);
+            if (!match) return null;
+            return { name: match[1].trim(), quantity: parseFloat(match[2]) || 1 };
+        };
+
+        const parsePanuozzoComboFromPrintMemo = (printMemo) => {
+            if (!printMemo || !printMemo.includes('/')) return null;
+            const [part1, part2] = printMemo.split('/');
+            const panuozzo = parsePrintMemoPart(part1);
+            const drink = parsePrintMemoPart(part2);
+            if (!panuozzo || !drink) return null;
+            const panuozzoProductName = PANUOZZO_COMBO_CODES[panuozzo.name.toUpperCase()];
+            if (!panuozzoProductName) return null;
+            return { panuozzo, drink, panuozzoProductName };
+        };
+
+        const findProductByName = (name) => {
+            const normalized = (name || '').trim().toLowerCase();
+            return allProducts.find(p => p.name.trim().toLowerCase() === normalized);
+        };
+
+        const findProductByNameExact = (name) => {
+            if (!name) return null;
+            return allProducts.find(p => p.name.trim() === name.trim());
+        };
+
+        const PANUOZZO_DRINK_MAP = [
+            { glovo: 'LIV COCA', menu: 'Coca Cola', codes: ['COCA', 'Coca Cola'] },
+            { glovo: 'LIV COCA ZERO', menu: 'Coca Zero', codes: ['COCA ZERO', 'Coca Zero'] },
+            { glovo: 'LIV OULMES 33', menu: 'oulmes 33L', codes: ['OULMES 33', 'oulmes 33L'] },
+            { glovo: 'LIV SIDI ALI 33', menu: 'Sidi Ali 50 cl', codes: ['SIDI ALI 33', 'Sidi Ali 50 cl'] },
+            { glovo: 'LIV SPRITE', menu: 'Sprite', codes: ['SPRITE', 'Sprite'] }
+        ];
+
+        const findPanuozzoDrinkProductName = (drinkCode, isGlovo) => {
+            const trimmed = (drinkCode || '').trim();
+            for (const entry of PANUOZZO_DRINK_MAP) {
+                if (entry.codes.includes(trimmed)) {
+                    return isGlovo ? entry.glovo : entry.menu;
+                }
+            }
+            const upper = trimmed.toUpperCase();
+            for (const entry of PANUOZZO_DRINK_MAP) {
+                const match = entry.codes.find(c => c.toUpperCase() === upper);
+                if (match) return isGlovo ? entry.glovo : entry.menu;
+            }
+            return null;
+        };
+
+        const findDrinkProduct = (drinkCode, isGlovo) => {
+            const productName = findPanuozzoDrinkProductName(drinkCode, isGlovo);
+            if (!productName) return { product: null, productName: drinkCode };
+            const product = findProductByNameExact(productName);
+            return { product, productName };
+        };
+
+        const resolvePanuozzoMenuGlovoItems = (item, netQuantity, unknownIndex) => {
+            const goodsNameLower = (item.goodsName || '').trim().toLowerCase();
+            if (goodsNameLower !== 'menu' && goodsNameLower !== 'glovo') return null;
+
+            const parsed = parsePanuozzoComboFromPrintMemo(item.printMemo);
+            if (!parsed) return null;
+
+            const isGlovo = goodsNameLower === 'glovo';
+            const panuozzoProduct = findProductByName(parsed.panuozzoProductName);
+            const { product: drinkProduct, productName: drinkProductName } = findDrinkProduct(parsed.drink.name, isGlovo);
+            const items = [];
+
+            if (panuozzoProduct) {
+                items.push({
+                    uuid: crypto.randomUUID(),
+                    id: panuozzoProduct.id,
+                    name: panuozzoProduct.name,
+                    quantity: parsed.panuozzo.quantity * netQuantity,
+                    price: 0,
+                    returned: 0
+                });
+            }
+
+            if (drinkProduct) {
+                items.push({
+                    uuid: crypto.randomUUID(),
+                    id: drinkProduct.id,
+                    name: drinkProduct.name,
+                    quantity: parsed.drink.quantity * netQuantity,
+                    price: 0,
+                    returned: 0
+                });
+            } else {
+                items.push({
+                    uuid: crypto.randomUUID(),
+                    id: 'UNKNOWN_DRINK_' + unknownIndex,
+                    name: drinkProductName + ' (Non lié)',
+                    quantity: parsed.drink.quantity * netQuantity,
+                    price: 0,
+                    returned: 0,
+                    isUnknown: true
+                });
+            }
+
+            if (!panuozzoProduct) {
+                items.unshift({
+                    uuid: crypto.randomUUID(),
+                    id: 'UNKNOWN_PANUOZZO_' + unknownIndex,
+                    name: parsed.panuozzoProductName + ' (Non lié)',
+                    quantity: parsed.panuozzo.quantity * netQuantity,
+                    price: 0,
+                    returned: 0,
+                    isUnknown: true
+                });
+            }
+
+            return items.length > 0 ? items : null;
+        };
+
         // --- NAVIGATION ---
         document.querySelectorAll('.tab-link').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active')); tab.classList.add('active'); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.getElementById(`${tab.dataset.tab}-content`).classList.add('active'); }); });
         
@@ -3414,24 +3537,23 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
                   const lineTotal = ((price * netQuantity) + priceAdd) * (discountPercent / 100);
                   acc[billNo].totalPrice += lineTotal;
 
-                  // === MODIFICATION PRINCIPALE ICI ===
-                  // Nous ne vérifions plus "existingItem". Nous ajoutons tout avec un UUID.
-                  
-                  if (matchedProduct) {
-                      // Cas 1 : Produit identifié
+                  const panuozzoComboItems = resolvePanuozzoMenuGlovoItems(item, netQuantity, globalIndex);
+
+                  if (panuozzoComboItems) {
+                      acc[billNo].items.push(...panuozzoComboItems);
+                  } else if (matchedProduct) {
                       acc[billNo].items.push({
-                          uuid: crypto.randomUUID(), // IDENTIFIANT UNIQUE
-                          id: matchedProduct.id, 
-                          name: matchedProduct.name, 
-                          quantity: quantity, 
-                          price: price, 
-                          returned: numBack 
+                          uuid: crypto.randomUUID(),
+                          id: matchedProduct.id,
+                          name: matchedProduct.name,
+                          quantity: quantity,
+                          price: price,
+                          returned: numBack
                       });
                   } else {
-                      // Cas 2 : Produit inconnu
                       acc[billNo].items.push({
-                          uuid: crypto.randomUUID(), // IDENTIFIANT UNIQUE
-                          id: 'UNKNOWN_' + globalIndex, // ID unique temporaire
+                          uuid: crypto.randomUUID(),
+                          id: 'UNKNOWN_' + globalIndex,
                           name: item.goodsName + ' (Non lié)',
                           quantity: quantity,
                           price: price,
