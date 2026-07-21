@@ -57,17 +57,72 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .hidden { display: none !important; }
+        .module-read-only .btn-primary,
+        .module-read-only button[class*="delete-"],
+        .module-read-only button[class*="edit-"],
+        .module-read-only button[id*="import-"],
+        .module-read-only button[id*="export-"],
+        .module-read-only button[id*="add-"] { display: none !important; }
+        .module-read-only form:not([data-readonly-allowed="true"]) { display: none !important; }
     </style>
 </head>
 <body class="text-gray-800">
 
+    <!-- Écran de connexion -->
+    <div id="login-screen" class="fixed inset-0 bg-gray-100 flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+            <h1 class="header-font text-4xl font-extrabold text-center text-gray-900 mb-1">solo</h1>
+            <p class="text-center text-gray-500 uppercase tracking-widest text-xs mb-6">Pizzeria Napoletana</p>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="login-username" class="block text-sm font-medium text-gray-700">Identifiant</label>
+                    <input type="text" id="login-username" required autocomplete="username" class="mt-1 w-full input-style" placeholder="votre identifiant">
+                </div>
+                <div>
+                    <label for="login-password" class="block text-sm font-medium text-gray-700">Mot de passe</label>
+                    <input type="password" id="login-password" required autocomplete="current-password" class="mt-1 w-full input-style" placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-primary w-full"><i class="fas fa-sign-in-alt mr-2"></i>Se connecter</button>
+            </form>
+            <details class="mt-6 border-t pt-4">
+                <summary class="text-sm text-gray-500 cursor-pointer hover:text-gray-800">Première installation (super admin)</summary>
+                <form id="bootstrap-admin-form" class="mt-4 space-y-3">
+                    <div>
+                        <label for="bootstrap-username" class="block text-sm font-medium text-gray-700">Identifiant super admin</label>
+                        <input type="text" id="bootstrap-username" required class="mt-1 w-full input-style">
+                    </div>
+                    <div>
+                        <label for="bootstrap-password" class="block text-sm font-medium text-gray-700">Mot de passe</label>
+                        <input type="password" id="bootstrap-password" required minlength="6" class="mt-1 w-full input-style">
+                    </div>
+                    <button type="submit" class="btn-secondary w-full">Créer le super administrateur</button>
+                </form>
+            </details>
+            <p id="login-error" class="text-red-600 text-sm mt-3 hidden"></p>
+        </div>
+    </div>
+
+    <div id="app-shell" class="hidden">
     <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
         <!-- En-tête -->
-        <header class="mb-8 text-center">
-            <h1 class="header-font text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight">
-                solo
-            </h1>
-            <p class="text-gray-500 uppercase tracking-widest mt-1 text-sm">Pizzeria Napoletana</p>
+        <header class="mb-8">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="text-center sm:text-left">
+                    <h1 class="header-font text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight">solo</h1>
+                    <p class="text-gray-500 uppercase tracking-widest mt-1 text-sm">Pizzeria Napoletana</p>
+                </div>
+                <div id="user-info-bar" class="flex items-center justify-center sm:justify-end gap-3 bg-white px-4 py-2 rounded-xl shadow-md">
+                    <div class="text-right text-sm">
+                        <p id="current-username-display" class="font-semibold text-gray-900"></p>
+                        <p id="current-role-display" class="text-gray-500 text-xs"></p>
+                    </div>
+                    <button id="logout-btn" type="button" class="btn-secondary py-1 px-3 text-sm" title="Déconnexion">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
         </header>
 
         <!-- Barre de navigation par onglets -->
@@ -82,6 +137,7 @@
 					<button class="tab-link" data-tab="charges"><i class="fas fa-file-invoice-dollar mr-2"></i>Charges</button>
 					<button class="tab-link" data-tab="rh"><i class="fas fa-users mr-2"></i>RH</button>
 					<button class="tab-link" data-tab="finance"><i class="fas fa-coins mr-2"></i>Finance</button>
+					<button class="tab-link hidden" data-tab="admin" id="admin-tab-link"><i class="fas fa-user-shield mr-2"></i>Administration</button>
 
                 </nav>
             </div>
@@ -101,7 +157,7 @@
                 </div>
 
                 <!-- Conteneur des filtres (caché par défaut) -->
-                <div id="kpi-filter-container" class="hidden mb-6 bg-white p-4 rounded-2xl shadow-lg">
+                <div id="kpi-filter-container" class="hidden mb-6 bg-white p-4 rounded-2xl shadow-lg" data-readonly-allowed="true">
                     <div class="flex flex-wrap items-center justify-center gap-2 md:gap-4">
                         <!-- Filtres Prédéfinis -->
                         <div class="flex gap-2">
@@ -612,9 +668,65 @@
         </div>
     </div>
 </div>
+
+<!-- ONGLET ADMINISTRATION -->
+<div id="admin-content" class="tab-content">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Utilisateurs</h2>
+            <div class="bg-white p-6 rounded-2xl shadow-lg mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Créer un utilisateur</h3>
+                <form id="create-user-form" class="space-y-4">
+                    <div>
+                        <label for="new-user-username" class="block text-sm font-medium text-gray-700">Identifiant</label>
+                        <input type="text" id="new-user-username" required class="mt-1 w-full input-style">
+                    </div>
+                    <div>
+                        <label for="new-user-password" class="block text-sm font-medium text-gray-700">Mot de passe</label>
+                        <input type="password" id="new-user-password" required minlength="6" class="mt-1 w-full input-style">
+                    </div>
+                    <div>
+                        <label for="new-user-role" class="block text-sm font-medium text-gray-700">Rôle</label>
+                        <select id="new-user-role" class="mt-1 w-full input-style">
+                            <option value="simple_user">Utilisateur simple</option>
+                            <option value="superadmin">Super administrateur</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary w-full"><i class="fas fa-user-plus mr-2"></i>Créer l'utilisateur</button>
+                </form>
+            </div>
+            <div id="users-list" class="space-y-3"></div>
+        </div>
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Droits par module</h2>
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <p id="permissions-editor-placeholder" class="text-gray-500 text-sm">Sélectionnez un utilisateur simple pour configurer ses droits.</p>
+                <div id="permissions-editor" class="hidden">
+                    <p class="text-sm text-gray-600 mb-4">Utilisateur : <strong id="permissions-target-username"></strong></p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-2 pr-4">Module</th>
+                                    <th class="text-center py-2 px-2">Lecture</th>
+                                    <th class="text-center py-2 px-2">Écriture</th>
+                                </tr>
+                            </thead>
+                            <tbody id="permissions-matrix-body"></tbody>
+                        </table>
+                    </div>
+                    <button id="save-permissions-btn" type="button" class="btn-primary w-full mt-4">
+                        <i class="fas fa-save mr-2"></i>Enregistrer les droits
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 </main>
 
         
+    </div>
     </div>
 
     <!-- Modals -->
@@ -901,9 +1013,9 @@
 
     <script type="module">
         // --- IMPORTS FIREBASE ---
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, serverTimestamp, writeBatch, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, getDocs, serverTimestamp, writeBatch, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // --- CONFIGURATION ---
@@ -918,7 +1030,18 @@
 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-pizzeria-pro';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
+        const AUTH_EMAIL_DOMAIN = '@solopro.local';
+
+        const APP_MODULES = [
+            { id: 'dashboard', label: 'Tableau de Bord' },
+            { id: 'ingredients', label: 'Stock' },
+            { id: 'products', label: 'Produits' },
+            { id: 'purchases', label: 'Achats' },
+            { id: 'orders', label: 'Ventes & Pertes' },
+            { id: 'charges', label: 'Charges' },
+            { id: 'rh', label: 'RH' },
+            { id: 'finance', label: 'Finance' }
+        ];
         
         // --- URL du Proxy ---
         // !!! REMPLACEZ PAR L'URL RÉELLE DE VOTRE PROXY DÉPLOYÉ SUR RENDER !!!
@@ -929,13 +1052,15 @@
         // --- INITIALISATION FIREBASE ---
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const secondaryApp = getApps().some(a => a.name === 'Secondary') ? getApp('Secondary') : initializeApp(firebaseConfig, 'Secondary');
+        const secondaryAuth = getAuth(secondaryApp);
         const db = getFirestore(app);
         const storage = getStorage(app);
 
         // --- COLLECTIONS REFS ---
-        let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol,chargesCol;
+        let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol, chargesCol;
 		let employeesCol, absencesCol, salaryPaymentsCol;
-		let dailyPaymentsCol;
+		let dailyPaymentsCol, usersCol;
         // --- ETAT GLOBAL ---
         let allIngredients = [];
         let allProducts = [];
@@ -948,6 +1073,11 @@
 let allAbsences = []; // AJOUTEZ CETTE LIGNE
 let allSalaryPayments = []; // AJOUTEZ CETTE LIGNE
 let allDailyPayments = [];
+        let allAppUsers = [];
+        let currentUserProfile = null;
+        let selectedPermissionsUserId = null;
+        let collectionsInitialized = false;
+        let dataListenersStarted = false;
         let currentRecipe = [];
         let currentOrder = [];
         let currentPurchaseOrderItems = [];
@@ -956,43 +1086,345 @@ let allDailyPayments = [];
 
         // --- SEUILS ---
         const LOW_STOCK_THRESHOLD = 10;
-        
+
+        const usernameToEmail = (username) => `${username.trim().toLowerCase()}${AUTH_EMAIL_DOMAIN}`;
+
+        const getDefaultPermissions = () => {
+            const permissions = {};
+            APP_MODULES.forEach(m => { permissions[m.id] = { read: false, write: false }; });
+            return permissions;
+        };
+
+        const getFullPermissions = () => {
+            const permissions = {};
+            APP_MODULES.forEach(m => { permissions[m.id] = { read: true, write: true }; });
+            return permissions;
+        };
+
+        const canRead = (moduleId) => {
+            if (!currentUserProfile) return false;
+            if (currentUserProfile.role === 'superadmin') return true;
+            return currentUserProfile.permissions?.[moduleId]?.read === true;
+        };
+
+        const canWrite = (moduleId) => {
+            if (!currentUserProfile) return false;
+            if (currentUserProfile.role === 'superadmin') return true;
+            return currentUserProfile.permissions?.[moduleId]?.write === true;
+        };
+
+        const isSuperadmin = () => currentUserProfile?.role === 'superadmin';
+
+        const showLoginError = (message) => {
+            const el = document.getElementById('login-error');
+            el.textContent = message;
+            el.classList.remove('hidden');
+        };
+
+        const clearLoginError = () => document.getElementById('login-error')?.classList.add('hidden');
+
+        const showAppShell = () => {
+            document.getElementById('login-screen')?.classList.add('hidden');
+            document.getElementById('app-shell')?.classList.remove('hidden');
+        };
+
+        const showLoginScreen = () => {
+            document.getElementById('app-shell')?.classList.add('hidden');
+            document.getElementById('login-screen')?.classList.remove('hidden');
+        };
+
+        const applyPermissions = () => {
+            APP_MODULES.forEach(m => {
+                const navBtn = document.querySelector(`.tab-link[data-tab="${m.id}"]`);
+                const content = document.getElementById(`${m.id}-content`);
+                const readable = canRead(m.id);
+                const writable = canWrite(m.id);
+                if (navBtn) navBtn.classList.toggle('hidden', !readable);
+                if (content) content.classList.toggle('module-read-only', readable && !writable);
+            });
+
+            const adminNav = document.getElementById('admin-tab-link');
+            if (adminNav) adminNav.classList.toggle('hidden', !isSuperadmin());
+
+            const activeTab = document.querySelector('.tab-link.active');
+            if (activeTab?.classList.contains('hidden')) {
+                document.querySelector('.tab-link:not(.hidden)')?.click();
+            }
+
+            document.getElementById('current-username-display').textContent = currentUserProfile?.username || '';
+            document.getElementById('current-role-display').textContent =
+                currentUserProfile?.role === 'superadmin' ? 'Super Admin' : 'Utilisateur';
+        };
+
+        const initCollections = () => {
+            if (collectionsInitialized) return;
+            ingredientsCol = collection(db, `artifacts/${appId}/public/data/ingredients`);
+            productsCol = collection(db, `artifacts/${appId}/public/data/products`);
+            ordersCol = collection(db, `artifacts/${appId}/public/data/orders`);
+            suppliersCol = collection(db, `artifacts/${appId}/public/data/suppliers`);
+            purchaseOrdersCol = collection(db, `artifacts/${appId}/public/data/purchaseOrders`);
+            lossesCol = collection(db, `artifacts/${appId}/public/data/losses`);
+            chargesCol = collection(db, `artifacts/${appId}/public/data/charges`);
+            employeesCol = collection(db, `artifacts/${appId}/public/data/employees`);
+            absencesCol = collection(db, `artifacts/${appId}/public/data/absences`);
+            salaryPaymentsCol = collection(db, `artifacts/${appId}/public/data/salaryPayments`);
+            dailyPaymentsCol = collection(db, `artifacts/${appId}/public/data/dailyPayments`);
+            usersCol = collection(db, `artifacts/${appId}/public/data/users`);
+            collectionsInitialized = true;
+        };
+
+        const loadUserProfile = async (uid) => {
+            const snap = await getDoc(doc(db, `artifacts/${appId}/public/data/users`, uid));
+            if (!snap.exists()) throw new Error('Profil utilisateur introuvable. Contactez un administrateur.');
+            const profile = { id: snap.id, ...snap.data() };
+            if (profile.active === false) throw new Error('Compte désactivé.');
+            return profile;
+        };
+
+        const startAppForUser = async (user) => {
+            currentUserProfile = await loadUserProfile(user.uid);
+            initCollections();
+            showAppShell();
+            applyPermissions();
+            listenToAllCollections();
+            listenToUsers();
+            document.getElementById('payment-date').value = getTodayDateString();
+            document.getElementById('sale-date').value = getTodayDateString();
+            document.getElementById('api-start-date').value = getTodayDateString();
+            document.getElementById('api-end-date').value = getTodayDateString();
+            document.getElementById('charge-date').value = getTodayDateString();
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            document.getElementById('export-start-date').value = `${firstDayOfMonth.getFullYear()}-${String(firstDayOfMonth.getMonth() + 1).padStart(2, '0')}-${String(firstDayOfMonth.getDate()).padStart(2, '0')}`;
+            document.getElementById('export-end-date').value = `${lastDayOfMonth.getFullYear()}-${String(lastDayOfMonth.getMonth() + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`;
+        };
+
+        const createUserAccount = async (username, password, role, usePrimaryAuth = false) => {
+            const normalizedUsername = username.trim().toLowerCase();
+            const email = usernameToEmail(normalizedUsername);
+            const permissions = role === 'superadmin' ? getFullPermissions() : getDefaultPermissions();
+            initCollections();
+
+            if (usePrimaryAuth) {
+                const credential = await createUserWithEmailAndPassword(auth, email, password);
+                await setDoc(doc(db, `artifacts/${appId}/public/data/users`, credential.user.uid), {
+                    username: normalizedUsername,
+                    email,
+                    role,
+                    permissions,
+                    active: true,
+                    createdAt: serverTimestamp()
+                });
+                return credential.user.uid;
+            }
+
+            const secondaryDb = getFirestore(secondaryApp);
+            const credential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+            await setDoc(doc(secondaryDb, `artifacts/${appId}/public/data/users`, credential.user.uid), {
+                username: normalizedUsername,
+                email,
+                role,
+                permissions,
+                active: true,
+                createdAt: serverTimestamp()
+            });
+            await signOut(secondaryAuth);
+            return credential.user.uid;
+        };
+
+        const renderUsersList = () => {
+            const container = document.getElementById('users-list');
+            if (!container) return;
+            container.innerHTML = '';
+            if (allAppUsers.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500 bg-white p-4 rounded-xl shadow">Aucun utilisateur.</p>';
+                return;
+            }
+            allAppUsers.forEach(user => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded-xl shadow-md flex justify-between items-center gap-3';
+                const roleLabel = user.role === 'superadmin' ? 'Super Admin' : 'Utilisateur simple';
+                const isCurrent = user.id === currentUserProfile?.id;
+                card.innerHTML = `
+                    <div>
+                        <p class="font-semibold text-gray-900">${user.username}${isCurrent ? ' (vous)' : ''}</p>
+                        <p class="text-xs text-gray-500">${roleLabel}${user.active === false ? ' · Désactivé' : ''}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        ${user.role === 'simple_user' ? `<button type="button" data-id="${user.id}" class="edit-permissions-btn btn-secondary py-1 px-3 text-sm">Droits</button>` : ''}
+                        ${!isCurrent ? `<button type="button" data-id="${user.id}" class="toggle-user-btn btn-secondary py-1 px-3 text-sm">${user.active === false ? 'Activer' : 'Désactiver'}</button>` : ''}
+                    </div>`;
+                container.appendChild(card);
+            });
+            container.querySelectorAll('.edit-permissions-btn').forEach(btn => {
+                btn.addEventListener('click', () => openPermissionsEditor(btn.dataset.id));
+            });
+            container.querySelectorAll('.toggle-user-btn').forEach(btn => {
+                btn.addEventListener('click', () => toggleUserActive(btn.dataset.id));
+            });
+        };
+
+        const openPermissionsEditor = (userId) => {
+            const user = allAppUsers.find(u => u.id === userId);
+            if (!user || user.role !== 'simple_user') return;
+            selectedPermissionsUserId = userId;
+            document.getElementById('permissions-editor-placeholder').classList.add('hidden');
+            document.getElementById('permissions-editor').classList.remove('hidden');
+            document.getElementById('permissions-target-username').textContent = user.username;
+            const tbody = document.getElementById('permissions-matrix-body');
+            tbody.innerHTML = '';
+            APP_MODULES.forEach(module => {
+                const perms = user.permissions?.[module.id] || { read: false, write: false };
+                const row = document.createElement('tr');
+                row.className = 'border-b';
+                row.innerHTML = `
+                    <td class="py-2 pr-4 font-medium">${module.label}</td>
+                    <td class="py-2 px-2 text-center"><input type="checkbox" data-module="${module.id}" data-perm="read" ${perms.read ? 'checked' : ''}></td>
+                    <td class="py-2 px-2 text-center"><input type="checkbox" data-module="${module.id}" data-perm="write" ${perms.write ? 'checked' : ''}></td>`;
+                tbody.appendChild(row);
+            });
+            tbody.querySelectorAll('input[data-perm="write"]').forEach(writeCb => {
+                writeCb.addEventListener('change', () => {
+                    if (writeCb.checked) {
+                        const readCb = tbody.querySelector(`input[data-module="${writeCb.dataset.module}"][data-perm="read"]`);
+                        if (readCb) readCb.checked = true;
+                    }
+                });
+            });
+            tbody.querySelectorAll('input[data-perm="read"]').forEach(readCb => {
+                readCb.addEventListener('change', () => {
+                    if (!readCb.checked) {
+                        const writeCb = tbody.querySelector(`input[data-module="${readCb.dataset.module}"][data-perm="write"]`);
+                        if (writeCb) writeCb.checked = false;
+                    }
+                });
+            });
+        };
+
+        const savePermissionsEditor = async () => {
+            if (!selectedPermissionsUserId || !isSuperadmin()) return;
+            const permissions = getDefaultPermissions();
+            document.querySelectorAll('#permissions-matrix-body input[type="checkbox"]').forEach(cb => {
+                permissions[cb.dataset.module][cb.dataset.perm] = cb.checked;
+            });
+            await updateDoc(doc(db, `artifacts/${appId}/public/data/users`, selectedPermissionsUserId), { permissions });
+            showToast('Droits enregistrés.');
+        };
+
+        const toggleUserActive = async (userId) => {
+            if (!isSuperadmin()) return;
+            const user = allAppUsers.find(u => u.id === userId);
+            if (!user) return;
+            await updateDoc(doc(db, `artifacts/${appId}/public/data/users`, userId), { active: user.active === false ? true : false });
+            showToast(user.active === false ? 'Utilisateur activé.' : 'Utilisateur désactivé.');
+        };
+
+        const listenToUsers = () => {
+            if (!usersCol || !isSuperadmin()) return;
+            onSnapshot(usersCol, snapshot => {
+                allAppUsers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                allAppUsers.sort((a, b) => (a.username || '').localeCompare(b.username || ''));
+                renderUsersList();
+            });
+        };
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearLoginError();
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            try {
+                await signInWithEmailAndPassword(auth, usernameToEmail(username), password);
+            } catch (error) {
+                showLoginError(error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password'
+                    ? 'Identifiant ou mot de passe incorrect.'
+                    : 'Connexion impossible : ' + error.message);
+            }
+        });
+
+        document.getElementById('bootstrap-admin-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearLoginError();
+            const username = document.getElementById('bootstrap-username').value.trim();
+            const password = document.getElementById('bootstrap-password').value;
+            try {
+                await createUserAccount(username, password, 'superadmin', true);
+                showToast('Super administrateur créé.');
+            } catch (error) {
+                showLoginError(error.code === 'auth/email-already-in-use'
+                    ? 'Un compte existe déjà. Connectez-vous.'
+                    : 'Création impossible : ' + error.message);
+            }
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await signOut(auth);
+        });
+
+        document.getElementById('create-user-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!isSuperadmin()) return showToast('Accès refusé.');
+            const username = document.getElementById('new-user-username').value.trim();
+            const password = document.getElementById('new-user-password').value;
+            const role = document.getElementById('new-user-role').value;
+            try {
+                await createUserAccount(username, password, role);
+                e.target.reset();
+                showToast(`Utilisateur "${username}" créé.`);
+            } catch (error) {
+                showToast(error.code === 'auth/email-already-in-use'
+                    ? 'Cet identifiant existe déjà.'
+                    : 'Erreur : ' + error.message);
+            }
+        });
+
+        document.getElementById('save-permissions-btn')?.addEventListener('click', savePermissionsEditor);
+
+        document.addEventListener('submit', (e) => {
+            const tab = e.target.closest('.tab-content');
+            if (!tab || tab.id === 'admin-content') return;
+            const moduleId = tab.id.replace('-content', '');
+            if (!canWrite(moduleId)) {
+                e.preventDefault();
+                showToast('Permission refusée (lecture seule).');
+            }
+        }, true);
+
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('button.btn-primary, button[class*="delete-"], button[class*="edit-"]');
+            if (!btn || btn.closest('#login-screen') || btn.closest('#admin-content')) return;
+            const tab = btn.closest('.tab-content');
+            if (!tab) return;
+            const moduleId = tab.id.replace('-content', '');
+            if (!canWrite(moduleId)) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                showToast('Permission refusée (lecture seule).');
+            }
+        }, true);
+
         // --- AUTHENTIFICATION ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                ingredientsCol = collection(db, `artifacts/${appId}/public/data/ingredients`);
-                productsCol = collection(db, `artifacts/${appId}/public/data/products`);
-                ordersCol = collection(db, `artifacts/${appId}/public/data/orders`);
-                suppliersCol = collection(db, `artifacts/${appId}/public/data/suppliers`);
-                purchaseOrdersCol = collection(db, `artifacts/${appId}/public/data/purchaseOrders`);
-                lossesCol = collection(db, `artifacts/${appId}/public/data/losses`);
-				chargesCol = collection(db, `artifacts/${appId}/public/data/charges`); // <-- AJOUTEZ CETTE LIGNE
-				        employeesCol = collection(db, `artifacts/${appId}/public/data/employees`);
-        absencesCol = collection(db, `artifacts/${appId}/public/data/absences`);
-        salaryPaymentsCol = collection(db, `artifacts/${appId}/public/data/salaryPayments`);
-		dailyPaymentsCol = collection(db, `artifacts/${appId}/public/data/dailyPayments`);
-                listenToAllCollections();
-				document.getElementById('payment-date').value = getTodayDateString();
-                document.getElementById('sale-date').value = getTodayDateString();
-                 // Set default dates for API import modal
-                document.getElementById('api-start-date').value = getTodayDateString();
-                document.getElementById('api-end-date').value = getTodayDateString();
-				document.getElementById('charge-date').value = getTodayDateString();
-                // Set default dates for export declarations (dernier mois)
-                const today = new Date();
-                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-                const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                document.getElementById('export-start-date').value = `${firstDayOfMonth.getFullYear()}-${String(firstDayOfMonth.getMonth() + 1).padStart(2, '0')}-${String(firstDayOfMonth.getDate()).padStart(2, '0')}`;
-                document.getElementById('export-end-date').value = `${lastDayOfMonth.getFullYear()}-${String(lastDayOfMonth.getMonth() + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`;
-            } else {
                 try {
-                    if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
-                    else await signInAnonymously(auth);
-                } catch (error) { console.error("Auth failed:", error); }
+                    await startAppForUser(user);
+                } catch (error) {
+                    console.error(error);
+                    showLoginError(error.message);
+                    await signOut(auth);
+                }
+            } else {
+                currentUserProfile = null;
+                selectedPermissionsUserId = null;
+                showLoginScreen();
+                clearLoginError();
             }
         });
         
         function listenToAllCollections() {
+            if (dataListenersStarted) return;
+            dataListenersStarted = true;
             onSnapshot(suppliersCol, snapshot => { allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSuppliers(); populateSupplierSelects(); });
             onSnapshot(purchaseOrdersCol, snapshot => { allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); applyPurchaseOrderFilters(); updateAndRenderKPIs(); });
             onSnapshot(ingredientsCol, snapshot => { allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allIngredients.sort((a,b) => a.name.localeCompare(b.name)); renderIngredients(); updateAndRenderKPIs(); populateIngredientSelects(); renderProducts(); });
@@ -1182,7 +1614,23 @@ onSnapshot(employeesCol, snapshot => {
         };
 
         // --- NAVIGATION ---
-        document.querySelectorAll('.tab-link').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active')); tab.classList.add('active'); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.getElementById(`${tab.dataset.tab}-content`).classList.add('active'); }); });
+        document.querySelectorAll('.tab-link').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const moduleId = tab.dataset.tab;
+                if (moduleId !== 'admin' && !canRead(moduleId)) {
+                    showToast('Accès refusé à ce module.');
+                    return;
+                }
+                if (moduleId === 'admin' && !isSuperadmin()) {
+                    showToast('Accès réservé au super administrateur.');
+                    return;
+                }
+                document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(`${moduleId}-content`).classList.add('active');
+            });
+        });
         
         // --- RENDERING & KPIs ---
         const updateAndRenderKPIs = (startDate, endDate, label = "Période : Tout le temps") => {
