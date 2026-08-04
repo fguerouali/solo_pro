@@ -2337,8 +2337,39 @@ const renderOrderHistory = (history) => {
             document.getElementById('current-recipe-cost').textContent = `${cost.toFixed(2)} Mad`;
         };
         
-        const renderCurrentRecipe = () => { const list = document.getElementById('recipe-ingredients-list'); list.innerHTML = ''; currentRecipe.forEach((item, index) => { const li = document.createElement('div'); li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; li.innerHTML = `<span>${item.quantity} ${item.unit} de ${item.name}</span><button type="button" data-index="${index}" class="remove-recipe-item text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>`; list.appendChild(li); }); updateRecipeCost(); }; 
-        document.getElementById('recipe-ingredients-list').addEventListener('click', e => { const button = e.target.closest('.remove-recipe-item'); if (button) { currentRecipe.splice(button.dataset.index, 1); renderCurrentRecipe(); } }); 
+        const renderCurrentRecipe = () => {
+            const list = document.getElementById('recipe-ingredients-list');
+            list.innerHTML = '';
+            currentRecipe.forEach((item, index) => {
+                const li = document.createElement('div');
+                li.className = 'flex justify-between items-center gap-3 bg-gray-100 p-2 rounded';
+                li.innerHTML = `
+                    <span class="flex-grow min-w-0 truncate">${item.name}</span>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <input type="number" min="0" step="any" value="${item.quantity}" data-index="${index}" class="recipe-item-quantity w-24 input-style py-1 text-sm" aria-label="Quantité de ${item.name}">
+                        <span class="text-sm text-gray-600">${item.unit}</span>
+                        <button type="button" data-index="${index}" class="remove-recipe-item text-red-500 hover:text-red-700" aria-label="Retirer ${item.name}"><i class="fas fa-times-circle"></i></button>
+                    </div>`;
+                list.appendChild(li);
+            });
+            updateRecipeCost();
+        };
+        document.getElementById('recipe-ingredients-list').addEventListener('click', e => {
+            const button = e.target.closest('.remove-recipe-item');
+            if (button) {
+                currentRecipe.splice(button.dataset.index, 1);
+                renderCurrentRecipe();
+            }
+        });
+        document.getElementById('recipe-ingredients-list').addEventListener('input', e => {
+            const input = e.target.closest('.recipe-item-quantity');
+            if (!input) return;
+            const index = parseInt(input.dataset.index, 10);
+            const quantity = parseFloat(input.value);
+            if (isNaN(quantity) || quantity < 0) return;
+            currentRecipe[index].quantity = quantity;
+            updateRecipeCost();
+        }); 
         
         document.getElementById('product-form').addEventListener('submit', async e => { 
             e.preventDefault(); 
@@ -2350,6 +2381,9 @@ const renderOrderHistory = (history) => {
 
             if (hasRecipe) {
                 if (currentRecipe.length === 0) return showToast("La recette ne peut pas être vide pour ce type de produit.");
+                if (currentRecipe.some(item => isNaN(item.quantity) || item.quantity <= 0)) {
+                    return showToast("Chaque ingrédient de la recette doit avoir une quantité valide (positive).");
+                }
                 data.recipe = currentRecipe;
                 if (data.hasOwnProperty('linkedIngredientId')) {
                     delete data.linkedIngredientId;
