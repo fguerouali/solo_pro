@@ -229,11 +229,11 @@
 </div>
                 </div>
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-    <!-- Top 10 Pizzas -->
+    <!-- Top 15 Pizzas -->
     <div class="bg-white p-6 rounded-2xl shadow-lg">
         <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <i class="fas fa-pizza-slice text-red-500 mr-2"></i>
-            Top 10 Pizzas
+            Top 15 Pizzas
         </h3>
         <div id="top-pizzas-list" class="space-y-3">
             <p class="text-center text-gray-500 py-4">Aucune donnée disponible</p>
@@ -1790,7 +1790,7 @@ document.getElementById('kpi-gross-margin-rate').textContent = `${grossMarginRat
 document.getElementById('kpi-total-charges').textContent = `${totalCharges.toFixed(2)} Mad`;
 document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)} Mad`;
   // --- TOP 10 PIZZAS ET TOP 5 BOISSONS ---
-            const topPizzas = calculateTop(filteredOrders, 'Pizza', 10);
+            const topPizzas = calculateTop(filteredOrders, 'Pizza', 15);
             const topDrinks = calculateTop(filteredOrders, 'Boisson', 5);
             const topPanuozzo = calculateTop(filteredOrders, 'Panuozzo', 10);
             const topDesserts = calculateTop(filteredOrders, 'Dessert', 10);
