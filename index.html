@@ -227,14 +227,20 @@
                         <p id="kpi-payroll-rate" class="text-lg font-semibold text-purple-500 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Charges</h3>
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Charges d'exploitation</h3>
                         <p id="kpi-total-charges" class="text-3xl font-bold text-red-600 mt-1">0.00 Mad</p>
                         <p id="kpi-total-charges-rate" class="text-lg font-semibold text-red-400 mt-1">0 %</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">EBITDA</h3>
+                        <p id="kpi-ebitda" class="text-3xl font-bold text-blue-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-ebitda-rate" class="text-lg font-semibold text-blue-500 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Bénéfice Net</h3>
                         <p id="kpi-net-profit" class="text-3xl font-bold text-green-600 mt-1">0.00 Mad</p>
                         <p id="kpi-net-profit-rate" class="text-lg font-semibold text-green-500 mt-1">0 %</p>
+                        <p class="text-xs text-gray-400 mt-1">Marge nette</p>
                     </div>
                 </div>
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -1802,7 +1808,10 @@ const totalPayroll = filteredCharges
     .filter(charge => charge.type === 'salary')
     .reduce((sum, charge) => sum + charge.amount, 0);
 const payrollRate = totalSales > 0 ? (totalPayroll / totalSales) * 100 : 0;
-const totalCharges = filteredCharges.reduce((sum, charge) => sum + charge.amount, 0);
+const operatingCharges = filteredCharges.reduce((sum, charge) => sum + charge.amount, 0);
+const ebitda = grossMargin - operatingCharges;
+const ebitdaRate = totalSales > 0 ? (ebitda / totalSales) * 100 : 0;
+const totalCharges = operatingCharges;
 const netProfit = totalSales - (totalCharges + totalPurchases);
 
 
@@ -1825,8 +1834,10 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             document.getElementById('kpi-food-cost-rate').textContent = `${foodCostRate.toFixed(1)} %`;
             document.getElementById('kpi-payroll').textContent = `${totalPayroll.toFixed(2)} Mad`;
             document.getElementById('kpi-payroll-rate').textContent = `${payrollRate.toFixed(1)} %`;
-            document.getElementById('kpi-total-charges').textContent = `${totalCharges.toFixed(2)} Mad`;
-            document.getElementById('kpi-total-charges-rate').textContent = pctOfSales(totalCharges);
+            document.getElementById('kpi-total-charges').textContent = `${operatingCharges.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-charges-rate').textContent = pctOfSales(operatingCharges);
+            document.getElementById('kpi-ebitda').textContent = `${ebitda.toFixed(2)} Mad`;
+            document.getElementById('kpi-ebitda-rate').textContent = `${ebitdaRate.toFixed(1)} %`;
             document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)} Mad`;
             document.getElementById('kpi-net-profit-rate').textContent = pctOfSales(netProfit);
   // --- TOP 10 PIZZAS ET TOP 5 BOISSONS ---
