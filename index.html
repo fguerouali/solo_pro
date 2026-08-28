@@ -198,11 +198,53 @@
 
                 <!-- KPIs -->
 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6 mb-8">
+                    <h3 class="col-span-full text-xs font-semibold text-gray-400 uppercase tracking-widest">Activité</h3>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes</h3>
                         <p id="kpi-total-sales" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
                         <p id="kpi-total-sales-rate" class="text-lg font-semibold text-gray-500 mt-1">100 %</p>
                     </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes (Nbre)</h3>
+                        <p id="kpi-total-orders" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Panier Moyen</h3>
+                        <p id="kpi-avg-order-value" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Pizzas Vendues</h3>
+                        <p id="kpi-total-pizzas" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Panuozzo Vendus</h3>
+                        <p id="kpi-total-panuozzo" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+                    </div>
+
+                    <h3 class="col-span-full text-xs font-semibold text-gray-400 uppercase tracking-widest mt-2">Rentabilité</h3>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Food Cost</h3>
+                        <p id="kpi-food-cost" class="text-3xl font-bold text-orange-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-food-cost-rate" class="text-lg font-semibold text-orange-500 mt-1">0 %</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Marge Brute</h3>
+                        <p id="kpi-gross-margin" class="text-3xl font-bold text-green-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-gross-margin-rate" class="text-lg font-semibold text-green-500 mt-1">0 %</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">EBITDA</h3>
+                        <p id="kpi-ebitda" class="text-3xl font-bold text-blue-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-ebitda-rate" class="text-lg font-semibold text-blue-500 mt-1">0 %</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Bénéfice Net</h3>
+                        <p id="kpi-net-profit" class="text-3xl font-bold text-green-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-net-profit-rate" class="text-lg font-semibold text-green-500 mt-1">0 %</p>
+                        <p class="text-xs text-gray-400 mt-1">Marge nette</p>
+                    </div>
+
+                    <h3 class="col-span-full text-xs font-semibold text-gray-400 uppercase tracking-widest mt-2">Coûts & Achats</h3>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Achats (Reçus)</h3>
                         <p id="kpi-total-purchases" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
@@ -219,28 +261,6 @@
                         <p id="kpi-total-losses-rate" class="text-lg font-semibold text-red-400 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes (Nbre)</h3>
-                        <p id="kpi-total-orders" class="text-3xl font-bold text-gray-900 mt-1">0</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Pizzas Vendues</h3>
-                        <p id="kpi-total-pizzas" class="text-3xl font-bold text-gray-900 mt-1">0</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Panier Moyen</h3>
-                        <p id="kpi-avg-order-value" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Marge Brute</h3>
-                        <p id="kpi-gross-margin" class="text-3xl font-bold text-green-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-gross-margin-rate" class="text-lg font-semibold text-green-500 mt-1">0 %</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Food Cost</h3>
-                        <p id="kpi-food-cost" class="text-3xl font-bold text-orange-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-food-cost-rate" class="text-lg font-semibold text-orange-500 mt-1">0 %</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Masse Salariale</h3>
                         <p id="kpi-payroll" class="text-3xl font-bold text-purple-600 mt-1">0.00 Mad</p>
                         <p id="kpi-payroll-rate" class="text-lg font-semibold text-purple-500 mt-1">0 %</p>
@@ -250,17 +270,6 @@
                         <p id="kpi-total-charges" class="text-3xl font-bold text-red-600 mt-1">0.00 Mad</p>
                         <p id="kpi-total-charges-rate" class="text-lg font-semibold text-red-400 mt-1">0 %</p>
                         <p class="text-xs text-gray-400 mt-1"><i class="fas fa-chart-pie mr-1"></i>Cliquer pour détailler</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">EBITDA</h3>
-                        <p id="kpi-ebitda" class="text-3xl font-bold text-blue-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-ebitda-rate" class="text-lg font-semibold text-blue-500 mt-1">0 %</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Bénéfice Net</h3>
-                        <p id="kpi-net-profit" class="text-3xl font-bold text-green-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-net-profit-rate" class="text-lg font-semibold text-green-500 mt-1">0 %</p>
-                        <p class="text-xs text-gray-400 mt-1">Marge nette</p>
                     </div>
                 </div>
                 <div id="operating-charges-breakdown" class="hidden mb-8 bg-white p-6 rounded-2xl shadow-lg border border-red-100">
@@ -290,11 +299,11 @@
         </div>
     </div>
 
-    <!-- Top 5 Boissons -->
+    <!-- Top 10 Boissons -->
     <div class="bg-white p-6 rounded-2xl shadow-lg">
         <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <i class="fas fa-wine-bottle text-blue-500 mr-2"></i>
-            Top 5 Boissons
+            Top 10 Boissons
         </h3>
         <div id="top-drinks-list" class="space-y-3">
             <p class="text-center text-gray-500 py-4">Aucune donnée disponible</p>
@@ -561,7 +570,10 @@
                                 <option value="Internet">Internet</option>
                                 <option value="Abonnement caisse">Abonnement caisse</option>
                                 <option value="Entretien et maintenance">Entretien et maintenance</option>
+                                <option value="Nettoyage et dératisation">Nettoyage et dératisation</option>
                                 <option value="Packaging cost">Packaging cost</option>
+                                <option value="Commission Glovo">Commission Glovo</option>
+                                <option value="Commission TPE">Commission TPE</option>
                                 <option value="Assurances">Assurances</option>
                                 <option value="Comptable">Comptable</option>
                                 <option value="CNSS/(RAS/LOYER)/IGR">CNSS/(RAS/LOYER)/IGR</option>
@@ -854,7 +866,7 @@
                         <option value="Autre">Autre</option>
                     </select>
                 </div>
-                <div id="recipe-section" class="mt-6">
+                <div id="recipe-section" class="mt-6 hidden">
                     <div class="flex justify-between items-center mb-2">
                          <h4 class="text-lg font-medium text-gray-800">Recette</h4>
                          <p class="text-sm font-semibold text-gray-600">Coût de revient: <span id="current-recipe-cost">0.00 Mad</span></p>
@@ -1741,7 +1753,10 @@ onSnapshot(employeesCol, snapshot => {
             'Internet',
             'Abonnement caisse',
             'Entretien et maintenance',
+            'Nettoyage et dératisation',
             'Packaging cost',
+            'Commission Glovo',
+            'Commission TPE',
             'Assurances',
             'Comptable',
             'CNSS/(RAS/LOYER)/IGR',
@@ -1895,19 +1910,17 @@ filteredOrders.forEach(order => {
         }
     });
 });
-			const totalPizzasSold = filteredOrders.reduce((pizzaCount, order) => {
-    // Parcourir chaque article de la commande
+			const countSoldByType = (productType) => filteredOrders.reduce((count, order) => {
     order.items.forEach(item => {
-        // Trouver le type de produit correspondant
         const product = allProducts.find(p => p.id === item.id);
-        // Si le produit existe et que son type est 'Pizza' ou 'Panuozzo'
-        if (product && (product.type === 'Pizza' || product.type === 'Panuozzo')) {
-            // Ajouter la quantité vendue au total
-            pizzaCount += item.quantity;
+        if (product && product.type === productType) {
+            count += item.quantity;
         }
     });
-    return pizzaCount;
-}, 0);// 1. Marge Brute (Mad)
+    return count;
+}, 0);
+			const totalPizzasSold = countSoldByType('Pizza');
+			const totalPanuozzoSold = countSoldByType('Panuozzo');
 const grossMargin = totalSales - totalCogs;
 
 // 2. Taux de Marge Brute (%)
@@ -1945,6 +1958,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             document.getElementById('kpi-total-losses-rate').textContent = `${lossRate.toFixed(1)} %`;
             document.getElementById('kpi-total-orders').textContent = totalOrders;
             document.getElementById('kpi-total-pizzas').textContent = totalPizzasSold;
+            document.getElementById('kpi-total-panuozzo').textContent = totalPanuozzoSold;
             document.getElementById('kpi-avg-order-value').textContent = `${avgOrderValue.toFixed(2)} Mad`;
             document.getElementById('kpi-gross-margin').textContent = `${grossMargin.toFixed(2)} Mad`;
             document.getElementById('kpi-gross-margin-rate').textContent = `${grossMarginRate.toFixed(1)} %`;
@@ -1960,7 +1974,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             document.getElementById('kpi-net-profit-rate').textContent = pctOfSales(netProfit);
   // --- TOP 10 PIZZAS ET TOP 5 BOISSONS ---
             const topPizzas = calculateTop(filteredOrders, 'Pizza', 15);
-            const topDrinks = calculateTop(filteredOrders, 'Boisson', 5);
+            const topDrinks = calculateTop(filteredOrders, 'Boisson', 10);
             const topPanuozzo = calculateTop(filteredOrders, 'Panuozzo', 10);
             const topDesserts = calculateTop(filteredOrders, 'Dessert', 10);
 
@@ -2482,27 +2496,29 @@ const renderOrderHistory = (history) => {
         
         // --- PRODUITS ---
         const populateIngredientSelects = () => {  const recipeSelect = document.getElementById('recipe-ingredient-select');  const linkedSelect = document.getElementById('linked-ingredient-select');  const poSelect = document.getElementById('po-ingredient-select'); const lossIngredientSelect = document.getElementById('loss-ingredient-select'); const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join('');  recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`;  linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`; poSelect.innerHTML = `<option value="">Choisir...</option>${options}`; lossIngredientSelect.innerHTML = `<option value="">Choisir...</option>${options}`};
+        const syncProductTypeSections = (productType) => {
+            const hasRecipe = ['Pizza', 'Panuozzo', 'Dessert', 'Entrée'].includes(productType);
+            document.getElementById('recipe-section').classList.toggle('hidden', !hasRecipe);
+            document.getElementById('linked-ingredient-section').classList.toggle('hidden', hasRecipe);
+        };
         const populateProductSelects = () => { const orderSelect = document.getElementById('order-product-select'); const lossSelect = document.getElementById('loss-product-select'); const options = allProducts.map(product => `<option value="${product.id}">${product.name}</option>`).join(''); orderSelect.innerHTML = options; lossSelect.innerHTML = options; }
         document.getElementById('product-type-filter')?.addEventListener('change', () => renderProducts());
         document.getElementById('add-product-btn').addEventListener('click', () => { 
             document.getElementById('product-modal-title').textContent = 'Créer un Produit'; 
             document.getElementById('product-form').reset(); 
             document.getElementById('product-id').value = ''; 
-            document.getElementById('product-type').dispatchEvent(new Event('change')); 
             currentRecipe = []; 
-            renderCurrentRecipe(); 
-            // *** NEW: Reset linked quantity field on add ***
+            renderCurrentRecipe();
+            document.getElementById('linked-ingredient-select').value = '';
             document.getElementById('linked-ingredient-quantity').value = 1;
-            // *** END NEW ***
+            populateIngredientSelects();
+            syncProductTypeSections(document.getElementById('product-type').value);
             openModal('product-modal'); 
         });
         document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal')); 
         
         document.getElementById('product-type').addEventListener('change', (e) => { 
-            const productType = e.target.value;
-            const hasRecipe = ['Pizza', 'Panuozzo', 'Dessert', 'Entrée'].includes(productType);
-            document.getElementById('recipe-section').style.display = hasRecipe ? 'block' : 'none';
-            document.getElementById('linked-ingredient-section').style.display = hasRecipe ? 'none' : 'block';
+            syncProductTypeSections(e.target.value);
         }); 
         
         document.getElementById('add-recipe-ingredient-btn').addEventListener('click', () => { const select = document.getElementById('recipe-ingredient-select'); const ingredientId = select.value; const quantity = parseFloat(document.getElementById('recipe-quantity').value); if (!ingredientId || isNaN(quantity) || quantity <= 0) return showToast("Veuillez sélectionner un ingrédient et une quantité valide."); const ingredient = allIngredients.find(ing => ing.id === ingredientId); currentRecipe.push({ id: ingredient.id, name: ingredient.name, quantity: quantity, unit: ingredient.unit }); renderCurrentRecipe(); document.getElementById('recipe-quantity').value = ''; select.value = ''; });
@@ -2619,16 +2635,21 @@ const renderOrderHistory = (history) => {
                 document.getElementById('product-name').value = product.name; 
                 document.getElementById('product-price').value = product.price; 
                 document.getElementById('product-type').value = product.type; 
-                document.getElementById('product-type').dispatchEvent(new Event('change')); 
-                
+                populateIngredientSelects();
+                syncProductTypeSections(product.type);
+                currentRecipe = [];
+                document.getElementById('linked-ingredient-select').value = '';
+                document.getElementById('linked-ingredient-quantity').value = 1;
+
                 if (product.recipe && product.recipe.length > 0) { 
                     currentRecipe = [...product.recipe]; 
                     renderCurrentRecipe(); 
-                } else if (product.linkedIngredientId) { 
-                    document.getElementById('linked-ingredient-select').value = product.linkedIngredientId; 
-                    // *** NEW: Populate linked quantity ***
-                    document.getElementById('linked-ingredient-quantity').value = product.linkedIngredientQuantity || 1; // Default to 1 if not set
-                    // *** END NEW ***
+                } else { 
+                    renderCurrentRecipe();
+                    if (product.linkedIngredientId) { 
+                        document.getElementById('linked-ingredient-select').value = product.linkedIngredientId; 
+                        document.getElementById('linked-ingredient-quantity').value = product.linkedIngredientQuantity || 1;
+                    }
                 } 
                 openModal('product-modal'); 
             } 
