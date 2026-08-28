@@ -1734,17 +1734,40 @@ onSnapshot(employeesCol, snapshot => {
         });
         
         // --- RENDERING & KPIs ---
+        const STRUCTURED_CHARGE_CATEGORIES = [
+            'Loyer',
+            'Eau et électricité',
+            'Gaz',
+            'Internet',
+            'Abonnement caisse',
+            'Entretien et maintenance',
+            'Packaging cost',
+            'Assurances',
+            'Comptable',
+            'CNSS/(RAS/LOYER)/IGR',
+            'Autre charge',
+            'Salaires'
+        ];
+
+        const isStructuredCharge = (charge) => {
+            if (charge.category && STRUCTURED_CHARGE_CATEGORIES.includes(charge.category)) return true;
+            return charge.type === 'salary';
+        };
+
         const getChargeCategoryLabel = (charge) => {
+            if (charge.category) {
+                if (charge.category === 'Autre charge') return charge.name || 'Autre charge';
+                return charge.category;
+            }
             if (charge.type === 'salary') return 'Salaires';
-            const name = (charge.name || '').trim();
-            if (name.startsWith('Salaires ')) return 'Salaires';
-            return name || 'Autre charge';
+            return null;
         };
 
         const buildOperatingChargesBreakdown = (charges) => {
             const totals = new Map();
-            charges.forEach(charge => {
+            charges.filter(isStructuredCharge).forEach(charge => {
                 const label = getChargeCategoryLabel(charge);
+                if (!label) return;
                 totals.set(label, (totals.get(label) || 0) + (charge.amount || 0));
             });
             return Array.from(totals.entries())
@@ -1762,12 +1785,13 @@ onSnapshot(employeesCol, snapshot => {
             const list = document.getElementById('operating-charges-breakdown-list');
             const subtitle = document.getElementById('operating-charges-breakdown-subtitle');
             const breakdown = buildOperatingChargesBreakdown(charges);
+            const structuredCount = charges.filter(isStructuredCharge).length;
             const totalOperating = breakdown.reduce((sum, item) => sum + item.amount, 0);
 
-            subtitle.textContent = `${periodLabel} — ${breakdown.length} type(s) de charge`;
+            subtitle.textContent = `${periodLabel} — ${breakdown.length} type(s) structuré(s) sur ${structuredCount} charge(s) saisie(s) via la liste`;
 
             if (breakdown.length === 0) {
-                list.innerHTML = '<p class="text-center text-gray-500 py-6">Aucune charge enregistrée sur cette période.</p>';
+                list.innerHTML = '<p class="text-center text-gray-500 py-6">Aucune charge structurée sur cette période.<br><span class="text-xs text-gray-400">Seules les nouvelles charges saisies via la liste déroulante apparaissent ici.</span></p>';
             } else {
                 list.innerHTML = breakdown.map(item => {
                     const chargeShare = totalOperating > 0 ? (item.amount / totalOperating) * 100 : 0;
@@ -3513,6 +3537,7 @@ document.getElementById('pay-all-salaries-btn').addEventListener('click', async 
         // Ajouter à la collection charges
         await addDoc(chargesCol, {
             name: `Salaires ${monthInput}`,
+            category: 'Salaires',
             amount: totalAmount,
             date: new Date(),
             createdAt: serverTimestamp(),
@@ -3605,6 +3630,7 @@ document.getElementById('charge-form').addEventListener('submit', async (e) => {
     try {
         await addDoc(chargesCol, {
             name: name,
+            category: chargeType,
             amount: amount,
             date: chargeDate,
             createdAt: serverTimestamp()
