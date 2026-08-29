@@ -1223,6 +1223,20 @@ let allDailyPayments = [];
         let currentPurchaseOrderItems = [];
         let showOperatingChargesBreakdown = false;
         let legacyChargesMigrationRunning = false;
+        let legacyChargesMigrationDone = false;
+        let kpiFilterState = { startDate: null, endDate: null, label: "Période : Tout le temps" };
+        let appRefreshTimer = null;
+        const renderPending = {
+            kpis: false, ingredients: false, products: false, orders: false,
+            charges: false, losses: false, purchaseOrders: false, suppliers: false,
+            employees: false, salaryPayments: false, dailyPayments: false
+        };
+        let productByIdMap = null;
+        let ingredientByIdMap = null;
+        let productCostCache = null;
+        let productCostCacheKey = '';
+        let consumptionStatsCache = null;
+        let consumptionStatsCacheKey = '';
         let importType = '';
 		let currentSalaryCalculations = []; // AJOUTEZ CETTE LIGNE
 
@@ -1578,39 +1592,160 @@ let allDailyPayments = [];
         function listenToAllCollections() {
             if (dataListenersStarted) return;
             dataListenersStarted = true;
-            onSnapshot(suppliersCol, snapshot => { allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSuppliers(); populateSupplierSelects(); });
-            onSnapshot(purchaseOrdersCol, snapshot => { allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); applyPurchaseOrderFilters(); updateAndRenderKPIs(); });
-            onSnapshot(ingredientsCol, snapshot => { allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allIngredients.sort((a,b) => a.name.localeCompare(b.name)); renderIngredients(); updateAndRenderKPIs(); populateIngredientSelects(); renderProducts(); });
-            onSnapshot(productsCol, snapshot => { allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allProducts.sort((a,b) => a.name.localeCompare(b.name)); renderProducts(); populateProductSelects(); updateAndRenderKPIs(); renderIngredients(); });
-            onSnapshot(ordersCol, snapshot => { orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0)); renderOrderHistory(orderHistory); updateAndRenderKPIs(); renderIngredients(); });
-            onSnapshot(lossesCol, snapshot => { allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderLossHistory(); updateAndRenderKPIs(); });onSnapshot(chargesCol, snapshot => {
-    allCharges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    allCharges.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
-    autoTagLegacyCharges(allCharges);
-    renderCharges(allCharges);
-    updateAndRenderKPIs();
-});
-onSnapshot(employeesCol, snapshot => {
-        allEmployees = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        allEmployees.sort((a, b) => a.name.localeCompare(b.name));
-        renderEmployees();
-    });
-    
-    onSnapshot(absencesCol, snapshot => {
-        allAbsences = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    });
-    
-    onSnapshot(salaryPaymentsCol, snapshot => {
-        allSalaryPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        allSalaryPayments.sort((a, b) => (toDate(b.paymentDate)?.getTime() || 0) - (toDate(a.paymentDate)?.getTime() || 0));
-        renderSalaryPaymentsHistory();
-    });
-	onSnapshot(dailyPaymentsCol, snapshot => {
-    allDailyPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    allDailyPayments.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
-    renderDailyPayments();
-});
+            onSnapshot(suppliersCol, snapshot => {
+                allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                markDirty('suppliers');
+            });
+            onSnapshot(purchaseOrdersCol, snapshot => {
+                allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                markDirty('purchaseOrders', 'kpis');
+            });
+            onSnapshot(ingredientsCol, snapshot => {
+                allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allIngredients.sort((a,b) => a.name.localeCompare(b.name));
+                invalidateLookupCaches();
+                markDirty('ingredients', 'kpis', 'products');
+            });
+            onSnapshot(productsCol, snapshot => {
+                allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allProducts.sort((a,b) => a.name.localeCompare(b.name));
+                invalidateLookupCaches();
+                markDirty('products', 'kpis', 'ingredients');
+            });
+            onSnapshot(ordersCol, snapshot => {
+                orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0));
+                invalidateConsumptionStatsCache();
+                markDirty('orders', 'kpis', 'ingredients');
+            });
+            onSnapshot(lossesCol, snapshot => {
+                allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                markDirty('losses', 'kpis');
+            });
+            onSnapshot(chargesCol, snapshot => {
+                allCharges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allCharges.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
+                autoTagLegacyCharges(allCharges);
+                markDirty('charges', 'kpis');
+            });
+            onSnapshot(employeesCol, snapshot => {
+                allEmployees = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allEmployees.sort((a, b) => a.name.localeCompare(b.name));
+                markDirty('employees');
+            });
+            onSnapshot(absencesCol, snapshot => {
+                allAbsences = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            });
+            onSnapshot(salaryPaymentsCol, snapshot => {
+                allSalaryPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allSalaryPayments.sort((a, b) => (toDate(b.paymentDate)?.getTime() || 0) - (toDate(a.paymentDate)?.getTime() || 0));
+                markDirty('salaryPayments');
+            });
+            onSnapshot(dailyPaymentsCol, snapshot => {
+                allDailyPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allDailyPayments.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
+                markDirty('dailyPayments');
+            });
         }
+
+        const debounce = (fn, delayMs) => {
+            let timer;
+            return (...args) => {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn(...args), delayMs);
+            };
+        };
+
+        const markDirty = (...keys) => {
+            keys.forEach(key => { renderPending[key] = true; });
+            scheduleAppRefresh();
+        };
+
+        const scheduleAppRefresh = () => {
+            if (appRefreshTimer) return;
+            appRefreshTimer = requestAnimationFrame(() => {
+                appRefreshTimer = null;
+                flushAppRefresh();
+            });
+        };
+
+        const flushAppRefresh = () => {
+            if (renderPending.suppliers) {
+                renderSuppliers();
+                populateSupplierSelects();
+                renderPending.suppliers = false;
+            }
+            if (renderPending.purchaseOrders) {
+                applyPurchaseOrderFilters();
+                renderPending.purchaseOrders = false;
+            }
+            if (renderPending.orders) {
+                renderOrderHistory(orderHistory);
+                renderPending.orders = false;
+            }
+            if (renderPending.losses) {
+                renderLossHistory();
+                renderPending.losses = false;
+            }
+            if (renderPending.charges) {
+                renderCharges(allCharges);
+                renderPending.charges = false;
+            }
+            if (renderPending.employees) {
+                renderEmployees();
+                renderPending.employees = false;
+            }
+            if (renderPending.salaryPayments) {
+                renderSalaryPaymentsHistory();
+                renderPending.salaryPayments = false;
+            }
+            if (renderPending.dailyPayments) {
+                renderDailyPayments();
+                renderPending.dailyPayments = false;
+            }
+            if (renderPending.products) {
+                renderProducts();
+                populateProductSelects();
+                renderPending.products = false;
+            }
+            if (renderPending.ingredients) {
+                renderIngredients();
+                populateIngredientSelects();
+                renderPending.ingredients = false;
+            }
+            if (renderPending.kpis) {
+                updateAndRenderKPIs();
+                renderPending.kpis = false;
+            }
+        };
+
+        const invalidateLookupCaches = () => {
+            productByIdMap = null;
+            ingredientByIdMap = null;
+            productCostCache = null;
+            productCostCacheKey = '';
+        };
+
+        const invalidateConsumptionStatsCache = () => {
+            consumptionStatsCache = null;
+            consumptionStatsCacheKey = '';
+        };
+
+        const getProductByIdMap = () => {
+            if (!productByIdMap) {
+                productByIdMap = new Map(allProducts.map(product => [product.id, product]));
+            }
+            return productByIdMap;
+        };
+
+        const getIngredientByIdMap = () => {
+            if (!ingredientByIdMap) {
+                ingredientByIdMap = new Map(allIngredients.map(ingredient => [ingredient.id, ingredient]));
+            }
+            return ingredientByIdMap;
+        };
         
         // --- HELPERS ---
         const showToast = (message) => { const toast = document.getElementById('toast'); document.getElementById('toast-message').textContent = message; toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), 3000); };
@@ -1846,15 +1981,24 @@ onSnapshot(employeesCol, snapshot => {
         };
 
         const autoTagLegacyCharges = async (charges) => {
-            if (legacyChargesMigrationRunning) return;
+            if (legacyChargesMigrationDone || legacyChargesMigrationRunning) return;
             const legacyCharges = charges.filter(charge => !charge.category && charge.type !== 'salary');
-            if (legacyCharges.length === 0) return;
+            if (legacyCharges.length === 0) {
+                legacyChargesMigrationDone = true;
+                return;
+            }
 
             legacyChargesMigrationRunning = true;
             try {
-                await Promise.all(legacyCharges.map(charge =>
-                    updateDoc(doc(chargesCol, charge.id), { category: 'Autre charge' })
-                ));
+                const batchSize = 450;
+                for (let i = 0; i < legacyCharges.length; i += batchSize) {
+                    const batch = writeBatch(db);
+                    legacyCharges.slice(i, i + batchSize).forEach(charge => {
+                        batch.update(doc(chargesCol, charge.id), { category: 'Autre charge' });
+                    });
+                    await batch.commit();
+                }
+                legacyChargesMigrationDone = true;
             } catch (error) {
                 console.error('Erreur auto-etiquetage des anciennes charges:', error);
             } finally {
@@ -1914,86 +2058,122 @@ onSnapshot(employeesCol, snapshot => {
             setOperatingChargesBreakdownVisible(showOperatingChargesBreakdown);
         };
 
-        const updateAndRenderKPIs = (startDate, endDate, label = "Période : Tout le temps") => {
-             // Update filter label
-            document.getElementById('kpi-filter-label').textContent = label;
+        const setKpiFilterState = (startDate, endDate, label) => {
+            kpiFilterState = {
+                startDate: startDate ?? null,
+                endDate: endDate ?? null,
+                label: label ?? "Période : Tout le temps"
+            };
+        };
 
-             // Filter data based on date range if provided
-            const filteredOrders = !startDate ? orderHistory : orderHistory.filter(o => {
-                return isWithinDateRange(o.saleDate || o.createdAt, startDate, endDate);
+        const getTopFromBucket = (bucket, limit) => Object.values(bucket)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, limit);
+
+        const calculateProductCostWithMaps = (product, ingredientById) => {
+            if (!product) return 0;
+            if (product.recipe && product.recipe.length > 0) {
+                return product.recipe.reduce((total, recipeItem) => {
+                    const ingredient = ingredientById.get(recipeItem.id);
+                    const ingredientCost = ingredient ? (ingredient.cost || 0) : 0;
+                    return total + (ingredientCost * recipeItem.quantity);
+                }, 0);
+            }
+            if (product.linkedIngredientId) {
+                const linkedIngredient = ingredientById.get(product.linkedIngredientId);
+                return linkedIngredient ? (linkedIngredient.cost || 0) : 0;
+            }
+            return 0;
+        };
+
+        const getProductCostCache = (ingredientById) => {
+            const cacheKey = `${allProducts.length}-${allIngredients.length}`;
+            if (!productCostCache || productCostCacheKey !== cacheKey) {
+                productCostCache = new Map();
+                productCostCacheKey = cacheKey;
+            }
+            return productCostCache;
+        };
+
+        const getCachedProductCost = (product, ingredientById) => {
+            if (!product) return 0;
+            const cache = getProductCostCache(ingredientById);
+            if (cache.has(product.id)) return cache.get(product.id);
+            const cost = calculateProductCostWithMaps(product, ingredientById);
+            cache.set(product.id, cost);
+            return cost;
+        };
+
+        const updateAndRenderKPIs = (startDate, endDate, label) => {
+            renderPending.kpis = false;
+            if (arguments.length > 0) {
+                setKpiFilterState(startDate, endDate, label);
+            }
+            const { startDate: filterStartDate, endDate: filterEndDate, label: filterLabel } = kpiFilterState;
+            document.getElementById('kpi-filter-label').textContent = filterLabel;
+
+            const filteredOrders = !filterStartDate ? orderHistory : orderHistory.filter(order => {
+                return isWithinDateRange(order.saleDate || order.createdAt, filterStartDate, filterEndDate);
             });
 
-            const filteredPurchases = !startDate ? allPurchaseOrders.filter(p => p.status === 'received') : allPurchaseOrders.filter(p => {
-                return p.status === 'received' && isWithinDateRange(p.receivedAt, startDate, endDate);
-            });
-            
-            // *** NEW: Filter for unpaid *and* received purchases ***
-            // Filter by received date, but check paymentStatus
-            const filteredUnpaidPurchases = !startDate 
-                ? allPurchaseOrders.filter(p => p.status === 'received' && p.paymentStatus !== 'paid')
-                : allPurchaseOrders.filter(p => {
-                    return p.status === 'received' && 
-                           p.paymentStatus !== 'paid' &&
-                           isWithinDateRange(p.receivedAt, startDate, endDate);
-                });
-            const filteredPaidPurchases = !startDate
-                ? allPurchaseOrders.filter(p => p.status === 'received' && p.paymentStatus === 'paid')
-                : allPurchaseOrders.filter(p => {
-                    return p.status === 'received' &&
-                           p.paymentStatus === 'paid' &&
-                           isWithinDateRange(p.paidAt || p.receivedAt, startDate, endDate);
-                });
-            // *** END NEW ***
+            let totalPurchases = 0;
+            let totalUnpaidPurchases = 0;
+            for (const purchaseOrder of allPurchaseOrders) {
+                if (purchaseOrder.status !== 'received') continue;
+                if (filterStartDate && !isWithinDateRange(purchaseOrder.receivedAt, filterStartDate, filterEndDate)) continue;
+                const cost = purchaseOrder.totalCost || 0;
+                totalPurchases += cost;
+                if (purchaseOrder.paymentStatus !== 'paid') totalUnpaidPurchases += cost;
+            }
 
+            const filteredLosses = !filterStartDate ? allLosses : allLosses.filter(loss => {
+                return isWithinDateRange(loss.createdAt, filterStartDate, filterEndDate);
+            });
+            const filteredCharges = !filterStartDate ? allCharges : allCharges.filter(charge => {
+                if (!charge.date) return false;
+                return isWithinDateRange(charge.date, filterStartDate, filterEndDate);
+            });
 
-            const filteredLosses = !startDate ? allLosses : allLosses.filter(l => {
-                return isWithinDateRange(l.createdAt, startDate, endDate);
-            });
-            const filteredCharges = !startDate ? allCharges : allCharges.filter(c => {
-                if (!c.date) return false;
-                return isWithinDateRange(c.date, startDate, endDate);
-            });
-            // --- KPI Calculations ---
-            const totalSales = filteredOrders.reduce((sum, order) => sum + order.totalPrice, 0);
-            const totalPurchases = filteredPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0); // This is total *received* purchases
-            // *** NEW: Calculate total unpaid purchases (from the *received* ones in the period) ***
-            const totalUnpaidPurchases = filteredUnpaidPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0);
-            // *** END NEW ***
-            const totalOrders = filteredOrders.length;
+            const productById = getProductByIdMap();
+            const ingredientById = getIngredientByIdMap();
+
             const totalLossesValue = filteredLosses.reduce((sum, loss) => {
                 let lossCost = 0;
                 if (loss.type === 'product') {
-                    const product = allProducts.find(p => p.id === loss.itemId);
-                    if (product) lossCost = calculateProductCost(product) * loss.quantity;
+                    const product = productById.get(loss.itemId);
+                    if (product) lossCost = getCachedProductCost(product, ingredientById) * loss.quantity;
                 } else {
-                    const ingredient = allIngredients.find(i => i.id === loss.itemId);
+                    const ingredient = ingredientById.get(loss.itemId);
                     if (ingredient) lossCost = (ingredient.cost || 0) * loss.quantity;
                 }
                 return sum + lossCost;
             }, 0);
-			let totalCogs = 0; // "Cost of Goods Sold" (Coût des Marchandises Vendues)
-filteredOrders.forEach(order => {
-    order.items.forEach(item => {
-        const product = allProducts.find(p => p.id === item.id);
-        if (product) {
-            // On utilise la fonction qui calcule le coût de revient d'UN produit
-            const productCost = calculateProductCost(product);
-            // On le multiplie par la quantité vendue et on l'ajoute au total
-            totalCogs += productCost * item.quantity;
-        }
-    });
-});
-			const countSoldByType = (productType) => filteredOrders.reduce((count, order) => {
-    order.items.forEach(item => {
-        const product = allProducts.find(p => p.id === item.id);
-        if (product && product.type === productType) {
-            count += item.quantity;
-        }
-    });
-    return count;
-}, 0);
-			const totalPizzasSold = countSoldByType('Pizza');
-			const totalPanuozzoSold = countSoldByType('Panuozzo');
+
+            let totalSales = 0;
+            let totalCogs = 0;
+            let totalPizzasSold = 0;
+            let totalPanuozzoSold = 0;
+            const topBuckets = { Pizza: {}, Boisson: {}, Panuozzo: {}, Dessert: {} };
+
+            filteredOrders.forEach(order => {
+                totalSales += order.totalPrice;
+                (order.items || []).forEach(item => {
+                    const product = productById.get(item.id);
+                    if (!product) return;
+                    totalCogs += getCachedProductCost(product, ingredientById) * item.quantity;
+                    if (product.type === 'Pizza') totalPizzasSold += item.quantity;
+                    if (product.type === 'Panuozzo') totalPanuozzoSold += item.quantity;
+                    if (topBuckets[product.type]) {
+                        if (!topBuckets[product.type][item.id]) {
+                            topBuckets[product.type][item.id] = { name: item.name, count: 0, revenue: 0 };
+                        }
+                        topBuckets[product.type][item.id].count += item.quantity;
+                        topBuckets[product.type][item.id].revenue += item.quantity * item.price;
+                    }
+                });
+            });
+
+            const totalOrders = filteredOrders.length;
 const grossMargin = totalSales - totalCogs;
 
 // 2. Taux de Marge Brute (%)
@@ -2046,10 +2226,10 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)} Mad`;
             document.getElementById('kpi-net-profit-rate').textContent = pctOfSales(netProfit);
   // --- TOP 10 PIZZAS ET TOP 5 BOISSONS ---
-            const topPizzas = calculateTop(filteredOrders, 'Pizza', 15);
-            const topDrinks = calculateTop(filteredOrders, 'Boisson', 10);
-            const topPanuozzo = calculateTop(filteredOrders, 'Panuozzo', 10);
-            const topDesserts = calculateTop(filteredOrders, 'Dessert', 10);
+            const topPizzas = getTopFromBucket(topBuckets.Pizza, 15);
+            const topDrinks = getTopFromBucket(topBuckets.Boisson, 10);
+            const topPanuozzo = getTopFromBucket(topBuckets.Panuozzo, 10);
+            const topDesserts = getTopFromBucket(topBuckets.Dessert, 10);
 
             renderTopProducts(topPizzas, 'top-pizzas-list', 'Aucune pizza vendue dans cette période');
             renderTopProducts(topDrinks, 'top-drinks-list', 'Aucune boisson vendue dans cette période');
@@ -2072,15 +2252,15 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 });
             }
 
-            renderOperatingChargesBreakdown(filteredCharges, totalSales, label);
+            renderOperatingChargesBreakdown(filteredCharges, totalSales, filterLabel);
         };
 
         // --- CONSOMMATION INGRÉDIENTS (basée sur les ventes) ---
-        const calculateIngredientConsumptionFromOrders = (orders) => {
+        const calculateIngredientConsumptionFromOrders = (orders, productById = getProductByIdMap()) => {
             const consumption = new Map();
             orders.forEach(order => {
                 (order.items || []).forEach(item => {
-                    const product = allProducts.find(p => p.id === item.id);
+                    const product = productById.get(item.id);
                     if (!product) return;
                     if (product.recipe && product.recipe.length > 0) {
                         product.recipe.forEach(recipeItem => {
@@ -2100,31 +2280,41 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
         const CONSO_MOYENNE_START_DATE = new Date(2025, 10, 1); // 1er novembre 2025
 
         const getConsumptionStats = () => {
+            const firstOrder = orderHistory[0];
+            const lastOrder = orderHistory[orderHistory.length - 1];
+            const cacheKey = `${orderHistory.length}-${firstOrder?.id || ''}-${lastOrder?.id || ''}`;
+            if (consumptionStatsCache && consumptionStatsCacheKey === cacheKey) {
+                return consumptionStatsCache;
+            }
+
             const now = new Date();
             const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            const ordersLast30Days = orderHistory.filter(o => {
-                const d = toDate(o.saleDate || o.createdAt);
-                return d && d.getTime() >= thirtyDaysAgo.getTime();
-            });
-            const consoMoisEnCours = calculateIngredientConsumptionFromOrders(ordersLast30Days);
-
-            const ordersFromNov2025 = orderHistory.filter(o => {
-                const d = toDate(o.saleDate || o.createdAt);
-                return d && d.getTime() >= CONSO_MOYENNE_START_DATE.getTime();
-            });
+            const ordersLast30Days = [];
+            const ordersFromNov2025 = [];
             const monthsSet = new Set();
-            ordersFromNov2025.forEach(o => {
-                const d = toDate(o.saleDate || o.createdAt);
-                if (d) monthsSet.add(`${d.getFullYear()}-${d.getMonth()}`);
+            const productById = getProductByIdMap();
+
+            orderHistory.forEach(order => {
+                const d = toDate(order.saleDate || order.createdAt);
+                if (!d) return;
+                if (d.getTime() >= thirtyDaysAgo.getTime()) ordersLast30Days.push(order);
+                if (d.getTime() >= CONSO_MOYENNE_START_DATE.getTime()) {
+                    ordersFromNov2025.push(order);
+                    monthsSet.add(`${d.getFullYear()}-${d.getMonth()}`);
+                }
             });
+
+            const consoMoisEnCours = calculateIngredientConsumptionFromOrders(ordersLast30Days, productById);
             const monthsCount = Math.max(1, monthsSet.size);
-            const consoTotale = calculateIngredientConsumptionFromOrders(ordersFromNov2025);
+            const consoTotale = calculateIngredientConsumptionFromOrders(ordersFromNov2025, productById);
             const consoMoyenneMensuelle = new Map();
             consoTotale.forEach((qty, ingId) => {
                 consoMoyenneMensuelle.set(ingId, qty / monthsCount);
             });
 
-            return { consoMoisEnCours, consoMoyenneMensuelle };
+            consumptionStatsCache = { consoMoisEnCours, consoMoyenneMensuelle };
+            consumptionStatsCacheKey = cacheKey;
+            return consumptionStatsCache;
         };
 
         let ingredientsSortState = { column: null, dir: 1 };
@@ -2256,18 +2446,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             });
         };
         const calculateProductCost = (product) => {
-            if (!product) return 0;
-            if (product.recipe && product.recipe.length > 0) {
-                return product.recipe.reduce((total, recipeItem) => {
-                    const ingredient = allIngredients.find(ing => ing.id === recipeItem.id);
-                    const ingredientCost = ingredient ? (ingredient.cost || 0) : 0;
-                    return total + (ingredientCost * recipeItem.quantity);
-                }, 0);
-            } else if (product.linkedIngredientId) {
-                const linkedIngredient = allIngredients.find(i => i.id === product.linkedIngredientId);
-                return linkedIngredient ? (linkedIngredient.cost || 0) : 0;
-            }
-            return 0;
+            return getCachedProductCost(product, getIngredientByIdMap());
         };
 
         const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); const typeFilter = document.getElementById('product-type-filter')?.value || ''; container.innerHTML = ''; const filteredProducts = typeFilter ? allProducts.filter(p => p.type === typeFilter) : allProducts; if(filteredProducts.length === 0) { const pEl = placeholder?.querySelector('p'); if(pEl) pEl.textContent = typeFilter ? 'Aucun produit pour ce type.' : 'Aucun produit créé. Créez votre premier produit !'; container.appendChild(placeholder); } else { filteredProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Entrée: '<i class="fas fa-concierge-bell"></i>', Pizza: '<i class="fas fa-pizza-slice"></i>', Panuozzo: '<i class="fas fa-bread-slice"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Autre: '<i class="fas fa-box"></i>' }; 
@@ -2555,7 +2734,7 @@ const renderOrderHistory = (history) => {
             document.querySelectorAll('.kpi-filter-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('kpi-start-date').value = '';
             document.getElementById('kpi-end-date').value = '';
-            updateAndRenderKPIs(); // No args means all time
+            updateAndRenderKPIs(null, null, "Période : Tout le temps");
             document.getElementById('kpi-filter-container').classList.add('hidden');
         });
 
@@ -2894,7 +3073,7 @@ document.getElementById('current-order-list').addEventListener('click', e => { c
             renderOrderHistory(filtered);
         };
 
-        document.getElementById('history-date-filter').addEventListener('input', handleDateFilter);
+        document.getElementById('history-date-filter').addEventListener('input', debounce(handleDateFilter, 200));
 
         
         // --- PERTES ---
@@ -3198,9 +3377,9 @@ const renderDailyPayments = () => {
 
 // Event Listeners pour Finance
 document.getElementById('payment-date').addEventListener('change', updateDailyPaymentCalculations);
-document.getElementById('tpe-amount').addEventListener('input', updateDailyPaymentCalculations);
-document.getElementById('glovo-amount').addEventListener('input', updateDailyPaymentCalculations);
-document.getElementById('glovo-cash-amount').addEventListener('input', updateDailyPaymentCalculations);
+document.getElementById('tpe-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
+document.getElementById('glovo-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
+document.getElementById('glovo-cash-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
 
 
 // Soumettre la déclaration journalière
