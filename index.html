@@ -2104,9 +2104,9 @@ let allDailyPayments = [];
             return cost;
         };
 
-        const updateAndRenderKPIs = (startDate, endDate, label) => {
+        const updateAndRenderKPIs = (startDate, endDate, label, updateFilter = false) => {
             renderPending.kpis = false;
-            if (arguments.length > 0) {
+            if (updateFilter) {
                 setKpiFilterState(startDate, endDate, label);
             }
             const { startDate: filterStartDate, endDate: filterEndDate, label: filterLabel } = kpiFilterState;
@@ -2709,7 +2709,7 @@ const renderOrderHistory = (history) => {
                     startDate.setHours(0, 0, 0, 0);
                     label = "Période : Ce mois";
                 }
-                updateAndRenderKPIs(startDate, endDate, label);
+                updateAndRenderKPIs(startDate, endDate, label, true);
                 document.getElementById('kpi-filter-container').classList.add('hidden');
             });
         });
@@ -2726,7 +2726,7 @@ const renderOrderHistory = (history) => {
             endDate.setHours(23, 59, 59, 999);
             
             const label = `Période : du ${formatDateToDDMMYYYY(startDate)} au ${formatDateToDDMMYYYY(endDate)}`;
-            updateAndRenderKPIs(startDate, endDate, label);
+            updateAndRenderKPIs(startDate, endDate, label, true);
             document.getElementById('kpi-filter-container').classList.add('hidden');
         });
 
@@ -2734,7 +2734,7 @@ const renderOrderHistory = (history) => {
             document.querySelectorAll('.kpi-filter-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('kpi-start-date').value = '';
             document.getElementById('kpi-end-date').value = '';
-            updateAndRenderKPIs(null, null, "Période : Tout le temps");
+            updateAndRenderKPIs(null, null, "Période : Tout le temps", true);
             document.getElementById('kpi-filter-container').classList.add('hidden');
         });
 
