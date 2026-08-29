@@ -897,6 +897,45 @@
         </div>
     </div>
 
+    <div id="charge-tag-modal" class="modal fixed z-20 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+            <h3 class="text-xl font-semibold mb-2 text-gray-800">Étiqueter la charge</h3>
+            <p id="charge-tag-summary" class="text-sm text-gray-500 mb-4"></p>
+            <form id="charge-tag-form" class="space-y-4">
+                <input type="hidden" id="charge-tag-id">
+                <div>
+                    <label for="charge-tag-type" class="block text-sm font-medium text-gray-700">Catégorie</label>
+                    <select id="charge-tag-type" required class="mt-1 w-full input-style">
+                        <option value="">Choisir...</option>
+                        <option value="Loyer">Loyer</option>
+                        <option value="Eau et électricité">Eau et électricité</option>
+                        <option value="Gaz">Gaz</option>
+                        <option value="Internet">Internet</option>
+                        <option value="Abonnement caisse">Abonnement caisse</option>
+                        <option value="Entretien et maintenance">Entretien et maintenance</option>
+                        <option value="Nettoyage et dératisation">Nettoyage et dératisation</option>
+                        <option value="Packaging cost">Packaging cost</option>
+                        <option value="Commission Glovo">Commission Glovo</option>
+                        <option value="Commission TPE">Commission TPE</option>
+                        <option value="Assurances">Assurances</option>
+                        <option value="Comptable">Comptable</option>
+                        <option value="CNSS/(RAS/LOYER)/IGR">CNSS/(RAS/LOYER)/IGR</option>
+                        <option value="Salaires">Salaires</option>
+                        <option value="Autre charge">Autre charge</option>
+                    </select>
+                </div>
+                <div id="charge-tag-custom-name-container" class="hidden">
+                    <label for="charge-tag-custom-name" class="block text-sm font-medium text-gray-700">Libellé personnalisé</label>
+                    <input type="text" id="charge-tag-custom-name" class="mt-1 w-full input-style" placeholder="Nom de la charge">
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" class="btn-secondary" id="cancel-charge-tag">Annuler</button>
+                    <button type="submit" class="btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="import-modal" class="modal fixed z-20 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
             <h3 id="import-modal-title" class="text-xl font-semibold mb-4 text-gray-800">Importer un fichier CSV</h3>
@@ -1600,7 +1639,29 @@ onSnapshot(employeesCol, snapshot => {
 
         const toDate = (timestamp) => {
             if (!timestamp) return null;
-            return timestamp.seconds ? new Date(timestamp.seconds * 1000) : timestamp;
+            if (typeof timestamp.toDate === 'function') return timestamp.toDate();
+            if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+            if (typeof timestamp === 'string') {
+                const parsed = new Date(timestamp.includes('T') ? timestamp : `${timestamp}T12:00:00`);
+                return isNaN(parsed.getTime()) ? null : parsed;
+            }
+            const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+            return isNaN(date.getTime()) ? null : date;
+        };
+
+        const startOfDay = (date) => {
+            const parsed = toDate(date);
+            if (!parsed) return null;
+            return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+        };
+
+        const isWithinDateRange = (value, startDate, endDate) => {
+            const day = startOfDay(value);
+            if (!day) return false;
+            if (!startDate || !endDate) return true;
+            const start = startOfDay(startDate);
+            const end = startOfDay(endDate);
+            return day.getTime() >= start.getTime() && day.getTime() <= end.getTime();
         };
 
         const PANUOZZO_COMBO_CODES = {
@@ -1803,7 +1864,7 @@ onSnapshot(employeesCol, snapshot => {
             const structuredCount = charges.filter(isStructuredCharge).length;
             const totalOperating = breakdown.reduce((sum, item) => sum + item.amount, 0);
 
-            subtitle.textContent = `${periodLabel} — ${breakdown.length} type(s) structuré(s) sur ${structuredCount} charge(s) saisie(s) via la liste`;
+            subtitle.textContent = `${periodLabel} — charges filtrées par date de charge`;
 
             if (breakdown.length === 0) {
                 list.innerHTML = '<p class="text-center text-gray-500 py-6">Aucune charge structurée sur cette période.<br><span class="text-xs text-gray-400">Seules les nouvelles charges saisies via la liste déroulante apparaissent ici.</span></p>';
@@ -1837,13 +1898,11 @@ onSnapshot(employeesCol, snapshot => {
 
              // Filter data based on date range if provided
             const filteredOrders = !startDate ? orderHistory : orderHistory.filter(o => {
-                const orderDate = toDate(o.saleDate || o.createdAt);
-                return orderDate && orderDate >= startDate && orderDate <= endDate;
+                return isWithinDateRange(o.saleDate || o.createdAt, startDate, endDate);
             });
 
             const filteredPurchases = !startDate ? allPurchaseOrders.filter(p => p.status === 'received') : allPurchaseOrders.filter(p => {
-                const receivedDate = toDate(p.receivedAt);
-                return p.status === 'received' && receivedDate && receivedDate >= startDate && receivedDate <= endDate;
+                return p.status === 'received' && isWithinDateRange(p.receivedAt, startDate, endDate);
             });
             
             // *** NEW: Filter for unpaid *and* received purchases ***
@@ -1851,35 +1910,27 @@ onSnapshot(employeesCol, snapshot => {
             const filteredUnpaidPurchases = !startDate 
                 ? allPurchaseOrders.filter(p => p.status === 'received' && p.paymentStatus !== 'paid')
                 : allPurchaseOrders.filter(p => {
-                    // Filter based on *received* date for "Achats" period
-                    const receivedDate = toDate(p.receivedAt); 
                     return p.status === 'received' && 
                            p.paymentStatus !== 'paid' &&
-                           receivedDate && 
-                           receivedDate >= startDate && 
-                           receivedDate <= endDate;
+                           isWithinDateRange(p.receivedAt, startDate, endDate);
                 });
             const filteredPaidPurchases = !startDate
                 ? allPurchaseOrders.filter(p => p.status === 'received' && p.paymentStatus === 'paid')
                 : allPurchaseOrders.filter(p => {
-                    const paidDate = toDate(p.paidAt || p.receivedAt);
                     return p.status === 'received' &&
                            p.paymentStatus === 'paid' &&
-                           paidDate &&
-                           paidDate >= startDate &&
-                           paidDate <= endDate;
+                           isWithinDateRange(p.paidAt || p.receivedAt, startDate, endDate);
                 });
             // *** END NEW ***
 
 
             const filteredLosses = !startDate ? allLosses : allLosses.filter(l => {
-                const lossDate = toDate(l.createdAt);
-                return lossDate && lossDate >= startDate && lossDate <= endDate;
+                return isWithinDateRange(l.createdAt, startDate, endDate);
             });
             const filteredCharges = !startDate ? allCharges : allCharges.filter(c => {
-    const chargeDate = toDate(c.date || c.createdAt);
-    return chargeDate && chargeDate >= startDate && chargeDate <= endDate;
-});
+                if (!c.date) return false;
+                return isWithinDateRange(c.date, startDate, endDate);
+            });
             // --- KPI Calculations ---
             const totalSales = filteredOrders.reduce((sum, order) => sum + order.totalPrice, 0);
             const totalPurchases = filteredPurchases.reduce((sum, po) => sum + (po.totalCost || 0), 0); // This is total *received* purchases
@@ -2385,23 +2436,28 @@ const renderOrderHistory = (history) => {
     } else {
         charges.forEach(charge => {
             const card = document.createElement('div');
-            card.className = 'bg-white p-3 rounded-lg shadow-sm flex justify-between items-center';
+            const structured = isStructuredCharge(charge);
+            card.className = `bg-white p-3 rounded-lg shadow-sm flex justify-between items-center gap-3 ${structured ? '' : 'border-l-4 border-amber-400'}`;
 
-            // Formater la date en JJ/MM/AAAA (sans l'heure)
             const d = toDate(charge.date);
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = d.getFullYear();
-            const displayDate = `${day}/${month}/${year}`;
+            const displayDate = d ? formatDateToDDMMYYYY(d) : 'Date inconnue';
+            const categoryLabel = structured ? getChargeCategoryLabel(charge) : null;
+            const categoryBadge = structured
+                ? `<span class="inline-block mt-1 text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">${categoryLabel}</span>`
+                : `<span class="inline-block mt-1 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">À étiqueter</span>`;
 
             card.innerHTML = `
-                <div>
-                    <p class="font-semibold text-gray-800">${charge.name}</p>
+                <div class="min-w-0">
+                    <p class="font-semibold text-gray-800 truncate">${charge.name}</p>
                     <p class="text-sm text-gray-500">${displayDate}</p>
+                    ${categoryBadge}
                 </div>
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-3 shrink-0">
                     <p class="font-bold text-lg text-red-600">${charge.amount.toFixed(2)} Mad</p>
-                    <button data-id="${charge.id}" class="delete-charge-btn text-gray-400 hover:text-red-600 transition-colors">
+                    <button type="button" data-id="${charge.id}" class="edit-charge-tag-btn text-gray-500 hover:text-gray-800 transition-colors" title="Étiqueter la charge">
+                        <i class="fas fa-tag"></i>
+                    </button>
+                    <button type="button" data-id="${charge.id}" class="delete-charge-btn text-gray-400 hover:text-red-600 transition-colors" title="Supprimer">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
@@ -3621,6 +3677,43 @@ document.getElementById('salary-payments-history').addEventListener('click', asy
 // --- CHARGES ---
 
 // Gérer l'ajout d'une charge
+const syncChargeTagCustomName = (chargeType) => {
+    const customContainer = document.getElementById('charge-tag-custom-name-container');
+    const customInput = document.getElementById('charge-tag-custom-name');
+    const isOther = chargeType === 'Autre charge';
+    customContainer.classList.toggle('hidden', !isOther);
+    customInput.required = isOther;
+    if (!isOther) customInput.value = '';
+};
+
+const resolveChargeTagDefaults = (charge) => {
+    if (charge.category && STRUCTURED_CHARGE_CATEGORIES.includes(charge.category)) {
+        return {
+            category: charge.category,
+            customName: charge.category === 'Autre charge' ? (charge.name || '') : ''
+        };
+    }
+    if (charge.type === 'salary') {
+        return { category: 'Salaires', customName: '' };
+    }
+    if (STRUCTURED_CHARGE_CATEGORIES.includes(charge.name)) {
+        return { category: charge.name, customName: '' };
+    }
+    return { category: 'Autre charge', customName: charge.name || '' };
+};
+
+const openChargeTagModal = (charge) => {
+    const d = toDate(charge.date);
+    const displayDate = d ? formatDateToDDMMYYYY(d) : 'Date inconnue';
+    document.getElementById('charge-tag-id').value = charge.id;
+    document.getElementById('charge-tag-summary').textContent = `${charge.name} — ${charge.amount.toFixed(2)} Mad — ${displayDate}`;
+    const defaults = resolveChargeTagDefaults(charge);
+    document.getElementById('charge-tag-type').value = defaults.category;
+    document.getElementById('charge-tag-custom-name').value = defaults.customName;
+    syncChargeTagCustomName(defaults.category);
+    openModal('charge-tag-modal');
+};
+
 document.getElementById('charge-type').addEventListener('change', (e) => {
     const customContainer = document.getElementById('charge-custom-name-container');
     const customInput = document.getElementById('charge-custom-name');
@@ -3669,8 +3762,53 @@ document.getElementById('charge-form').addEventListener('submit', async (e) => {
     }
 });
 
+document.getElementById('charge-tag-type').addEventListener('change', (e) => {
+    syncChargeTagCustomName(e.target.value);
+});
+document.getElementById('cancel-charge-tag').addEventListener('click', () => closeModal('charge-tag-modal'));
+document.getElementById('charge-tag-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const chargeId = document.getElementById('charge-tag-id').value;
+    const chargeType = document.getElementById('charge-tag-type').value;
+    const customName = document.getElementById('charge-tag-custom-name').value.trim();
+    const charge = allCharges.find(c => c.id === chargeId);
+
+    if (!chargeId || !chargeType || !charge) {
+        showToast('Charge introuvable.');
+        return;
+    }
+
+    const name = chargeType === 'Autre charge'
+        ? (customName || charge.name)
+        : chargeType;
+
+    if (chargeType === 'Autre charge' && !name) {
+        showToast('Veuillez préciser le libellé de la charge.');
+        return;
+    }
+
+    try {
+        await updateDoc(doc(chargesCol, chargeId), {
+            category: chargeType,
+            name
+        });
+        showToast('Charge étiquetée !');
+        closeModal('charge-tag-modal');
+    } catch (error) {
+        console.error('Erreur étiquetage charge:', error);
+        showToast("Erreur lors de l'étiquetage.");
+    }
+});
+
 // Gérer la suppression d'une charge
 document.getElementById('charges-list').addEventListener('click', async (e) => {
+    const tagBtn = e.target.closest('.edit-charge-tag-btn');
+    if (tagBtn) {
+        const charge = allCharges.find(c => c.id === tagBtn.dataset.id);
+        if (charge) openChargeTagModal(charge);
+        return;
+    }
+
     const deleteBtn = e.target.closest('.delete-charge-btn');
     if (deleteBtn) {
         const chargeId = deleteBtn.dataset.id;
