@@ -563,6 +563,7 @@
                         <div>
                             <label for="charge-type" class="block text-sm font-medium text-gray-700">Type de Charge</label>
                             <select id="charge-type" required class="mt-1 w-full input-style">
+                                <option value="">Choisir...</option>
                                 <option value="Loyer">Loyer</option>
                                 <option value="Eau et électricité">Eau et électricité</option>
                                 <option value="Gaz">Gaz</option>
@@ -576,12 +577,12 @@
                                 <option value="Assurances">Assurances</option>
                                 <option value="Comptable">Comptable</option>
                                 <option value="CNSS/(RAS/LOYER)/IGR">CNSS/(RAS/LOYER)/IGR</option>
-                                <option value="Autre charge" selected>Autre charge</option>
+                                <option value="Autre charge">Autre charge</option>
                             </select>
                         </div>
-                        <div id="charge-custom-name-container">
+                        <div id="charge-custom-name-container" class="hidden">
                             <label for="charge-custom-name" class="block text-sm font-medium text-gray-700">Précisez la charge</label>
-                            <input type="text" id="charge-custom-name" required class="mt-1 w-full input-style" placeholder="Nom de la charge">
+                            <input type="text" id="charge-custom-name" class="mt-1 w-full input-style" placeholder="Nom de la charge">
                         </div>
                         <div>
                             <label for="charge-amount" class="block text-sm font-medium text-gray-700">Montant (Mad)</label>
@@ -1350,7 +1351,6 @@ let allDailyPayments = [];
             document.getElementById('api-start-date').value = getTodayDateString();
             document.getElementById('api-end-date').value = getTodayDateString();
             document.getElementById('charge-date').value = getTodayDateString();
-            resetChargeFormDefaults();
             const today = new Date();
             const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -3687,10 +3687,10 @@ const syncChargeCustomName = (chargeType) => {
 };
 
 const resetChargeFormDefaults = () => {
-    document.getElementById('charge-type').value = 'Autre charge';
+    document.getElementById('charge-type').value = '';
     document.getElementById('charge-custom-name').value = '';
     document.getElementById('charge-date').value = getTodayDateString();
-    syncChargeCustomName('Autre charge');
+    syncChargeCustomName('');
 };
 
 const syncChargeTagCustomName = (chargeType) => {
@@ -3711,9 +3711,6 @@ const resolveChargeTagDefaults = (charge) => {
     }
     if (charge.type === 'salary') {
         return { category: 'Salaires', customName: '' };
-    }
-    if (STRUCTURED_CHARGE_CATEGORIES.includes(charge.name)) {
-        return { category: charge.name, customName: '' };
     }
     return { category: 'Autre charge', customName: charge.name || '' };
 };
