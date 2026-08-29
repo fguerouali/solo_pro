@@ -1222,6 +1222,7 @@ let allDailyPayments = [];
         let currentOrder = [];
         let currentPurchaseOrderItems = [];
         let showOperatingChargesBreakdown = false;
+        let legacyChargesMigrationRunning = false;
         let importType = '';
 		let currentSalaryCalculations = []; // AJOUTEZ CETTE LIGNE
 
@@ -1584,9 +1585,9 @@ let allDailyPayments = [];
             onSnapshot(ordersCol, snapshot => { orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0)); renderOrderHistory(orderHistory); updateAndRenderKPIs(); renderIngredients(); });
             onSnapshot(lossesCol, snapshot => { allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); renderLossHistory(); updateAndRenderKPIs(); });onSnapshot(chargesCol, snapshot => {
     allCharges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    // Trier par date de charge, la plus récente en premier
     allCharges.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
-    renderCharges(allCharges); // Nous allons créer cette fonction
+    autoTagLegacyCharges(allCharges);
+    renderCharges(allCharges);
     updateAndRenderKPIs();
 });
 onSnapshot(employeesCol, snapshot => {
@@ -1826,17 +1827,39 @@ onSnapshot(employeesCol, snapshot => {
         ];
 
         const isStructuredCharge = (charge) => {
+            if (charge.type === 'salary') return true;
             if (charge.category && STRUCTURED_CHARGE_CATEGORIES.includes(charge.category)) return true;
-            return charge.type === 'salary';
+            return !charge.category;
+        };
+
+        const getChargeDisplayCategory = (charge) => {
+            if (charge.type === 'salary') return 'Salaires';
+            if (charge.category) return charge.category;
+            return 'Autre charge';
         };
 
         const getChargeCategoryLabel = (charge) => {
-            if (charge.category) {
-                if (charge.category === 'Autre charge') return charge.name || 'Autre charge';
-                return charge.category;
-            }
             if (charge.type === 'salary') return 'Salaires';
-            return null;
+            if (charge.category === 'Autre charge' || !charge.category) return charge.name || 'Autre charge';
+            if (charge.category) return charge.category;
+            return charge.name || 'Autre charge';
+        };
+
+        const autoTagLegacyCharges = async (charges) => {
+            if (legacyChargesMigrationRunning) return;
+            const legacyCharges = charges.filter(charge => !charge.category && charge.type !== 'salary');
+            if (legacyCharges.length === 0) return;
+
+            legacyChargesMigrationRunning = true;
+            try {
+                await Promise.all(legacyCharges.map(charge =>
+                    updateDoc(doc(chargesCol, charge.id), { category: 'Autre charge' })
+                ));
+            } catch (error) {
+                console.error('Erreur auto-etiquetage des anciennes charges:', error);
+            } finally {
+                legacyChargesMigrationRunning = false;
+            }
         };
 
         const buildOperatingChargesBreakdown = (charges) => {
@@ -1861,13 +1884,12 @@ onSnapshot(employeesCol, snapshot => {
             const list = document.getElementById('operating-charges-breakdown-list');
             const subtitle = document.getElementById('operating-charges-breakdown-subtitle');
             const breakdown = buildOperatingChargesBreakdown(charges);
-            const structuredCount = charges.filter(isStructuredCharge).length;
             const totalOperating = breakdown.reduce((sum, item) => sum + item.amount, 0);
 
             subtitle.textContent = `${periodLabel} — charges filtrées par date de charge`;
 
             if (breakdown.length === 0) {
-                list.innerHTML = '<p class="text-center text-gray-500 py-6">Aucune charge structurée sur cette période.<br><span class="text-xs text-gray-400">Seules les nouvelles charges saisies via la liste déroulante apparaissent ici.</span></p>';
+                list.innerHTML = '<p class="text-center text-gray-500 py-6">Aucune charge sur cette période.</p>';
             } else {
                 list.innerHTML = breakdown.map(item => {
                     const chargeShare = totalOperating > 0 ? (item.amount / totalOperating) * 100 : 0;
@@ -2436,15 +2458,12 @@ const renderOrderHistory = (history) => {
     } else {
         charges.forEach(charge => {
             const card = document.createElement('div');
-            const structured = isStructuredCharge(charge);
-            card.className = `bg-white p-3 rounded-lg shadow-sm flex justify-between items-center gap-3 ${structured ? '' : 'border-l-4 border-amber-400'}`;
+            card.className = 'bg-white p-3 rounded-lg shadow-sm flex justify-between items-center gap-3';
 
             const d = toDate(charge.date);
             const displayDate = d ? formatDateToDDMMYYYY(d) : 'Date inconnue';
-            const categoryLabel = structured ? getChargeCategoryLabel(charge) : null;
-            const categoryBadge = structured
-                ? `<span class="inline-block mt-1 text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">${categoryLabel}</span>`
-                : `<span class="inline-block mt-1 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">À étiqueter</span>`;
+            const displayCategory = getChargeDisplayCategory(charge);
+            const categoryBadge = `<span class="inline-block mt-1 text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">${displayCategory}</span>`;
 
             card.innerHTML = `
                 <div class="min-w-0">
