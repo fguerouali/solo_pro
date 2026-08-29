@@ -1970,6 +1970,15 @@ let allDailyPayments = [];
             return !charge.category;
         };
 
+        const isTaggedCharge = (charge) => {
+            if (charge.type === 'salary') return true;
+            if (charge.autoTagged === true) return false;
+            if (!charge.category || !STRUCTURED_CHARGE_CATEGORIES.includes(charge.category)) return false;
+            if (charge.tagged === true) return true;
+            if (charge.category !== 'Autre charge') return true;
+            return false;
+        };
+
         const getChargeDisplayCategory = (charge) => {
             if (charge.type === 'salary') return 'Salaires';
             if (charge.category) return charge.category;
@@ -1997,7 +2006,7 @@ let allDailyPayments = [];
                 for (let i = 0; i < legacyCharges.length; i += batchSize) {
                     const batch = writeBatch(db);
                     legacyCharges.slice(i, i + batchSize).forEach(charge => {
-                        batch.update(doc(chargesCol, charge.id), { category: 'Autre charge' });
+                        batch.update(doc(chargesCol, charge.id), { category: 'Autre charge', autoTagged: true });
                     });
                     await batch.commit();
                 }
@@ -2011,7 +2020,7 @@ let allDailyPayments = [];
 
         const buildOperatingChargesBreakdown = (charges) => {
             const totals = new Map();
-            charges.filter(isStructuredCharge).forEach(charge => {
+            charges.filter(isTaggedCharge).forEach(charge => {
                 const label = getChargeCategoryLabel(charge);
                 if (!label) return;
                 totals.set(label, (totals.get(label) || 0) + (charge.amount || 0));
@@ -2033,10 +2042,10 @@ let allDailyPayments = [];
             const breakdown = buildOperatingChargesBreakdown(charges);
             const totalOperating = breakdown.reduce((sum, item) => sum + item.amount, 0);
 
-            subtitle.textContent = `${periodLabel} — charges filtrées par date de charge`;
+            subtitle.textContent = `${periodLabel} — uniquement les charges étiquetées (par date de charge)`;
 
             if (breakdown.length === 0) {
-                list.innerHTML = '<p class="text-center text-gray-500 py-6">Aucune charge sur cette période.</p>';
+                list.innerHTML = '<p class="text-center text-gray-500 py-6">Aucune charge étiquetée sur cette période.</p>';
             } else {
                 list.innerHTML = breakdown.map(item => {
                     const chargeShare = totalOperating > 0 ? (item.amount / totalOperating) * 100 : 0;
@@ -3954,6 +3963,7 @@ document.getElementById('charge-form').addEventListener('submit', async (e) => {
         await addDoc(chargesCol, {
             name: name,
             category: chargeType,
+            tagged: true,
             amount: amount,
             date: chargeDate,
             createdAt: serverTimestamp()
@@ -3996,7 +4006,9 @@ document.getElementById('charge-tag-form').addEventListener('submit', async (e) 
     try {
         await updateDoc(doc(chargesCol, chargeId), {
             category: chargeType,
-            name
+            name,
+            tagged: true,
+            autoTagged: false
         });
         showToast('Charge étiquetée !');
         closeModal('charge-tag-modal');
