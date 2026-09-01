@@ -263,6 +263,24 @@
             border-radius: 18px;
             padding: 1rem 1.1rem;
             box-shadow: 0 4px 0 #f3f4f6, 0 2px 10px rgba(0,0,0,0.05);
+            border: 2px solid transparent;
+        }
+        .task-history-card.is-ok {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+        }
+        .task-history-card.is-ko {
+            border-color: #fecaca;
+            background: #fff5f5;
+        }
+        .task-history-ko-justification {
+            font-size: 0.85rem;
+            color: #991b1b;
+            background: #fee2e2;
+            border-radius: 12px;
+            padding: 0.65rem 0.75rem;
+            border-left: 4px solid #ef4444;
+            margin-top: 0.5rem;
         }
         .task-history-delete-btn {
             display: flex;
@@ -305,6 +323,8 @@
         }
         .task-badge-opening { background: #fef3c7; color: #b45309; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; }
         .task-badge-closing { background: #e0e7ff; color: #4338ca; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; }
+        .task-badge-ok { background: #dcfce7; color: #15803d; font-weight: 800; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; }
+        .task-badge-ko { background: #fee2e2; color: #b91c1c; font-weight: 800; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; }
 
         /* Spinner Styles */
         .loader {
@@ -1053,9 +1073,9 @@
 
         <div id="tasklist-justification-wrap" class="hidden mb-6">
             <label for="tasklist-justification" class="block text-sm font-semibold text-amber-800 mb-2">
-                <i class="fas fa-comment-alt mr-1"></i>Pourquoi certaines tâches ne sont pas faites ?
+                <i class="fas fa-comment-alt mr-1"></i>Justification (obligatoire si toutes les tâches ne sont pas faites)
             </label>
-            <textarea id="tasklist-justification" rows="3" placeholder="Expliquez brièvement..."></textarea>
+            <textarea id="tasklist-justification" rows="3" placeholder="Expliquez pourquoi certaines tâches n'ont pas été faites..."></textarea>
         </div>
 
         <div id="tasklist-submit-bar" class="tasklist-submit-bar">
@@ -2476,6 +2496,14 @@ let allDailyPayments = [];
                 .join(' ');
         };
 
+        const isChecklistSubmissionOk = (submission) => {
+            if (!submission) return true;
+            if (submission.allComplete === true) return true;
+            if (submission.allComplete === false) return false;
+            const skipped = submission.skippedCount ?? (submission.items || []).filter(item => !item.checked).length;
+            return skipped === 0;
+        };
+
         const getTasklistJustification = (type, submission = null) => {
             if (submission) return getSubmissionJustification(submission);
             return tasklistLocalJustification[type] || '';
@@ -2515,16 +2543,23 @@ let allDailyPayments = [];
             const submission = getTodayChecklistSubmission(tasklistActiveType);
             const checked = getTasklistCheckedCount(tasklistActiveType);
             const total = items.length;
+            const uncheckedCount = getTasklistUncheckedCount(tasklistActiveType);
+            const hasJustification = getTasklistJustification(tasklistActiveType).trim().length > 0;
             const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
             const dom = getTasklistDom();
 
             dom.progressText.textContent = `${checked} / ${total}`;
             dom.progressBar.style.width = `${pct}%`;
+            dom.progressBar.classList.toggle('bg-green-600', uncheckedCount === 0 || !hasJustification);
+            dom.progressBar.classList.toggle('bg-amber-500', uncheckedCount > 0 && hasJustification);
 
             const canWriteTasklist = canWrite('tasklist');
             const isComplete = !!submission;
             dom.submitBtn.disabled = !canWriteTasklist || isComplete || !canSubmitTasklist(tasklistActiveType);
             dom.submitBtn.classList.toggle('hidden', isComplete || !canWriteTasklist);
+            dom.submitBtn.innerHTML = uncheckedCount > 0 && hasJustification
+                ? '<i class="fas fa-exclamation-circle mr-2"></i>Valider avec KO'
+                : '<i class="fas fa-check-circle mr-2"></i>Valider la checklist';
             syncTasklistJustificationField();
         };
 
@@ -2540,12 +2575,21 @@ let allDailyPayments = [];
             const completedAt = submission.completedAt ? formatDateToDDMMYYYY(submission.completedAt) : 'Date inconnue';
             const skippedCount = submission.skippedCount ?? (submission.items || []).filter(item => !item.checked).length;
             const justification = getSubmissionJustification(submission);
-            banner.className = 'mb-4 p-4 rounded-xl text-sm bg-green-50 border border-green-200 text-green-800';
-            banner.innerHTML = `
-                <p class="font-semibold"><i class="fas fa-check-circle mr-1"></i>Checklist ${typeLabel} validée aujourd'hui</p>
-                <p class="mt-1">Par <strong>${submission.username || '—'}</strong> — ${completedAt}</p>
-                ${skippedCount > 0 ? `<p class="mt-1 text-amber-800">${skippedCount} tâche(s) non faite(s)</p>` : ''}
-                ${justification ? `<p class="task-justification-readonly mt-2"><i class="fas fa-comment-alt mr-1"></i>${justification}</p>` : ''}`;
+            const isOk = isChecklistSubmissionOk(submission);
+
+            if (isOk) {
+                banner.className = 'mb-4 p-4 rounded-xl text-sm bg-green-50 border border-green-200 text-green-800';
+                banner.innerHTML = `
+                    <p class="font-semibold"><span class="task-badge-ok">OK</span> Checklist ${typeLabel} validée aujourd'hui</p>
+                    <p class="mt-1">Par <strong>${submission.username || '—'}</strong> — ${completedAt}</p>`;
+            } else {
+                banner.className = 'mb-4 p-4 rounded-xl text-sm bg-red-50 border border-red-200 text-red-800';
+                banner.innerHTML = `
+                    <p class="font-semibold"><span class="task-badge-ko">KO</span> Checklist ${typeLabel} validée avec réserves</p>
+                    <p class="mt-1">Par <strong>${submission.username || '—'}</strong> — ${completedAt}</p>
+                    <p class="mt-1">${skippedCount} tâche(s) non faite(s)</p>
+                    ${justification ? `<p class="task-history-ko-justification mt-2"><i class="fas fa-comment-alt mr-1"></i>${justification}</p>` : ''}`;
+            }
             banner.classList.remove('hidden');
         };
 
@@ -2581,25 +2625,30 @@ let allDailyPayments = [];
                 const skippedCount = submission.skippedCount ?? (submission.items || []).filter(item => !item.checked).length;
                 const totalCount = submission.totalItems || (submission.items || []).length;
                 const justification = getSubmissionJustification(submission);
+                const isOk = isChecklistSubmissionOk(submission);
                 const statusLine = skippedCount > 0
                     ? `${checkedCount} faites, ${skippedCount} non faite(s) — ${totalCount} au total`
                     : `${checkedCount}/${totalCount} tâches validées`;
                 const dateDisplay = submission.date ? submission.date.split('-').reverse().join('/') : '—';
+                const resultBadge = isOk
+                    ? '<span class="task-badge-ok">OK</span>'
+                    : '<span class="task-badge-ko">KO</span>';
                 const deleteBtn = isSuperadmin()
                     ? `<button type="button" data-id="${submission.id}" class="task-history-delete-btn delete-checklist-history-btn" title="Supprimer"><i class="fas fa-trash-alt"></i></button>`
-                    : `<span class="text-green-600 shrink-0"><i class="fas fa-check-circle text-2xl"></i></span>`;
+                    : `<span class="shrink-0 text-2xl ${isOk ? 'text-green-600' : 'text-red-600'}"><i class="fas ${isOk ? 'fa-check-circle' : 'fa-times-circle'}"></i></span>`;
                 return `
-                    <div class="task-history-card">
+                    <div class="task-history-card ${isOk ? 'is-ok' : 'is-ko'}">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
+                                    ${resultBadge}
                                     <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${badgeClass}">${typeLabel}</span>
                                     <span class="text-base font-semibold text-gray-800">${dateDisplay}</span>
                                 </div>
                                 <p class="text-sm text-gray-600 mt-2">${submission.username || '—'}</p>
                                 <p class="text-sm text-gray-500">${completedAt}</p>
                                 <p class="text-xs text-gray-500 mt-1">${statusLine}</p>
-                                ${justification ? `<p class="text-xs text-amber-700 mt-1 italic">"${justification}"</p>` : ''}
+                                ${!isOk && justification ? `<p class="task-history-ko-justification"><i class="fas fa-comment-alt mr-1"></i>${justification}</p>` : ''}
                             </div>
                             ${deleteBtn}
                         </div>
@@ -2787,7 +2836,7 @@ let allDailyPayments = [];
                     username: currentUserProfile?.username || '',
                     completedAt: serverTimestamp()
                 });
-                showToast('Checklist validée avec succès !');
+                showToast(uncheckedCount === 0 ? 'Checklist validée avec succès !' : 'Checklist validée en KO (tâches incomplètes).');
                 tasklistLocalJustification[tasklistActiveType] = '';
                 tasklistHistoryDomKey = '';
                 const itemsContainer = getTasklistDom().items;
