@@ -60,91 +60,234 @@
             background: linear-gradient(90deg, #f87171, #dc2626);
         }
 
-        /* Task List mobile */
+        /* Task List — boutons tactiles mobile */
         .tasklist-shell {
-            padding-left: max(0.75rem, env(safe-area-inset-left));
-            padding-right: max(0.75rem, env(safe-area-inset-right));
+            padding-left: max(1rem, env(safe-area-inset-left));
+            padding-right: max(1rem, env(safe-area-inset-right));
+        }
+        .task-segment-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 1.25rem;
         }
         .task-segment-btn {
-            @apply flex flex-col items-center justify-center gap-1.5 rounded-2xl font-semibold text-base border-2 border-gray-200 text-gray-600 bg-white transition-all;
-            min-height: 4.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 5.5rem;
+            padding: 1rem;
+            border: none;
+            border-radius: 20px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #4b5563;
+            background: #ffffff;
+            box-shadow: 0 5px 0 #d1d5db, 0 4px 14px rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
         .task-segment-btn i {
-            font-size: 1.35rem;
+            font-size: 1.6rem;
         }
-        .task-segment-btn.active {
-            @apply border-gray-800 bg-gray-800 text-white shadow-lg scale-[1.02];
+        .task-segment-btn:active,
+        .task-segment-btn.is-pressing {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #d1d5db, 0 2px 6px rgba(0, 0, 0, 0.06);
+        }
+        .task-segment-btn.active.opening {
+            color: #fff;
+            background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+            box-shadow: 0 5px 0 #b45309, 0 6px 20px rgba(245, 158, 11, 0.35);
+        }
+        .task-segment-btn.active.opening:active,
+        .task-segment-btn.active.opening.is-pressing {
+            box-shadow: 0 1px 0 #b45309, 0 3px 10px rgba(245, 158, 11, 0.25);
+        }
+        .task-segment-btn.active.closing {
+            color: #fff;
+            background: linear-gradient(180deg, #818cf8 0%, #6366f1 100%);
+            box-shadow: 0 5px 0 #4338ca, 0 6px 20px rgba(99, 102, 241, 0.35);
+        }
+        .task-segment-btn.active.closing:active,
+        .task-segment-btn.active.closing.is-pressing {
+            box-shadow: 0 1px 0 #4338ca, 0 3px 10px rgba(99, 102, 241, 0.25);
+        }
+        #tasklist-items {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
         }
         .task-check-btn {
-            @apply w-full flex items-center justify-between gap-4 px-4 py-4 rounded-2xl border-2 border-gray-200 bg-white shadow-sm text-left transition-all;
-            min-height: 3.75rem;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-height: 4.25rem;
+            padding: 1rem 1.1rem;
+            border: none;
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 5px 0 #e5e7eb, 0 3px 12px rgba(0, 0, 0, 0.06);
+            text-align: left;
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.2s ease;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
-        .task-check-btn:active:not(:disabled) {
-            transform: scale(0.98);
+        .task-check-btn:active:not(:disabled),
+        .task-check-btn.is-pressing:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #e5e7eb, 0 2px 6px rgba(0, 0, 0, 0.05);
         }
         .task-check-btn.checked {
-            @apply border-green-500 bg-green-50;
+            background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+            box-shadow: 0 5px 0 #6ee7b7, 0 4px 14px rgba(16, 185, 129, 0.2);
         }
-        .task-check-btn.important .task-check-label {
-            @apply font-bold text-gray-900;
+        .task-check-btn.checked:active:not(:disabled),
+        .task-check-btn.checked.is-pressing:not(:disabled) {
+            box-shadow: 0 1px 0 #6ee7b7, 0 2px 8px rgba(16, 185, 129, 0.15);
+        }
+        .task-check-btn.important {
+            border-left: 5px solid #f59e0b;
         }
         .task-check-btn:disabled {
-            @apply opacity-90 cursor-default;
+            cursor: default;
+            opacity: 0.95;
+        }
+        .task-check-icon {
+            flex-shrink: 0;
+            width: 2.75rem;
+            height: 2.75rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            color: #9ca3af;
+            background: #f3f4f6;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+            transition: all 0.2s ease;
+        }
+        .task-check-btn.checked .task-check-icon {
+            color: #fff;
+            background: linear-gradient(180deg, #34d399, #10b981);
+            box-shadow: 0 3px 0 #059669;
         }
         .task-check-label {
-            @apply text-gray-800 text-base leading-snug flex-1;
+            flex: 1;
+            font-size: 1.05rem;
+            line-height: 1.35;
+            font-weight: 600;
+            color: #1f2937;
         }
-        .task-check-indicator {
-            @apply flex items-center justify-center rounded-full border-2 border-gray-300 bg-white text-white shrink-0;
-            width: 2.25rem;
-            height: 2.25rem;
-            font-size: 0.95rem;
-        }
-        .task-check-btn.checked .task-check-indicator {
-            @apply border-green-600 bg-green-600;
+        .task-check-btn.important .task-check-label {
+            font-weight: 800;
         }
         .task-submit-btn {
-            @apply w-full rounded-2xl font-bold text-lg shadow-lg;
-            min-height: 3.5rem;
+            width: 100%;
+            min-height: 3.75rem;
+            padding: 0 1.25rem;
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            color: #fff;
+            border: none;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+            box-shadow: 0 6px 0 #047857, 0 8px 24px rgba(16, 185, 129, 0.35);
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.2s ease;
             touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .task-submit-btn:active:not(:disabled),
+        .task-submit-btn.is-pressing:not(:disabled) {
+            transform: translateY(5px);
+            box-shadow: 0 1px 0 #047857, 0 4px 12px rgba(16, 185, 129, 0.25);
+        }
+        .task-submit-btn:disabled {
+            background: linear-gradient(180deg, #e5e7eb, #d1d5db);
+            color: #9ca3af;
+            box-shadow: 0 4px 0 #9ca3af;
+            cursor: not-allowed;
         }
         .tasklist-submit-bar {
-            @apply fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur border-t border-gray-200 shadow-lg z-30;
-            padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem 1rem max(1.25rem, env(safe-area-inset-bottom));
+            background: linear-gradient(to top, #fff 85%, rgba(255,255,255,0));
+            z-index: 30;
+        }
+        .tasklist-submit-bar-inner {
+            max-width: 32rem;
+            margin: 0 auto;
         }
         @media (min-width: 768px) {
             .tasklist-submit-bar {
                 position: sticky;
-                bottom: 0;
-                max-width: 32rem;
-                margin: 0 auto;
-                border-radius: 1rem;
-                border: 1px solid #e5e7eb;
+                background: transparent;
+                padding-top: 0.5rem;
             }
         }
         .task-history-card {
-            @apply bg-white rounded-2xl p-4 shadow-sm border border-gray-100;
+            background: #fff;
+            border-radius: 18px;
+            padding: 1rem 1.1rem;
+            box-shadow: 0 4px 0 #f3f4f6, 0 2px 10px rgba(0,0,0,0.05);
         }
         .task-history-delete-btn {
-            @apply flex items-center justify-center rounded-xl bg-red-50 text-red-600 border border-red-100 shrink-0;
-            width: 2.75rem;
-            height: 2.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 3rem;
+            height: 3rem;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #fecaca, #fca5a5);
+            color: #b91c1c;
+            box-shadow: 0 4px 0 #ef4444;
+            cursor: pointer;
             touch-action: manipulation;
+            flex-shrink: 0;
         }
-        .task-history-delete-btn:active {
-            @apply bg-red-100;
+        .task-history-delete-btn:active,
+        .task-history-delete-btn.is-pressing {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #ef4444;
         }
         .task-history-filter-btn {
-            @apply px-4 py-3 rounded-xl bg-gray-100 text-gray-700 font-medium text-sm;
-            min-height: 2.75rem;
+            min-height: 3rem;
+            padding: 0 1.25rem;
+            border: none;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #374151;
+            background: #fff;
+            box-shadow: 0 4px 0 #e5e7eb;
             touch-action: manipulation;
         }
-        .task-badge-opening { @apply bg-amber-100 text-amber-800; }
-        .task-badge-closing { @apply bg-indigo-100 text-indigo-800; }
+        .task-history-filter-btn:active,
+        .task-history-filter-btn.is-pressing {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #e5e7eb;
+        }
+        #tasklist-history-date {
+            min-height: 3rem;
+            font-size: 1rem;
+        }
+        .task-badge-opening { background: #fef3c7; color: #b45309; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; }
+        .task-badge-closing { background: #e0e7ff; color: #4338ca; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; }
 
         /* Spinner Styles */
         .loader {
@@ -866,12 +1009,12 @@
             <p id="tasklist-date-label" class="text-base text-gray-500 mt-1"></p>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 mb-5">
-            <button type="button" id="tasklist-segment-opening" class="task-segment-btn active" data-type="opening">
+        <div class="task-segment-group">
+            <button type="button" id="tasklist-segment-opening" class="task-segment-btn opening active" data-type="opening">
                 <i class="fas fa-sun"></i>
                 <span>Ouverture</span>
             </button>
-            <button type="button" id="tasklist-segment-closing" class="task-segment-btn" data-type="closing">
+            <button type="button" id="tasklist-segment-closing" class="task-segment-btn closing" data-type="closing">
                 <i class="fas fa-moon"></i>
                 <span>Fermeture</span>
             </button>
@@ -889,12 +1032,14 @@
             </div>
         </div>
 
-        <div id="tasklist-items" class="space-y-3 mb-6"></div>
+        <div id="tasklist-items" class="mb-6"></div>
 
         <div id="tasklist-submit-bar" class="tasklist-submit-bar">
-            <button type="button" id="tasklist-submit-btn" class="btn-primary task-submit-btn disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                <i class="fas fa-check-circle mr-2"></i>Valider la checklist
-            </button>
+            <div class="tasklist-submit-bar-inner">
+                <button type="button" id="tasklist-submit-btn" class="task-submit-btn" disabled>
+                    <i class="fas fa-check-circle mr-2"></i>Valider la checklist
+                </button>
+            </div>
         </div>
 
         <section class="mt-10 border-t border-gray-200 pt-6">
@@ -2254,10 +2399,8 @@ let allDailyPayments = [];
                 const checkedClass = checked ? 'checked' : '';
                 return `
                     <button type="button" class="task-check-btn ${importantClass} ${checkedClass}" data-item-id="${item.id}" aria-pressed="${checked}" ${readOnly ? 'disabled' : ''}>
+                        <span class="task-check-icon" aria-hidden="true">${checked ? '<i class="fas fa-check"></i>' : '<i class="fas fa-circle" style="font-size:0.45rem;opacity:0.5"></i>'}</span>
                         <span class="task-check-label">${item.label}</span>
-                        <span class="task-check-indicator" aria-hidden="true">
-                            ${checked ? '<i class="fas fa-check"></i>' : ''}
-                        </span>
                     </button>`;
             }).join('');
 
@@ -2308,6 +2451,21 @@ let allDailyPayments = [];
             }).join('');
         };
 
+        const bindTasklistPressFeedback = () => {
+            document.querySelectorAll('.task-segment-btn, .task-check-btn, .task-submit-btn, .task-history-delete-btn, .task-history-filter-btn').forEach(el => {
+                if (el.dataset.pressBound === '1') return;
+                el.dataset.pressBound = '1';
+                const pressOn = () => el.classList.add('is-pressing');
+                const pressOff = () => el.classList.remove('is-pressing');
+                el.addEventListener('touchstart', pressOn, { passive: true });
+                el.addEventListener('touchend', pressOff, { passive: true });
+                el.addEventListener('touchcancel', pressOff, { passive: true });
+                el.addEventListener('mousedown', pressOn);
+                el.addEventListener('mouseup', pressOff);
+                el.addEventListener('mouseleave', pressOff);
+            });
+        };
+
         const renderTasklist = () => {
             if (!document.getElementById('tasklist-content')?.classList.contains('active')) return;
             const today = new Date();
@@ -2318,6 +2476,7 @@ let allDailyPayments = [];
             });
             renderTasklistItems();
             renderTasklistHistory();
+            bindTasklistPressFeedback();
         };
 
         const toggleTasklistItem = (itemId) => {
@@ -2328,8 +2487,12 @@ let allDailyPayments = [];
             if (btn) {
                 btn.classList.toggle('checked', nextChecked);
                 btn.setAttribute('aria-pressed', nextChecked ? 'true' : 'false');
-                const indicator = btn.querySelector('.task-check-indicator');
-                if (indicator) indicator.innerHTML = nextChecked ? '<i class="fas fa-check"></i>' : '';
+                const icon = btn.querySelector('.task-check-icon');
+                if (icon) {
+                    icon.innerHTML = nextChecked
+                        ? '<i class="fas fa-check"></i>'
+                        : '<i class="fas fa-circle" style="font-size:0.45rem;opacity:0.5"></i>';
+                }
             }
             updateTasklistProgress();
         };
