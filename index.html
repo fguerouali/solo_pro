@@ -1368,7 +1368,7 @@
 
         <div class="inventaire-submit-bar">
             <button type="button" id="inventaire-submit-btn" class="inventaire-submit-btn" disabled>
-                <i class="fas fa-paper-plane mr-2"></i>Envoyer l'inventaire
+                <i class="fas fa-paper-plane mr-2"></i>Envoyer la saisie
             </button>
         </div>
 
@@ -3806,11 +3806,32 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             URL.revokeObjectURL(link.href);
         };
 
-        const getInventaireFilledCount = () => {
-            return allIngredients.filter(ing => {
+        const getInventaireFilledItems = () => allIngredients
+            .filter(ing => {
                 const val = inventaireLocalCounts[ing.id];
                 return val !== undefined && val !== '' && !Number.isNaN(parseFloat(val));
-            }).length;
+            })
+            .map(ing => ({
+                ingredientId: ing.id,
+                name: ing.name,
+                unit: ing.unit,
+                systemQuantity: Number(ing.quantity) || 0,
+                countedQuantity: parseFloat(inventaireLocalCounts[ing.id]),
+                validated: false
+            }));
+
+        const getInventaireFilledCount = () => getInventaireFilledItems().length;
+
+        const mergeInventorySubmissionItems = (pending, newItems) => {
+            const map = new Map();
+            (pending?.items || []).forEach(item => {
+                if (item.validated) map.set(item.ingredientId, item);
+            });
+            (pending?.items || []).forEach(item => {
+                if (!item.validated) map.set(item.ingredientId, item);
+            });
+            newItems.forEach(item => map.set(item.ingredientId, item));
+            return [...map.values()];
         };
 
         const updateInventaireProgress = () => {
@@ -3823,7 +3844,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             if (progressText) progressText.textContent = `${filled} / ${total}`;
             if (progressBar) progressBar.style.width = `${pct}%`;
             if (submitBtn) {
-                const canSubmit = canWrite('inventaire') && filled === total && total > 0;
+                const canSubmit = canWrite('inventaire') && filled > 0;
                 submitBtn.disabled = !canSubmit;
             }
         };
@@ -3916,7 +3937,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 if (pending && canWrite('inventaire')) {
                     pendingInfo.classList.remove('hidden');
                     pendingInfo.innerHTML = `<p class="font-semibold"><i class="fas fa-hourglass-half mr-1"></i>Inventaire en attente de validation</p>
-                        <p class="mt-1">Envoyé par <strong>${pending.username || '—'}</strong>. Vous pouvez le remplacer en renvoyant une nouvelle saisie complète.</p>`;
+                        <p class="mt-1">Envoyé par <strong>${pending.username || '—'}</strong> — ${(pending.items || []).filter(i => !i.validated).length} ligne(s) à valider. Vous pouvez compléter avec d'autres ingrédients.</p>`;
                 } else {
                     pendingInfo.classList.add('hidden');
                     pendingInfo.innerHTML = '';
@@ -3933,42 +3954,33 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
         const submitInventaire = async () => {
             if (!canWrite('inventaire')) return showToast('Permission refusée (lecture seule).');
-            if (getInventaireFilledCount() !== allIngredients.length) {
-                return showToast('Renseignez le stock réel pour tous les ingrédients.');
+            const newItems = getInventaireFilledItems();
+            if (newItems.length === 0) {
+                return showToast('Renseignez au moins un ingrédient.');
             }
 
-            const items = allIngredients.map(ing => {
-                const countedQuantity = parseFloat(inventaireLocalCounts[ing.id]);
-                return {
-                    ingredientId: ing.id,
-                    name: ing.name,
-                    unit: ing.unit,
-                    systemQuantity: Number(ing.quantity) || 0,
-                    countedQuantity,
-                    validated: false
-                };
-            });
+            const pending = getPendingInventorySubmission();
+            const items = pending ? mergeInventorySubmissionItems(pending, newItems) : newItems;
 
             const payload = {
                 date: getTodayDateString(),
-                status: 'pending',
+                status: items.every(item => item.validated) ? 'validated' : 'pending',
                 items,
                 submittedAt: serverTimestamp(),
                 userId: currentUserProfile?.id || '',
                 username: currentUserProfile?.username || '',
-                validatedAt: null,
-                validatedBy: '',
-                validatedByUsername: ''
+                validatedAt: pending?.validatedAt || null,
+                validatedBy: pending?.validatedBy || '',
+                validatedByUsername: pending?.validatedByUsername || ''
             };
 
             try {
-                const pending = getPendingInventorySubmission();
                 if (pending) {
                     await updateDoc(doc(inventorySubmissionsCol, pending.id), payload);
-                    showToast('Inventaire mis à jour et envoyé pour validation.');
+                    showToast(`Inventaire mis à jour (${newItems.length} ligne(s) envoyée(s)).`);
                 } else {
                     await addDoc(inventorySubmissionsCol, payload);
-                    showToast('Inventaire envoyé pour validation.');
+                    showToast(`Inventaire envoyé (${newItems.length} ligne(s)).`);
                 }
                 inventaireLocalCounts = {};
                 allIngredients.forEach(ing => { inventaireLocalCounts[ing.id] = ''; });
