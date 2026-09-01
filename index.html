@@ -182,6 +182,41 @@
         }
         .task-check-btn.checked .task-check-mark { display: block; }
         .task-check-btn.checked .task-check-dot { display: none; }
+        .task-check-btn.skipped {
+            background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+            box-shadow: 0 5px 0 #fcd34d, 0 4px 14px rgba(245, 158, 11, 0.15);
+        }
+        .task-check-btn.skipped .task-check-icon {
+            color: #b45309;
+            background: #fde68a;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+        }
+        .task-check-btn.skipped .task-check-mark { display: none; }
+        .task-check-btn.skipped .task-check-dot {
+            display: block;
+            background: #f59e0b;
+            width: 0.55rem;
+            height: 0.55rem;
+        }
+        .task-item-wrapper { display: flex; flex-direction: column; gap: 8px; }
+        .task-skip-field textarea {
+            width: 100%;
+            min-height: 4rem;
+            font-size: 1rem;
+            padding: 0.75rem;
+            border-radius: 14px;
+            border: 2px solid #fcd34d;
+            background: #fffbeb;
+            resize: vertical;
+        }
+        .task-skip-readonly {
+            font-size: 0.9rem;
+            color: #b45309;
+            background: #fffbeb;
+            border-radius: 12px;
+            padding: 0.65rem 0.75rem;
+            border-left: 4px solid #f59e0b;
+        }
         .task-check-label {
             flex: 1;
             font-size: 1.05rem;
@@ -1546,6 +1581,7 @@ let allDailyPayments = [];
         let allChecklistSubmissions = [];
         let tasklistActiveType = 'opening';
         let tasklistLocalChecks = { opening: {}, closing: {} };
+        let tasklistLocalSkips = { opening: {}, closing: {} };
         let todayChecklistCache = { date: '', opening: null, closing: null };
         let tasklistDomCache = null;
         let tasklistItemsDomKey = '';
@@ -2292,12 +2328,12 @@ let allDailyPayments = [];
                 { id: 'o1', label: 'Présence & Tenue', important: false },
                 { id: 'o2', label: 'Propreté salle', important: false },
                 { id: 'o3', label: 'Sanitaires', important: true },
-                { id: 'o4', label: 'Cuisine propre', important: false },
-                { id: 'o5', label: 'Mise en place', important: false },
-                { id: 'o6', label: 'Stocks + ruptures', important: false },
-                { id: 'o7', label: 'Caisse Connect', important: true },
-                { id: 'o8', label: 'Caisse / TPE', important: false },
-                { id: 'o9', label: 'Glovo + site', important: false },
+                { id: 'o4', label: 'Cuisine non encombrée', important: false },
+                { id: 'o5', label: 'Caisse coca vide pour bouteilles', important: false },
+                { id: 'o6', label: 'Musique et clim (si besoin)', important: false },
+                { id: 'o7', label: 'Connaître les produits en rupture', important: true },
+                { id: 'o8', label: 'Ouverture caisse et check rouleau TPE', important: false },
+                { id: 'o9', label: 'Glovo + site + Google horaire et stock à jour', important: false },
                 { id: 'o10', label: 'Brief rapide équipe', important: false }
             ],
             closing: [
@@ -2325,6 +2361,20 @@ let allDailyPayments = [];
                 return { id: `${prefix}${index + 1}`, label, important };
             });
 
+        const migrateOpeningChecklistV2 = async () => {
+            const oldLabels = ['Cuisine propre', 'Mise en place', 'Stocks + ruptures', 'Caisse Connect', 'Caisse / TPE', 'Glovo + site'];
+            const hasOldLabels = (checklistConfig.opening || []).some(item => oldLabels.includes(item.label));
+            if (!hasOldLabels) return;
+            checklistConfig = {
+                ...checklistConfig,
+                opening: [...DEFAULT_CHECKLIST_ITEMS.opening]
+            };
+            await setDoc(checklistConfigRef, {
+                opening: checklistConfig.opening,
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+        };
+
         const ensureChecklistConfig = async () => {
             initCollections();
             const snap = await getDoc(checklistConfigRef);
@@ -2333,6 +2383,7 @@ let allDailyPayments = [];
                     opening: snap.data().opening || [],
                     closing: snap.data().closing || []
                 };
+                await migrateOpeningChecklistV2();
             } else {
                 checklistConfig = {
                     opening: [...DEFAULT_CHECKLIST_ITEMS.opening],
@@ -2385,34 +2436,53 @@ let allDailyPayments = [];
 
         const getChecklistItems = (type) => checklistConfig[type] || [];
 
-        const getTasklistCheckedCount = (type) => {
+        const getTaskItemState = (type, itemId, submission = null) => {
+            if (submission) {
+                const saved = (submission.items || []).find(item => item.id === itemId);
+                if (!saved) return { checked: false, justification: '' };
+                return {
+                    checked: !!saved.checked,
+                    justification: saved.justification || ''
+                };
+            }
+            const checked = !!tasklistLocalChecks[type][itemId];
+            return {
+                checked,
+                justification: checked ? '' : (tasklistLocalSkips[type][itemId] || '')
+            };
+        };
+
+        const isTasklistItemResolved = (type, itemId, submission = null) => {
+            const state = getTaskItemState(type, itemId, submission);
+            if (state.checked) return true;
+            return state.justification.trim().length > 0;
+        };
+
+        const getTasklistResolvedCount = (type) => {
             const items = getChecklistItems(type);
             const submission = getTodayChecklistSubmission(type);
             if (submission) return items.length;
-            return items.filter(item => tasklistLocalChecks[type][item.id]).length;
+            return items.filter(item => isTasklistItemResolved(type, item.id)).length;
         };
 
         const isTasklistItemChecked = (type, itemId, submission) => {
-            if (submission) {
-                return (submission.items || []).some(item => item.id === itemId && item.checked);
-            }
-            return !!tasklistLocalChecks[type][itemId];
+            return getTaskItemState(type, itemId, submission).checked;
         };
 
         const updateTasklistProgress = () => {
             const items = getChecklistItems(tasklistActiveType);
             const submission = getTodayChecklistSubmission(tasklistActiveType);
-            const checked = getTasklistCheckedCount(tasklistActiveType);
+            const resolved = getTasklistResolvedCount(tasklistActiveType);
             const total = items.length;
-            const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+            const pct = total > 0 ? Math.round((resolved / total) * 100) : 0;
             const dom = getTasklistDom();
 
-            dom.progressText.textContent = `${checked} / ${total}`;
+            dom.progressText.textContent = `${resolved} / ${total}`;
             dom.progressBar.style.width = `${pct}%`;
 
             const canWriteTasklist = canWrite('tasklist');
             const isComplete = !!submission;
-            dom.submitBtn.disabled = !canWriteTasklist || isComplete || checked < total || total === 0;
+            dom.submitBtn.disabled = !canWriteTasklist || isComplete || resolved < total || total === 0;
             dom.submitBtn.classList.toggle('hidden', isComplete || !canWriteTasklist);
         };
 
@@ -2460,7 +2530,11 @@ let allDailyPayments = [];
                 const badgeClass = submission.type === 'opening' ? 'task-badge-opening' : 'task-badge-closing';
                 const completedAt = submission.completedAt ? formatDateToDDMMYYYY(submission.completedAt) : '—';
                 const checkedCount = (submission.items || []).filter(item => item.checked).length;
+                const skippedCount = (submission.items || []).filter(item => !item.checked && item.justification).length;
                 const totalCount = submission.totalItems || (submission.items || []).length;
+                const statusLine = skippedCount > 0
+                    ? `${checkedCount} faites, ${skippedCount} justifiée(s) — ${totalCount} au total`
+                    : `${checkedCount}/${totalCount} tâches validées`;
                 const dateDisplay = submission.date ? submission.date.split('-').reverse().join('/') : '—';
                 const deleteBtn = isSuperadmin()
                     ? `<button type="button" data-id="${submission.id}" class="task-history-delete-btn delete-checklist-history-btn" title="Supprimer"><i class="fas fa-trash-alt"></i></button>`
@@ -2475,7 +2549,7 @@ let allDailyPayments = [];
                                 </div>
                                 <p class="text-sm text-gray-600 mt-2">${submission.username || '—'}</p>
                                 <p class="text-sm text-gray-500">${completedAt}</p>
-                                <p class="text-xs text-gray-500 mt-1">${checkedCount}/${totalCount} tâches validées</p>
+                                <p class="text-xs text-gray-500 mt-1">${statusLine}</p>
                             </div>
                             ${deleteBtn}
                         </div>
@@ -2483,21 +2557,33 @@ let allDailyPayments = [];
             }).join('');
         };
 
-        const buildTaskCheckButtonHtml = (item, checked, readOnly) => {
+        const buildTaskItemHtml = (item, state, readOnly) => {
             const importantClass = item.important ? 'important' : '';
+            const checked = state.checked;
+            const justification = state.justification || '';
+            const hasSkip = !checked && justification.trim().length > 0;
             const checkedClass = checked ? 'checked' : '';
+            const skippedClass = hasSkip ? 'skipped' : '';
+            const showSkipField = !checked && !readOnly;
             return `
-                <button type="button" class="task-check-btn ${importantClass} ${checkedClass}" data-item-id="${item.id}" aria-pressed="${checked}" ${readOnly ? 'disabled' : ''}>
-                    <span class="task-check-icon" aria-hidden="true">
-                        <i class="fas fa-check task-check-mark"></i>
-                        <span class="task-check-dot"></span>
-                    </span>
-                    <span class="task-check-label">${item.label}</span>
-                </button>`;
+                <div class="task-item-wrapper" data-item-id="${item.id}">
+                    <button type="button" class="task-check-btn ${importantClass} ${checkedClass} ${skippedClass}" data-item-id="${item.id}" aria-pressed="${checked}" ${readOnly ? 'disabled' : ''}>
+                        <span class="task-check-icon" aria-hidden="true">
+                            <i class="fas fa-check task-check-mark"></i>
+                            <span class="task-check-dot"></span>
+                        </span>
+                        <span class="task-check-label">${item.label}</span>
+                    </button>
+                    <div class="task-skip-field ${showSkipField ? '' : 'hidden'}">
+                        <textarea class="task-skip-input" rows="2" placeholder="Justification obligatoire si non fait..." ${readOnly ? 'disabled' : ''}>${justification}</textarea>
+                    </div>
+                    ${readOnly && hasSkip ? `<p class="task-skip-readonly"><i class="fas fa-comment-alt mr-1"></i>${justification}</p>` : ''}
+                </div>`;
         };
 
-        const setTaskCheckBtnState = (btn, checked) => {
+        const setTaskCheckBtnState = (btn, checked, hasSkip = false) => {
             btn.classList.toggle('checked', checked);
+            btn.classList.toggle('skipped', !checked && hasSkip);
             btn.setAttribute('aria-pressed', checked ? 'true' : 'false');
         };
 
@@ -2507,11 +2593,18 @@ let allDailyPayments = [];
             const submission = getTodayChecklistSubmission(tasklistActiveType);
             const readOnly = !canWrite('tasklist') || !!submission;
             items.forEach(item => {
-                const btn = container.querySelector(`[data-item-id="${item.id}"]`);
-                if (!btn) return;
-                const checked = isTasklistItemChecked(tasklistActiveType, item.id, submission);
-                btn.disabled = readOnly;
-                setTaskCheckBtnState(btn, checked);
+                const wrapper = container.querySelector(`[data-item-id="${item.id}"]`);
+                if (!wrapper) return;
+                const state = getTaskItemState(tasklistActiveType, item.id, submission);
+                const btn = wrapper.querySelector('.task-check-btn');
+                const skipField = wrapper.querySelector('.task-skip-field');
+                const skipInput = wrapper.querySelector('.task-skip-input');
+                if (btn) {
+                    btn.disabled = readOnly;
+                    setTaskCheckBtnState(btn, state.checked, state.justification.trim().length > 0);
+                }
+                if (skipField) skipField.classList.toggle('hidden', state.checked || readOnly);
+                if (skipInput && document.activeElement !== skipInput) skipInput.value = state.justification;
             });
         };
 
@@ -2520,7 +2613,7 @@ let allDailyPayments = [];
             const items = getChecklistItems(tasklistActiveType);
             const submission = getTodayChecklistSubmission(tasklistActiveType);
             const readOnly = !canWrite('tasklist') || !!submission;
-            const domKey = `${tasklistActiveType}:${items.map(item => item.id).join(',')}`;
+            const domKey = `${tasklistActiveType}:${items.map(item => item.id + item.label).join(',')}`;
 
             if (items.length === 0) {
                 container.dataset.domKey = '';
@@ -2535,8 +2628,8 @@ let allDailyPayments = [];
 
             container.dataset.domKey = domKey;
             container.innerHTML = items.map(item => {
-                const checked = isTasklistItemChecked(tasklistActiveType, item.id, submission);
-                return buildTaskCheckButtonHtml(item, checked, readOnly);
+                const state = getTaskItemState(tasklistActiveType, item.id, submission);
+                return buildTaskItemHtml(item, state, readOnly);
             }).join('');
         };
 
@@ -2577,7 +2670,34 @@ let allDailyPayments = [];
             if (!btn || btn.disabled || !canWrite('tasklist') || getTodayChecklistSubmission(tasklistActiveType)) return;
             const nextChecked = !tasklistLocalChecks[tasklistActiveType][itemId];
             tasklistLocalChecks[tasklistActiveType][itemId] = nextChecked;
-            setTaskCheckBtnState(btn, nextChecked);
+            const wrapper = btn.closest('.task-item-wrapper');
+            const skipField = wrapper?.querySelector('.task-skip-field');
+            const skipInput = wrapper?.querySelector('.task-skip-input');
+            if (nextChecked) {
+                delete tasklistLocalSkips[tasklistActiveType][itemId];
+                if (skipInput) skipInput.value = '';
+                if (skipField) skipField.classList.add('hidden');
+                setTaskCheckBtnState(btn, true, false);
+            } else {
+                if (skipField) skipField.classList.remove('hidden');
+                if (skipInput) skipInput.focus();
+                setTaskCheckBtnState(btn, false, !!(tasklistLocalSkips[tasklistActiveType][itemId] || '').trim());
+            }
+            updateTasklistProgress();
+        };
+
+        const handleTasklistSkipInput = (input) => {
+            const wrapper = input.closest('.task-item-wrapper');
+            if (!wrapper) return;
+            const itemId = wrapper.dataset.itemId;
+            const btn = wrapper.querySelector('.task-check-btn');
+            const justification = input.value.trim();
+            if (justification) {
+                tasklistLocalSkips[tasklistActiveType][itemId] = justification;
+            } else {
+                delete tasklistLocalSkips[tasklistActiveType][itemId];
+            }
+            if (btn) setTaskCheckBtnState(btn, false, justification.length > 0);
             updateTasklistProgress();
         };
 
@@ -2611,17 +2731,25 @@ let allDailyPayments = [];
             if (getTodayChecklistSubmission(tasklistActiveType)) {
                 return showToast('Cette checklist a déjà été validée aujourd\'hui.');
             }
-            const unchecked = items.filter(item => !tasklistLocalChecks[tasklistActiveType][item.id]);
-            if (unchecked.length > 0) {
-                return showToast('Veuillez cocher toutes les tâches avant de valider.');
+            const unresolved = items.filter(item => !isTasklistItemResolved(tasklistActiveType, item.id));
+            if (unresolved.length > 0) {
+                return showToast('Cochez chaque tâche ou ajoutez une justification.');
             }
 
-            const snapshotItems = items.map(item => ({
-                id: item.id,
-                label: item.label,
-                important: !!item.important,
-                checked: true
-            }));
+            const snapshotItems = items.map(item => {
+                const checked = !!tasklistLocalChecks[tasklistActiveType][item.id];
+                const justification = checked ? '' : (tasklistLocalSkips[tasklistActiveType][item.id] || '').trim();
+                return {
+                    id: item.id,
+                    label: item.label,
+                    important: !!item.important,
+                    checked,
+                    skipped: !checked,
+                    justification
+                };
+            });
+            const checkedCount = snapshotItems.filter(item => item.checked).length;
+            const skippedCount = snapshotItems.filter(item => item.skipped).length;
 
             try {
                 await addDoc(checklistSubmissionsCol, {
@@ -2629,8 +2757,9 @@ let allDailyPayments = [];
                     date: getTodayDateString(),
                     items: snapshotItems,
                     totalItems: items.length,
-                    checkedCount: items.length,
-                    allComplete: true,
+                    checkedCount,
+                    skippedCount,
+                    allComplete: skippedCount === 0,
                     userId: currentUserProfile?.id || '',
                     username: currentUserProfile?.username || '',
                     completedAt: serverTimestamp()
@@ -4137,6 +4266,10 @@ document.getElementById('glovo-cash-amount').addEventListener('input', debounce(
 
 // Event Listeners Task List
 document.getElementById('tasklist-content').addEventListener('click', handleTasklistClick);
+document.getElementById('tasklist-items').addEventListener('input', (e) => {
+    const input = e.target.closest('.task-skip-input');
+    if (input) handleTasklistSkipInput(input);
+});
 document.getElementById('tasklist-submit-btn').addEventListener('click', submitTasklist);
 document.getElementById('tasklist-history-date').addEventListener('change', () => {
     tasklistHistoryDomKey = '';
