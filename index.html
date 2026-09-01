@@ -1373,7 +1373,8 @@
         </div>
 
         <section class="mt-10 pt-6 border-t border-gray-200">
-            <h3 class="text-lg font-bold text-gray-800 mb-3">Historique</h3>
+            <h3 class="text-lg font-bold text-gray-800 mb-1">Historique</h3>
+            <p class="text-sm text-gray-500 mb-3">Chaque envoi apparaît ici, y compris en attente de validation. Cliquez sur Excel pour télécharger.</p>
             <div class="flex flex-wrap gap-2 mb-4">
                 <input type="date" id="inventaire-history-start" class="input-style text-base py-2 flex-1 min-w-[9rem]">
                 <input type="date" id="inventaire-history-end" class="input-style text-base py-2 flex-1 min-w-[9rem]">
@@ -2447,7 +2448,9 @@ let allDailyPayments = [];
                 renderPending.tasklist = false;
             }
             if (renderPending.inventaire) {
-                renderInventaire();
+                if (document.getElementById('inventaire-content')?.classList.contains('active')) {
+                    renderInventaire();
+                }
                 renderPending.inventaire = false;
             }
         };
@@ -3884,14 +3887,47 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             updateInventaireProgress();
         };
 
+        const getInventoryStatusMeta = (submission) => {
+            const items = submission.items || [];
+            const validatedCount = items.filter(item => item.validated).length;
+            if (submission.status === 'validated' || (items.length > 0 && validatedCount === items.length)) {
+                return { label: 'Validé', badgeClass: 'task-badge-ok', cardClass: 'is-ok' };
+            }
+            if (validatedCount > 0) {
+                return { label: 'En cours', badgeClass: 'task-badge-ko', cardClass: 'is-ko' };
+            }
+            return { label: 'En attente', badgeClass: 'task-badge-opening', cardClass: '' };
+        };
+
+        const exportInventorySubmissionExcel = (submission) => {
+            if (!submission || !(submission.items || []).length) return;
+            const statusMeta = getInventoryStatusMeta(submission);
+            const headers = ['Date', 'Statut', 'Saisi par', 'Validé par', 'Ingrédient', 'Stock système', 'Stock réel', 'Écart %', 'Unité', 'Ligne validée'];
+            const rows = (submission.items || []).map(item => [
+                submission.date || '',
+                statusMeta.label,
+                submission.username || '',
+                submission.validatedByUsername || '',
+                item.name || '',
+                item.systemQuantity ?? '',
+                item.countedQuantity ?? '',
+                getInventoryVariancePercent(item.systemQuantity, item.countedQuantity).toFixed(1),
+                item.unit || '',
+                item.validated ? 'Oui' : 'Non'
+            ]);
+            const datePart = submission.date || getTodayDateString();
+            const idPart = submission.id ? submission.id.slice(0, 6) : 'export';
+            downloadExcelFile(headers, rows, `inventaire_${datePart}_${idPart}.xls`);
+        };
+
         const renderInventaireHistory = () => {
             const container = document.getElementById('inventaire-history-list');
             if (!container) return;
-            let submissions = allInventorySubmissions.filter(s => s.status !== 'pending');
+            let submissions = [...allInventorySubmissions];
             const { start, end } = inventaireHistoryFilter;
             if (start) submissions = submissions.filter(s => (s.date || '') >= start);
             if (end) submissions = submissions.filter(s => (s.date || '') <= end);
-            submissions = submissions.slice(0, 30);
+            submissions = submissions.slice(0, 40);
 
             if (submissions.length === 0) {
                 container.innerHTML = '<p class="text-center text-gray-500 py-6 text-sm">Aucun inventaire enregistré.</p>';
@@ -3905,21 +3941,26 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 const outCount = (submission.items || []).filter(item =>
                     isInventoryOutOfTolerance(item.systemQuantity, item.countedQuantity)
                 ).length;
-                const statusLabel = submission.status === 'validated'
-                    ? '<span class="task-badge-ok">Validé</span>'
-                    : '<span class="task-badge-ko">Partiel</span>';
+                const pendingCount = (submission.items || []).filter(item => !item.validated).length;
+                const statusMeta = getInventoryStatusMeta(submission);
+                const validationLine = submission.status === 'validated' || pendingCount === 0
+                    ? `<p class="text-sm text-gray-500">Validé par ${submission.validatedByUsername || '—'} — ${validatedAt}</p>`
+                    : `<p class="text-sm text-amber-700">${pendingCount} ligne(s) encore à valider dans Stock</p>`;
                 return `
-                    <div class="task-history-card is-ok">
+                    <div class="task-history-card ${statusMeta.cardClass}">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    ${statusLabel}
+                                    <span class="${statusMeta.badgeClass}">${statusMeta.label}</span>
                                     <span class="text-base font-semibold text-gray-800">${dateDisplay}</span>
                                 </div>
                                 <p class="text-sm text-gray-600 mt-2">Saisi par ${submission.username || '—'} — ${submittedAt}</p>
-                                <p class="text-sm text-gray-500">Validé par ${submission.validatedByUsername || '—'} — ${validatedAt}</p>
-                                <p class="text-xs text-gray-500 mt-1">${(submission.items || []).length} ingrédients — ${outCount} écart(s) &gt; 15%</p>
+                                ${validationLine}
+                                <p class="text-xs text-gray-500 mt-1">${(submission.items || []).length} ingrédient(s) — ${outCount} écart(s) &gt; 15%</p>
                             </div>
+                            <button type="button" class="inventaire-export-btn btn-secondary shrink-0 py-2 px-3 text-sm" data-id="${submission.id}" title="Télécharger Excel">
+                                <i class="fas fa-file-excel mr-1"></i>Excel
+                            </button>
                         </div>
                     </div>`;
             }).join('');
@@ -3934,7 +3975,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const pending = getPendingInventorySubmission();
             const pendingInfo = document.getElementById('inventaire-pending-info');
             if (pendingInfo) {
-                if (pending && canWrite('inventaire')) {
+                if (pending) {
                     pendingInfo.classList.remove('hidden');
                     pendingInfo.innerHTML = `<p class="font-semibold"><i class="fas fa-hourglass-half mr-1"></i>Inventaire en attente de validation</p>
                         <p class="mt-1">Envoyé par <strong>${pending.username || '—'}</strong> — ${(pending.items || []).filter(i => !i.validated).length} ligne(s) à valider. Vous pouvez compléter avec d'autres ingrédients.</p>`;
@@ -3975,16 +4016,21 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             };
 
             try {
+                let savedSubmission;
                 if (pending) {
                     await updateDoc(doc(inventorySubmissionsCol, pending.id), payload);
+                    savedSubmission = { id: pending.id, ...payload };
                     showToast(`Inventaire mis à jour (${newItems.length} ligne(s) envoyée(s)).`);
                 } else {
-                    await addDoc(inventorySubmissionsCol, payload);
+                    const docRef = await addDoc(inventorySubmissionsCol, payload);
+                    savedSubmission = { id: docRef.id, ...payload };
                     showToast(`Inventaire envoyé (${newItems.length} ligne(s)).`);
                 }
+                exportInventorySubmissionExcel(savedSubmission);
                 inventaireLocalCounts = {};
                 allIngredients.forEach(ing => { inventaireLocalCounts[ing.id] = ''; });
                 renderInventaire();
+                renderInventaireHistory();
             } catch (error) {
                 console.error('Erreur envoi inventaire:', error);
                 showToast('Erreur lors de l\'envoi de l\'inventaire.');
@@ -5232,6 +5278,13 @@ document.getElementById('inventaire-history-filter')?.addEventListener('click', 
     renderInventaireHistory();
 });
 document.getElementById('inventaire-history-export')?.addEventListener('click', exportInventoryHistoryExcel);
+document.getElementById('inventaire-history-list')?.addEventListener('click', (e) => {
+    const exportBtn = e.target.closest('.inventaire-export-btn');
+    if (!exportBtn?.dataset.id) return;
+    const submission = allInventorySubmissions.find(s => s.id === exportBtn.dataset.id);
+    if (!submission) return showToast('Inventaire introuvable.');
+    exportInventorySubmissionExcel(submission);
+});
 document.getElementById('validate-all-inventory-btn')?.addEventListener('click', validateAllInventory);
 document.getElementById('ingredients-list')?.addEventListener('click', (e) => {
     const validateBtn = e.target.closest('.validate-inventory-btn');
