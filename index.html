@@ -87,7 +87,7 @@
             background: #ffffff;
             box-shadow: 0 5px 0 #d1d5db, 0 4px 14px rgba(0, 0, 0, 0.08);
             cursor: pointer;
-            transition: transform 0.12s ease, box-shadow 0.12s ease;
+            transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.12s ease;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
             user-select: none;
@@ -136,7 +136,8 @@
             box-shadow: 0 5px 0 #e5e7eb, 0 3px 12px rgba(0, 0, 0, 0.06);
             text-align: left;
             cursor: pointer;
-            transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.2s ease;
+            transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.12s ease;
+            will-change: transform;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
             user-select: none;
@@ -1028,7 +1029,7 @@
                 <span id="tasklist-progress-text">0 / 0</span>
             </div>
             <div class="h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div id="tasklist-progress-bar" class="h-full bg-green-600 transition-all duration-300" style="width: 0%"></div>
+                <div id="tasklist-progress-bar" class="h-full bg-green-600" style="width: 0%; transition: width 0.15s ease-out;"></div>
             </div>
         </div>
 
@@ -1548,6 +1549,9 @@ let allDailyPayments = [];
         let allChecklistSubmissions = [];
         let tasklistActiveType = 'opening';
         let tasklistLocalChecks = { opening: {}, closing: {} };
+        let todayChecklistCache = { date: '', opening: null, closing: null };
+        let tasklistDomCache = null;
+        let tasklistPressBound = false;
         let importType = '';
 		let currentSalaryCalculations = []; // AJOUTEZ CETTE LIGNE
 
@@ -1970,6 +1974,7 @@ let allDailyPayments = [];
                     if (dateCmp !== 0) return dateCmp;
                     return (b.completedAt?.seconds || 0) - (a.completedAt?.seconds || 0);
                 });
+                rebuildTodayChecklistCache();
                 markDirty('tasklist');
             });
             onSnapshot(checklistConfigRef, snapshot => {
@@ -2328,12 +2333,36 @@ let allDailyPayments = [];
             closingEl.value = formatChecklistLines(checklistConfig.closing);
         };
 
-        const getChecklistItems = (type) => checklistConfig[type] || [];
+        const getTasklistDom = () => {
+            if (!tasklistDomCache) {
+                tasklistDomCache = {
+                    progressText: document.getElementById('tasklist-progress-text'),
+                    progressBar: document.getElementById('tasklist-progress-bar'),
+                    submitBtn: document.getElementById('tasklist-submit-btn'),
+                    statusBanner: document.getElementById('tasklist-status-banner'),
+                    items: document.getElementById('tasklist-items'),
+                    dateLabel: document.getElementById('tasklist-date-label')
+                };
+            }
+            return tasklistDomCache;
+        };
+
+        const rebuildTodayChecklistCache = () => {
+            const today = getTodayDateString();
+            todayChecklistCache = {
+                date: today,
+                opening: allChecklistSubmissions.find(s => s.date === today && s.type === 'opening') || null,
+                closing: allChecklistSubmissions.find(s => s.date === today && s.type === 'closing') || null
+            };
+        };
 
         const getTodayChecklistSubmission = (type) => {
             const today = getTodayDateString();
-            return allChecklistSubmissions.find(submission => submission.date === today && submission.type === type);
+            if (todayChecklistCache.date !== today) rebuildTodayChecklistCache();
+            return todayChecklistCache[type];
         };
+
+        const getChecklistItems = (type) => checklistConfig[type] || [];
 
         const getTasklistCheckedCount = (type) => {
             const items = getChecklistItems(type);
@@ -2355,15 +2384,15 @@ let allDailyPayments = [];
             const checked = getTasklistCheckedCount(tasklistActiveType);
             const total = items.length;
             const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+            const dom = getTasklistDom();
 
-            document.getElementById('tasklist-progress-text').textContent = `${checked} / ${total}`;
-            document.getElementById('tasklist-progress-bar').style.width = `${pct}%`;
+            dom.progressText.textContent = `${checked} / ${total}`;
+            dom.progressBar.style.width = `${pct}%`;
 
-            const submitBtn = document.getElementById('tasklist-submit-btn');
             const canWriteTasklist = canWrite('tasklist');
             const isComplete = !!submission;
-            submitBtn.disabled = !canWriteTasklist || isComplete || checked < total || total === 0;
-            submitBtn.classList.toggle('hidden', isComplete || !canWriteTasklist);
+            dom.submitBtn.disabled = !canWriteTasklist || isComplete || checked < total || total === 0;
+            dom.submitBtn.classList.toggle('hidden', isComplete || !canWriteTasklist);
         };
 
         const renderTasklistStatusBanner = () => {
@@ -2451,49 +2480,67 @@ let allDailyPayments = [];
             }).join('');
         };
 
+        const setTaskCheckBtnState = (btn, checked) => {
+            btn.classList.toggle('checked', checked);
+            btn.setAttribute('aria-pressed', checked ? 'true' : 'false');
+            const icon = btn.querySelector('.task-check-icon');
+            if (icon) {
+                icon.innerHTML = checked
+                    ? '<i class="fas fa-check"></i>'
+                    : '<i class="fas fa-circle" style="font-size:0.45rem;opacity:0.5"></i>';
+            }
+        };
+
         const bindTasklistPressFeedback = () => {
-            document.querySelectorAll('.task-segment-btn, .task-check-btn, .task-submit-btn, .task-history-delete-btn, .task-history-filter-btn').forEach(el => {
-                if (el.dataset.pressBound === '1') return;
-                el.dataset.pressBound = '1';
-                const pressOn = () => el.classList.add('is-pressing');
-                const pressOff = () => el.classList.remove('is-pressing');
-                el.addEventListener('touchstart', pressOn, { passive: true });
-                el.addEventListener('touchend', pressOff, { passive: true });
-                el.addEventListener('touchcancel', pressOff, { passive: true });
-                el.addEventListener('mousedown', pressOn);
-                el.addEventListener('mouseup', pressOff);
-                el.addEventListener('mouseleave', pressOff);
+            if (tasklistPressBound) return;
+            tasklistPressBound = true;
+            const root = document.getElementById('tasklist-content');
+            if (!root) return;
+
+            const pressOn = (e) => {
+                const btn = e.target.closest('.task-segment-btn, .task-check-btn, .task-submit-btn, .task-history-delete-btn, .task-history-filter-btn');
+                if (btn && !btn.disabled) btn.classList.add('is-pressing');
+            };
+            const pressOff = (e) => {
+                const btn = e.target.closest('.task-segment-btn, .task-check-btn, .task-submit-btn, .task-history-delete-btn, .task-history-filter-btn');
+                if (btn) btn.classList.remove('is-pressing');
+            };
+
+            root.addEventListener('pointerdown', pressOn, { passive: true });
+            root.addEventListener('pointerup', pressOff, { passive: true });
+            root.addEventListener('pointercancel', pressOff, { passive: true });
+            root.addEventListener('pointerleave', pressOff, { passive: true });
+        };
+
+        const switchTasklistSegment = (type) => {
+            if (tasklistActiveType === type) return;
+            tasklistActiveType = type;
+            document.querySelectorAll('.task-segment-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.type === type);
             });
+            renderTasklistStatusBanner();
+            renderTasklistItems();
         };
 
         const renderTasklist = () => {
             if (!document.getElementById('tasklist-content')?.classList.contains('active')) return;
             const today = new Date();
-            document.getElementById('tasklist-date-label').textContent =
+            getTasklistDom().dateLabel.textContent =
                 `Aujourd'hui : ${formatDateToDDMMYYYY(today).split(' à ')[0]}`;
             document.querySelectorAll('.task-segment-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.type === tasklistActiveType);
             });
+            renderTasklistStatusBanner();
             renderTasklistItems();
             renderTasklistHistory();
             bindTasklistPressFeedback();
         };
 
-        const toggleTasklistItem = (itemId) => {
-            if (!canWrite('tasklist') || getTodayChecklistSubmission(tasklistActiveType)) return;
+        const toggleTasklistItem = (btn, itemId) => {
+            if (!btn || btn.disabled || !canWrite('tasklist') || getTodayChecklistSubmission(tasklistActiveType)) return;
             const nextChecked = !tasklistLocalChecks[tasklistActiveType][itemId];
             tasklistLocalChecks[tasklistActiveType][itemId] = nextChecked;
-            const btn = document.querySelector(`.task-check-btn[data-item-id="${itemId}"]`);
-            if (btn) {
-                btn.classList.toggle('checked', nextChecked);
-                btn.setAttribute('aria-pressed', nextChecked ? 'true' : 'false');
-                const icon = btn.querySelector('.task-check-icon');
-                if (icon) {
-                    icon.innerHTML = nextChecked
-                        ? '<i class="fas fa-check"></i>'
-                        : '<i class="fas fa-circle" style="font-size:0.45rem;opacity:0.5"></i>';
-                }
-            }
+            setTaskCheckBtnState(btn, nextChecked);
             updateTasklistProgress();
         };
 
@@ -4036,28 +4083,31 @@ document.getElementById('glovo-amount').addEventListener('input', debounce(updat
 document.getElementById('glovo-cash-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
 
 // Event Listeners Task List
-document.querySelectorAll('.task-segment-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        tasklistActiveType = btn.dataset.type;
-        renderTasklist();
-    });
+bindTasklistPressFeedback();
+document.getElementById('tasklist-content').addEventListener('pointerdown', (e) => {
+    const segmentBtn = e.target.closest('.task-segment-btn[data-type]');
+    if (segmentBtn) {
+        switchTasklistSegment(segmentBtn.dataset.type);
+        return;
+    }
+    const checkBtn = e.target.closest('.task-check-btn[data-item-id]');
+    if (!checkBtn || checkBtn.disabled) return;
+    e.preventDefault();
+    toggleTasklistItem(checkBtn, checkBtn.dataset.itemId);
+}, { passive: false });
+document.getElementById('tasklist-submit-btn').addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    submitTasklist();
 });
-document.getElementById('tasklist-items').addEventListener('click', (e) => {
-    const btn = e.target.closest('.task-check-btn[data-item-id]');
-    if (!btn || btn.disabled) return;
-    toggleTasklistItem(btn.dataset.itemId);
-});
-document.getElementById('tasklist-submit-btn').addEventListener('click', submitTasklist);
 document.getElementById('tasklist-history-date').addEventListener('change', renderTasklistHistory);
-document.getElementById('tasklist-history-clear').addEventListener('click', () => {
+document.getElementById('tasklist-history-clear').addEventListener('pointerup', () => {
     document.getElementById('tasklist-history-date').value = '';
     renderTasklistHistory();
 });
-document.getElementById('tasklist-history-list').addEventListener('click', (e) => {
+document.getElementById('tasklist-history-list').addEventListener('pointerup', (e) => {
     const deleteBtn = e.target.closest('.delete-checklist-history-btn');
     if (!deleteBtn) return;
     e.preventDefault();
-    e.stopPropagation();
     deleteChecklistHistoryEntry(deleteBtn.dataset.id);
 });
 document.getElementById('admin-save-checklist-config')?.addEventListener('click', saveAdminChecklistConfig);
