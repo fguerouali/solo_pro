@@ -321,6 +321,110 @@
             min-height: 3rem;
             font-size: 1rem;
         }
+        .admin-checklist-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-height: 4rem;
+        }
+        .admin-checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 12px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+        .admin-checklist-important {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.25rem;
+            height: 2.25rem;
+            flex-shrink: 0;
+            cursor: pointer;
+            color: #d1d5db;
+        }
+        .admin-checklist-important input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .admin-checklist-important:has(input:checked) {
+            color: #f59e0b;
+        }
+        .admin-checklist-label-input {
+            flex: 1;
+            min-width: 0;
+            border: none;
+            background: transparent;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #1f2937;
+            padding: 0.35rem 0.5rem;
+            border-radius: 8px;
+        }
+        .admin-checklist-label-input:focus {
+            outline: none;
+            background: #fff;
+            box-shadow: inset 0 0 0 2px #93c5fd;
+        }
+        .admin-checklist-delete-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.25rem;
+            height: 2.25rem;
+            flex-shrink: 0;
+            border: none;
+            border-radius: 10px;
+            background: #fee2e2;
+            color: #b91c1c;
+            cursor: pointer;
+        }
+        .admin-checklist-delete-btn:active {
+            transform: scale(0.95);
+        }
+        .admin-checklist-add {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .admin-checklist-add-input {
+            flex: 1;
+            min-width: 10rem;
+        }
+        .admin-checklist-add-important {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.85rem;
+            color: #6b7280;
+            white-space: nowrap;
+        }
+        .admin-checklist-add-btn {
+            border: none;
+            border-radius: 12px;
+            padding: 0.6rem 1rem;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #fff;
+            background: linear-gradient(180deg, #60a5fa, #3b82f6);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .admin-checklist-add-btn:active {
+            transform: translateY(1px);
+        }
+        .admin-checklist-empty {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.85rem;
+            padding: 1rem 0.5rem;
+        }
         .task-badge-opening { background: #fef3c7; color: #b45309; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; }
         .task-badge-closing { background: #e0e7ff; color: #4338ca; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; }
         .task-badge-ok { background: #dcfce7; color: #15803d; font-weight: 800; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; }
@@ -1153,19 +1257,38 @@
         </div>
         <div class="xl:col-span-2 mt-8 border-t border-gray-200 pt-8">
             <h2 class="text-2xl font-semibold text-gray-800 mb-2">Configuration Task List</h2>
-            <p class="text-sm text-gray-500 mb-4">Modifier les tâches des checklists ouverture et fermeture (une ligne = une tâche).</p>
+            <p class="text-sm text-gray-500 mb-4">Ajoutez, modifiez ou supprimez les tâches des checklists. L'étoile met une tâche en évidence.</p>
             <div class="bg-white p-6 rounded-2xl shadow-lg grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label for="admin-checklist-opening" class="block text-sm font-medium text-gray-700 mb-2">Checklist Ouverture</label>
-                    <textarea id="admin-checklist-opening" rows="12" class="w-full input-style text-sm font-mono"></textarea>
+                    <h3 class="text-lg font-semibold text-amber-700 mb-3"><i class="fas fa-sun mr-2"></i>Ouverture</h3>
+                    <div id="admin-checklist-opening-list" class="admin-checklist-list"></div>
+                    <div class="admin-checklist-add">
+                        <input type="text" id="admin-checklist-opening-input" class="admin-checklist-add-input input-style" data-type="opening" placeholder="Nouvelle tâche...">
+                        <label class="admin-checklist-add-important">
+                            <input type="checkbox" id="admin-checklist-opening-important">
+                            <i class="fas fa-star text-amber-500"></i>
+                        </label>
+                        <button type="button" class="admin-checklist-add-btn" data-type="opening">
+                            <i class="fas fa-plus mr-1"></i>Ajouter
+                        </button>
+                    </div>
                 </div>
                 <div>
-                    <label for="admin-checklist-closing" class="block text-sm font-medium text-gray-700 mb-2">Checklist Fermeture</label>
-                    <textarea id="admin-checklist-closing" rows="12" class="w-full input-style text-sm font-mono"></textarea>
+                    <h3 class="text-lg font-semibold text-indigo-700 mb-3"><i class="fas fa-moon mr-2"></i>Fermeture</h3>
+                    <div id="admin-checklist-closing-list" class="admin-checklist-list"></div>
+                    <div class="admin-checklist-add">
+                        <input type="text" id="admin-checklist-closing-input" class="admin-checklist-add-input input-style" data-type="closing" placeholder="Nouvelle tâche...">
+                        <label class="admin-checklist-add-important">
+                            <input type="checkbox" id="admin-checklist-closing-important">
+                            <i class="fas fa-star text-amber-500"></i>
+                        </label>
+                        <button type="button" class="admin-checklist-add-btn" data-type="closing">
+                            <i class="fas fa-plus mr-1"></i>Ajouter
+                        </button>
+                    </div>
                 </div>
                 <div class="md:col-span-2">
-                    <p class="text-xs text-gray-500 mb-3">Préfixez une ligne avec <strong>*</strong> pour la mettre en évidence (ex: <code>*Sanitaires</code>).</p>
-                    <button type="button" id="admin-save-checklist-config" class="btn-primary">
+                    <button type="button" id="admin-save-checklist-config" class="btn-primary w-full md:w-auto">
                         <i class="fas fa-save mr-2"></i>Enregistrer les checklists
                     </button>
                 </div>
@@ -2426,12 +2549,84 @@ let allDailyPayments = [];
             }
         };
 
+        const escapeChecklistAttr = (value) => String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;');
+
+        const nextChecklistItemId = (type, items) => {
+            const prefix = type === 'opening' ? 'o' : 'c';
+            const numbers = (items || [])
+                .map(item => parseInt(String(item.id || '').replace(prefix, ''), 10))
+                .filter(num => !Number.isNaN(num));
+            const next = numbers.length > 0 ? Math.max(...numbers) + 1 : (items?.length || 0) + 1;
+            return `${prefix}${next}`;
+        };
+
+        const collectChecklistFromEditor = (type) => {
+            const list = document.getElementById(`admin-checklist-${type}-list`);
+            if (!list) return checklistConfig[type] || [];
+            return [...list.querySelectorAll('.admin-checklist-item')].map(row => ({
+                id: row.dataset.id,
+                label: row.querySelector('.admin-checklist-label-input')?.value.trim() || '',
+                important: !!row.querySelector('.admin-checklist-important-input')?.checked
+            })).filter(item => item.label);
+        };
+
+        const renderAdminChecklistEditor = () => {
+            if (!isSuperadmin()) return;
+            ['opening', 'closing'].forEach(type => {
+                const list = document.getElementById(`admin-checklist-${type}-list`);
+                if (!list) return;
+                const items = checklistConfig[type] || [];
+                if (items.length === 0) {
+                    list.innerHTML = '<p class="admin-checklist-empty">Aucune tâche. Ajoutez-en une ci-dessous.</p>';
+                    return;
+                }
+                list.innerHTML = items.map(item => `
+                    <div class="admin-checklist-item" data-id="${escapeChecklistAttr(item.id)}">
+                        <label class="admin-checklist-important" title="Mettre en évidence">
+                            <input type="checkbox" class="admin-checklist-important-input" ${item.important ? 'checked' : ''}>
+                            <i class="fas fa-star"></i>
+                        </label>
+                        <input type="text" class="admin-checklist-label-input" value="${escapeChecklistAttr(item.label)}">
+                        <button type="button" class="admin-checklist-delete-btn" data-type="${type}" data-id="${escapeChecklistAttr(item.id)}" title="Supprimer">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                `).join('');
+            });
+        };
+
         const populateAdminChecklistConfig = () => {
-            const openingEl = document.getElementById('admin-checklist-opening');
-            const closingEl = document.getElementById('admin-checklist-closing');
-            if (!openingEl || !closingEl) return;
-            openingEl.value = formatChecklistLines(checklistConfig.opening);
-            closingEl.value = formatChecklistLines(checklistConfig.closing);
+            renderAdminChecklistEditor();
+        };
+
+        const addAdminChecklistTask = (type) => {
+            if (!isSuperadmin()) return showToast('Accès refusé.');
+            const input = document.getElementById(`admin-checklist-${type}-input`);
+            const importantEl = document.getElementById(`admin-checklist-${type}-important`);
+            const label = input?.value.trim() || '';
+            if (!label) return showToast('Saisissez le nom de la tâche.');
+            const items = [...(checklistConfig[type] || [])];
+            items.push({
+                id: nextChecklistItemId(type, items),
+                label,
+                important: !!importantEl?.checked
+            });
+            checklistConfig = { ...checklistConfig, [type]: items };
+            if (input) input.value = '';
+            if (importantEl) importantEl.checked = false;
+            renderAdminChecklistEditor();
+            input?.focus();
+        };
+
+        const deleteAdminChecklistTask = (type, itemId) => {
+            if (!isSuperadmin()) return showToast('Accès refusé.');
+            const items = (checklistConfig[type] || []).filter(item => item.id !== itemId);
+            if (items.length === 0) return showToast('Il faut garder au moins une tâche.');
+            checklistConfig = { ...checklistConfig, [type]: items };
+            renderAdminChecklistEditor();
         };
 
         const getTasklistDom = () => {
@@ -2850,17 +3045,22 @@ let allDailyPayments = [];
 
         const saveAdminChecklistConfig = async () => {
             if (!isSuperadmin()) return showToast('Accès refusé.');
-            const opening = parseChecklistLines(document.getElementById('admin-checklist-opening').value, 'o');
-            const closing = parseChecklistLines(document.getElementById('admin-checklist-closing').value, 'c');
+            const opening = collectChecklistFromEditor('opening');
+            const closing = collectChecklistFromEditor('closing');
             if (opening.length === 0 || closing.length === 0) {
                 return showToast('Chaque checklist doit contenir au moins une tâche.');
             }
             try {
+                checklistConfig = { opening, closing };
                 await setDoc(checklistConfigRef, {
                     opening,
                     closing,
                     updatedAt: serverTimestamp()
                 }, { merge: true });
+                tasklistConfigKey = `${opening.map(i => i.id + i.label).join(',')}|${closing.map(i => i.id + i.label).join(',')}`;
+                const itemsContainer = document.getElementById('tasklist-items');
+                if (itemsContainer) itemsContainer.dataset.domKey = '';
+                scheduleTasklistDataSync();
                 showToast('Checklists enregistrées.');
             } catch (error) {
                 console.error('Erreur sauvegarde checklists:', error);
@@ -4358,6 +4558,24 @@ document.getElementById('tasklist-history-list').addEventListener('click', (e) =
     deleteChecklistHistoryEntry(deleteBtn.dataset.id);
 });
 document.getElementById('admin-save-checklist-config')?.addEventListener('click', saveAdminChecklistConfig);
+document.getElementById('admin-content')?.addEventListener('click', (e) => {
+    const addBtn = e.target.closest('.admin-checklist-add-btn');
+    if (addBtn?.dataset.type) {
+        addAdminChecklistTask(addBtn.dataset.type);
+        return;
+    }
+    const deleteBtn = e.target.closest('.admin-checklist-delete-btn');
+    if (deleteBtn?.dataset.type && deleteBtn.dataset.id) {
+        deleteAdminChecklistTask(deleteBtn.dataset.type, deleteBtn.dataset.id);
+    }
+});
+document.getElementById('admin-content')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const input = e.target.closest('.admin-checklist-add-input');
+    if (!input?.dataset.type) return;
+    e.preventDefault();
+    addAdminChecklistTask(input.dataset.type);
+});
 
 
 // Soumettre la déclaration journalière
