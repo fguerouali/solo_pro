@@ -355,21 +355,62 @@
         .admin-checklist-important:has(input:checked) {
             color: #f59e0b;
         }
+        .admin-checklist-label {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #1f2937;
+            padding: 0.35rem 0.5rem;
+        }
         .admin-checklist-label-input {
             flex: 1;
             min-width: 0;
             border: none;
-            background: transparent;
+            background: #fff;
             font-size: 0.95rem;
             font-weight: 600;
             color: #1f2937;
             padding: 0.35rem 0.5rem;
             border-radius: 8px;
+            box-shadow: inset 0 0 0 2px #93c5fd;
         }
         .admin-checklist-label-input:focus {
             outline: none;
-            background: #fff;
-            box-shadow: inset 0 0 0 2px #93c5fd;
+        }
+        .admin-checklist-item.is-editing {
+            background: #eff6ff;
+            border-color: #93c5fd;
+        }
+        .admin-checklist-edit-btn,
+        .admin-checklist-save-btn,
+        .admin-checklist-cancel-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.25rem;
+            height: 2.25rem;
+            flex-shrink: 0;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .admin-checklist-edit-btn {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .admin-checklist-save-btn {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        .admin-checklist-cancel-btn {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+        .admin-checklist-edit-btn:active,
+        .admin-checklist-save-btn:active,
+        .admin-checklist-cancel-btn:active {
+            transform: scale(0.95);
         }
         .admin-checklist-delete-btn {
             display: flex;
@@ -1257,7 +1298,7 @@
         </div>
         <div class="xl:col-span-2 mt-8 border-t border-gray-200 pt-8">
             <h2 class="text-2xl font-semibold text-gray-800 mb-2">Configuration Task List</h2>
-            <p class="text-sm text-gray-500 mb-4">Ajoutez, modifiez ou supprimez les tâches des checklists. L'étoile met une tâche en évidence.</p>
+            <p class="text-sm text-gray-500 mb-4">Ajoutez, modifiez ou supprimez les tâches des checklists. Utilisez le crayon pour modifier, l'étoile pour mettre en évidence.</p>
             <div class="bg-white p-6 rounded-2xl shadow-lg grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <h3 class="text-lg font-semibold text-amber-700 mb-3"><i class="fas fa-sun mr-2"></i>Ouverture</h3>
@@ -1711,6 +1752,7 @@ let allDailyPayments = [];
         let productCostCacheKey = '';
         let consumptionStatsCache = null;
         let consumptionStatsCacheKey = '';
+        let adminChecklistEditing = { type: null, id: null };
         let checklistConfig = { opening: [], closing: [] };
         let allChecklistSubmissions = [];
         let tasklistActiveType = 'opening';
@@ -2563,12 +2605,25 @@ let allDailyPayments = [];
             return `${prefix}${next}`;
         };
 
+        const syncAdminChecklistFromDom = () => {
+            ['opening', 'closing'].forEach(type => {
+                const items = collectChecklistFromEditor(type);
+                if (items.length > 0 || (checklistConfig[type] || []).length === 0) {
+                    checklistConfig = { ...checklistConfig, [type]: items };
+                }
+            });
+        };
+
         const collectChecklistFromEditor = (type) => {
             const list = document.getElementById(`admin-checklist-${type}-list`);
             if (!list) return checklistConfig[type] || [];
             return [...list.querySelectorAll('.admin-checklist-item')].map(row => ({
                 id: row.dataset.id,
-                label: row.querySelector('.admin-checklist-label-input')?.value.trim() || '',
+                label: (
+                    row.querySelector('.admin-checklist-label-input')?.value
+                    || row.querySelector('.admin-checklist-label')?.textContent
+                    || ''
+                ).trim(),
                 important: !!row.querySelector('.admin-checklist-important-input')?.checked
             })).filter(item => item.label);
         };
@@ -2583,19 +2638,47 @@ let allDailyPayments = [];
                     list.innerHTML = '<p class="admin-checklist-empty">Aucune tâche. Ajoutez-en une ci-dessous.</p>';
                     return;
                 }
-                list.innerHTML = items.map(item => `
-                    <div class="admin-checklist-item" data-id="${escapeChecklistAttr(item.id)}">
-                        <label class="admin-checklist-important" title="Mettre en évidence">
-                            <input type="checkbox" class="admin-checklist-important-input" ${item.important ? 'checked' : ''}>
-                            <i class="fas fa-star"></i>
-                        </label>
-                        <input type="text" class="admin-checklist-label-input" value="${escapeChecklistAttr(item.label)}">
-                        <button type="button" class="admin-checklist-delete-btn" data-type="${type}" data-id="${escapeChecklistAttr(item.id)}" title="Supprimer">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                `).join('');
+                list.innerHTML = items.map(item => {
+                    const isEditing = adminChecklistEditing.type === type && adminChecklistEditing.id === item.id;
+                    if (isEditing) {
+                        return `
+                            <div class="admin-checklist-item is-editing" data-id="${escapeChecklistAttr(item.id)}">
+                                <label class="admin-checklist-important" title="Mettre en évidence">
+                                    <input type="checkbox" class="admin-checklist-important-input" ${item.important ? 'checked' : ''}>
+                                    <i class="fas fa-star"></i>
+                                </label>
+                                <input type="text" class="admin-checklist-label-input" value="${escapeChecklistAttr(item.label)}">
+                                <button type="button" class="admin-checklist-save-btn" data-type="${type}" data-id="${escapeChecklistAttr(item.id)}" title="Enregistrer">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button type="button" class="admin-checklist-cancel-btn" data-type="${type}" title="Annuler">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>`;
+                    }
+                    return `
+                        <div class="admin-checklist-item" data-id="${escapeChecklistAttr(item.id)}">
+                            <label class="admin-checklist-important" title="Mettre en évidence">
+                                <input type="checkbox" class="admin-checklist-important-input" ${item.important ? 'checked' : ''}>
+                                <i class="fas fa-star"></i>
+                            </label>
+                            <span class="admin-checklist-label">${escapeChecklistAttr(item.label)}</span>
+                            <button type="button" class="admin-checklist-edit-btn" data-type="${type}" data-id="${escapeChecklistAttr(item.id)}" title="Modifier">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button type="button" class="admin-checklist-delete-btn" data-type="${type}" data-id="${escapeChecklistAttr(item.id)}" title="Supprimer">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>`;
+                }).join('');
             });
+            if (adminChecklistEditing.type && adminChecklistEditing.id) {
+                const input = document.querySelector(
+                    `#admin-checklist-${adminChecklistEditing.type}-list [data-id="${adminChecklistEditing.id}"] .admin-checklist-label-input`
+                );
+                input?.focus();
+                input?.select();
+            }
         };
 
         const populateAdminChecklistConfig = () => {
@@ -2604,6 +2687,8 @@ let allDailyPayments = [];
 
         const addAdminChecklistTask = (type) => {
             if (!isSuperadmin()) return showToast('Accès refusé.');
+            syncAdminChecklistFromDom();
+            adminChecklistEditing = { type: null, id: null };
             const input = document.getElementById(`admin-checklist-${type}-input`);
             const importantEl = document.getElementById(`admin-checklist-${type}-important`);
             const label = input?.value.trim() || '';
@@ -2623,9 +2708,42 @@ let allDailyPayments = [];
 
         const deleteAdminChecklistTask = (type, itemId) => {
             if (!isSuperadmin()) return showToast('Accès refusé.');
+            syncAdminChecklistFromDom();
+            if (adminChecklistEditing.type === type && adminChecklistEditing.id === itemId) {
+                adminChecklistEditing = { type: null, id: null };
+            }
             const items = (checklistConfig[type] || []).filter(item => item.id !== itemId);
             if (items.length === 0) return showToast('Il faut garder au moins une tâche.');
             checklistConfig = { ...checklistConfig, [type]: items };
+            renderAdminChecklistEditor();
+        };
+
+        const startEditAdminChecklistTask = (type, itemId) => {
+            if (!isSuperadmin()) return showToast('Accès refusé.');
+            syncAdminChecklistFromDom();
+            adminChecklistEditing = { type, id: itemId };
+            renderAdminChecklistEditor();
+        };
+
+        const saveEditAdminChecklistTask = (type, itemId) => {
+            if (!isSuperadmin()) return showToast('Accès refusé.');
+            const row = document.querySelector(`#admin-checklist-${type}-list [data-id="${itemId}"]`);
+            const label = row?.querySelector('.admin-checklist-label-input')?.value.trim() || '';
+            if (!label) return showToast('Le nom de la tâche ne peut pas être vide.');
+            const important = !!row?.querySelector('.admin-checklist-important-input')?.checked;
+            checklistConfig = {
+                ...checklistConfig,
+                [type]: (checklistConfig[type] || []).map(item =>
+                    item.id === itemId ? { ...item, label, important } : item
+                )
+            };
+            adminChecklistEditing = { type: null, id: null };
+            renderAdminChecklistEditor();
+            showToast('Tâche modifiée. N\'oubliez pas d\'enregistrer.');
+        };
+
+        const cancelEditAdminChecklistTask = () => {
+            adminChecklistEditing = { type: null, id: null };
             renderAdminChecklistEditor();
         };
 
@@ -3045,6 +3163,8 @@ let allDailyPayments = [];
 
         const saveAdminChecklistConfig = async () => {
             if (!isSuperadmin()) return showToast('Accès refusé.');
+            adminChecklistEditing = { type: null, id: null };
+            syncAdminChecklistFromDom();
             const opening = collectChecklistFromEditor('opening');
             const closing = collectChecklistFromEditor('closing');
             if (opening.length === 0 || closing.length === 0) {
@@ -4564,17 +4684,50 @@ document.getElementById('admin-content')?.addEventListener('click', (e) => {
         addAdminChecklistTask(addBtn.dataset.type);
         return;
     }
+    const editBtn = e.target.closest('.admin-checklist-edit-btn');
+    if (editBtn?.dataset.type && editBtn.dataset.id) {
+        startEditAdminChecklistTask(editBtn.dataset.type, editBtn.dataset.id);
+        return;
+    }
+    const saveBtn = e.target.closest('.admin-checklist-save-btn');
+    if (saveBtn?.dataset.type && saveBtn.dataset.id) {
+        saveEditAdminChecklistTask(saveBtn.dataset.type, saveBtn.dataset.id);
+        return;
+    }
+    const cancelBtn = e.target.closest('.admin-checklist-cancel-btn');
+    if (cancelBtn) {
+        cancelEditAdminChecklistTask();
+        return;
+    }
     const deleteBtn = e.target.closest('.admin-checklist-delete-btn');
     if (deleteBtn?.dataset.type && deleteBtn.dataset.id) {
         deleteAdminChecklistTask(deleteBtn.dataset.type, deleteBtn.dataset.id);
     }
 });
 document.getElementById('admin-content')?.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter') return;
-    const input = e.target.closest('.admin-checklist-add-input');
-    if (!input?.dataset.type) return;
-    e.preventDefault();
-    addAdminChecklistTask(input.dataset.type);
+    if (e.key === 'Enter') {
+        const input = e.target.closest('.admin-checklist-label-input');
+        if (input) {
+            const row = input.closest('.admin-checklist-item');
+            const type = adminChecklistEditing.type;
+            const itemId = row?.dataset.id;
+            if (type && itemId) {
+                e.preventDefault();
+                saveEditAdminChecklistTask(type, itemId);
+            }
+            return;
+        }
+        const addInput = e.target.closest('.admin-checklist-add-input');
+        if (addInput?.dataset.type) {
+            e.preventDefault();
+            addAdminChecklistTask(addInput.dataset.type);
+        }
+        return;
+    }
+    if (e.key === 'Escape' && adminChecklistEditing.id) {
+        e.preventDefault();
+        cancelEditAdminChecklistTask();
+    }
 });
 
 
