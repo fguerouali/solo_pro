@@ -27,6 +27,95 @@
 
         .low-stock { background-color: #fee2e2 !important; }
         .low-stock-text { color: #b91c1c; font-weight: 600; }
+        .inventory-variance-high { background-color: #fff7ed !important; }
+        .inventory-variance-high td { border-top: 2px solid #fb923c; border-bottom: 2px solid #fb923c; }
+        .inventory-variance-badge {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 0.15rem 0.45rem;
+            border-radius: 9999px;
+            background: #ffedd5;
+            color: #c2410c;
+        }
+        .inventaire-shell {
+            max-width: 36rem;
+            margin: 0 auto;
+            padding-bottom: 9rem;
+        }
+        @media (min-width: 768px) {
+            .inventaire-shell { padding-bottom: 2.5rem; }
+        }
+        .inventaire-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem;
+            border-radius: 16px;
+            background: #fff;
+            border: 2px solid #e5e7eb;
+            box-shadow: 0 3px 0 #f3f4f6;
+            touch-action: manipulation;
+        }
+        .inventaire-item.is-variance {
+            border-color: #fb923c;
+            background: #fff7ed;
+        }
+        .inventaire-item-info { flex: 1; min-width: 0; }
+        .inventaire-item-name { font-weight: 700; font-size: 1rem; color: #1f2937; }
+        .inventaire-item-system { font-size: 0.8rem; color: #6b7280; margin-top: 0.15rem; }
+        .inventaire-item-input {
+            width: 5.5rem;
+            min-height: 3rem;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border-radius: 12px;
+            border: 2px solid #d1d5db;
+            padding: 0.35rem;
+        }
+        .inventaire-item-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        .inventaire-submit-bar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 40;
+            padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+            background: rgba(255,255,255,0.95);
+            border-top: 1px solid #e5e7eb;
+            backdrop-filter: blur(8px);
+        }
+        @media (min-width: 768px) {
+            .inventaire-submit-bar {
+                position: sticky;
+                background: transparent;
+                border-top: none;
+                padding: 0.5rem 0 0;
+            }
+        }
+        .inventaire-submit-btn {
+            width: 100%;
+            min-height: 3.5rem;
+            border: none;
+            border-radius: 16px;
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #fff;
+            background: linear-gradient(180deg, #374151, #111827);
+            box-shadow: 0 4px 0 #030712;
+            touch-action: manipulation;
+        }
+        .inventaire-submit-btn:disabled { opacity: 0.5; }
+        .inventaire-submit-btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #030712; }
+        .inventaire-search {
+            min-height: 3rem;
+            font-size: 1rem;
+        }
         
         .modal { display: none; }
         .modal.flex { display: flex; }
@@ -495,6 +584,8 @@
         .module-read-only button[id*="import-"],
         .module-read-only button[id*="export-"],
         .module-read-only button[id*="add-"] { display: none !important; }
+        .module-read-only .inventaire-submit-btn { display: none !important; }
+        .module-read-only .inventaire-item-input { pointer-events: none; opacity: 0.7; }
         .module-read-only form:not([data-readonly-allowed="true"]) { display: none !important; }
     </style>
 </head>
@@ -568,6 +659,7 @@
 					<button class="tab-link" data-tab="rh"><i class="fas fa-users mr-2"></i>RH</button>
 					<button class="tab-link" data-tab="finance"><i class="fas fa-coins mr-2"></i>Finance</button>
 					<button class="tab-link" data-tab="tasklist"><i class="fas fa-clipboard-check mr-2"></i>Task List</button>
+					<button class="tab-link" data-tab="inventaire"><i class="fas fa-clipboard-list mr-2"></i>Inventaire</button>
 					<button class="tab-link hidden" data-tab="admin" id="admin-tab-link"><i class="fas fa-user-shield mr-2"></i>Administration</button>
 
                 </nav>
@@ -756,23 +848,27 @@
             <div id="ingredients-content" class="tab-content">
                 <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
                     <h2 class="text-2xl font-semibold text-gray-800">Gestion du Stock</h2>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 flex-wrap">
+                        <button type="button" id="validate-all-inventory-btn" class="btn-primary hidden"><i class="fas fa-check-double mr-2"></i>Valider tout l'inventaire</button>
                         <button id="import-ingredients-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer</button>
                         <button id="export-ingredients-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter</button>
                         <button id="add-ingredient-btn" class="btn-primary"><i class="fas fa-plus mr-2"></i>Ajouter</button>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <div id="inventory-pending-banner" class="hidden mb-4 p-4 rounded-xl text-sm bg-amber-50 border border-amber-200 text-amber-900"></div>
+                <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
                     <table id="ingredients-table" class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ingrédient</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité en stock</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-mois" title="Cliquer pour trier">Conso mois en cours <i class="fas fa-sort ml-1 text-gray-400"></i></th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-moyenne" title="Cliquer pour trier">Conso mensuelle moyenne <i class="fas fa-sort ml-1 text-gray-400"></i></th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coût / Unité</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-cout-moyen" title="Cliquer pour trier">Coût mensuel moyen <i class="fas fa-sort ml-1 text-gray-400"></i></th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ingrédient</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock système</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inventaire saisi</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Écart</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-mois" title="Cliquer pour trier">Conso mois <i class="fas fa-sort ml-1 text-gray-400"></i></th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-moyenne" title="Cliquer pour trier">Conso moy. <i class="fas fa-sort ml-1 text-gray-400"></i></th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coût / Unité</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-cout-moyen" title="Cliquer pour trier">Coût moy. <i class="fas fa-sort ml-1 text-gray-400"></i></th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="ingredients-list" class="bg-white divide-y divide-gray-200"></tbody>
@@ -1244,6 +1340,53 @@
     </div>
 </div>
 
+<!-- ONGLET INVENTAIRE -->
+<div id="inventaire-content" class="tab-content">
+    <div class="inventaire-shell">
+        <div class="mb-5">
+            <h2 class="text-2xl font-bold text-gray-800">Inventaire</h2>
+            <p id="inventaire-date-label" class="text-base text-gray-500 mt-1"></p>
+        </div>
+
+        <div id="inventaire-pending-info" class="hidden mb-4 p-4 rounded-2xl text-sm bg-amber-50 border border-amber-200 text-amber-900"></div>
+
+        <div class="mb-4">
+            <input type="search" id="inventaire-search" class="inventaire-search input-style w-full" placeholder="Rechercher un ingrédient...">
+        </div>
+
+        <div class="mb-4">
+            <div class="flex justify-between text-base text-gray-600 mb-2 font-medium">
+                <span>Saisie</span>
+                <span id="inventaire-progress-text">0 / 0</span>
+            </div>
+            <div class="h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div id="inventaire-progress-bar" class="h-full bg-blue-600 transition-all duration-150" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div id="inventaire-items" class="space-y-3 mb-4"></div>
+
+        <div class="inventaire-submit-bar">
+            <button type="button" id="inventaire-submit-btn" class="inventaire-submit-btn" disabled>
+                <i class="fas fa-paper-plane mr-2"></i>Envoyer l'inventaire
+            </button>
+        </div>
+
+        <section class="mt-10 pt-6 border-t border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800 mb-3">Historique</h3>
+            <div class="flex flex-wrap gap-2 mb-4">
+                <input type="date" id="inventaire-history-start" class="input-style text-base py-2 flex-1 min-w-[9rem]">
+                <input type="date" id="inventaire-history-end" class="input-style text-base py-2 flex-1 min-w-[9rem]">
+                <button type="button" id="inventaire-history-filter" class="btn-secondary">Filtrer</button>
+                <button type="button" id="inventaire-history-export" class="btn-primary"><i class="fas fa-file-excel mr-2"></i>Excel</button>
+            </div>
+            <div id="inventaire-history-list" class="space-y-3">
+                <p class="text-center text-gray-500 py-6 text-sm">Aucun inventaire enregistré.</p>
+            </div>
+        </section>
+    </div>
+</div>
+
 <!-- ONGLET ADMINISTRATION -->
 <div id="admin-content" class="tab-content">
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -1695,8 +1838,11 @@
             { id: 'charges', label: 'Charges' },
             { id: 'rh', label: 'RH' },
             { id: 'finance', label: 'Finance' },
-            { id: 'tasklist', label: 'Task List' }
+            { id: 'tasklist', label: 'Task List' },
+            { id: 'inventaire', label: 'Inventaire' }
         ];
+
+        const INVENTORY_TOLERANCE_PERCENT = 15;
         
         // --- URL du Proxy ---
         // !!! REMPLACEZ PAR L'URL RÉELLE DE VOTRE PROXY DÉPLOYÉ SUR RENDER !!!
@@ -1715,7 +1861,7 @@
         // --- COLLECTIONS REFS ---
         let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol, chargesCol;
 		let employeesCol, absencesCol, salaryPaymentsCol;
-		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef;
+		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol;
         // --- ETAT GLOBAL ---
         let allIngredients = [];
         let allProducts = [];
@@ -1744,7 +1890,7 @@ let allDailyPayments = [];
         const renderPending = {
             kpis: false, ingredients: false, products: false, orders: false,
             charges: false, losses: false, purchaseOrders: false, suppliers: false,
-            employees: false, salaryPayments: false, dailyPayments: false, tasklist: false
+            employees: false, salaryPayments: false, dailyPayments: false, tasklist: false, inventaire: false
         };
         let productByIdMap = null;
         let ingredientByIdMap = null;
@@ -1764,6 +1910,11 @@ let allDailyPayments = [];
         let tasklistHistoryDomKey = '';
         let tasklistSubmissionsKey = '';
         let tasklistConfigKey = '';
+        let allInventorySubmissions = [];
+        let inventorySubmissionsKey = '';
+        let inventaireLocalCounts = {};
+        let inventaireSearchQuery = '';
+        let inventaireHistoryFilter = { start: '', end: '' };
         let tasklistSyncTimer = null;
         let importType = '';
 		let currentSalaryCalculations = []; // AJOUTEZ CETTE LIGNE
@@ -1873,6 +2024,7 @@ let allDailyPayments = [];
             usersCol = collection(db, `artifacts/${appId}/public/data/users`);
             checklistSubmissionsCol = collection(db, `artifacts/${appId}/public/data/checklistSubmissions`);
             checklistConfigRef = doc(db, `artifacts/${appId}/public/data/settings/checklistConfig`);
+            inventorySubmissionsCol = collection(db, `artifacts/${appId}/public/data/inventorySubmissions`);
             collectionsInitialized = true;
         };
 
@@ -2137,7 +2289,7 @@ let allDailyPayments = [];
                 allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allIngredients.sort((a,b) => a.name.localeCompare(b.name));
                 invalidateLookupCaches();
-                markDirty('ingredients', 'kpis', 'products');
+                markDirty('ingredients', 'kpis', 'products', 'inventaire');
             });
             onSnapshot(productsCol, snapshot => {
                 allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -2193,6 +2345,18 @@ let allDailyPayments = [];
                 });
                 rebuildTodayChecklistCache();
                 scheduleTasklistDataSync();
+            });
+            onSnapshot(inventorySubmissionsCol, snapshot => {
+                const nextSubmissions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                const nextKey = nextSubmissions.map(s => `${s.id}:${s.status}:${(s.items || []).length}`).join('|');
+                if (nextKey === inventorySubmissionsKey) return;
+                inventorySubmissionsKey = nextKey;
+                allInventorySubmissions = nextSubmissions.sort((a, b) => {
+                    const dateCmp = (b.date || '').localeCompare(a.date || '');
+                    if (dateCmp !== 0) return dateCmp;
+                    return (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0);
+                });
+                markDirty('ingredients', 'inventaire');
             });
             onSnapshot(checklistConfigRef, snapshot => {
                 if (!snapshot.exists()) return;
@@ -2281,6 +2445,10 @@ let allDailyPayments = [];
             if (renderPending.tasklist) {
                 syncTasklistUiFromData(true);
                 renderPending.tasklist = false;
+            }
+            if (renderPending.inventaire) {
+                renderInventaire();
+                renderPending.inventaire = false;
             }
         };
 
@@ -3205,6 +3373,7 @@ let allDailyPayments = [];
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 document.getElementById(`${moduleId}-content`).classList.add('active');
                 if (moduleId === 'tasklist') renderTasklist();
+                if (moduleId === 'inventaire') renderInventaire();
             });
         });
         
@@ -3595,11 +3764,338 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
         let ingredientsSortState = { column: null, dir: 1 };
 
+        const getInventoryVariancePercent = (systemQty, countedQty) => {
+            const system = Number(systemQty) || 0;
+            const counted = Number(countedQty) || 0;
+            if (system === 0) return counted === 0 ? 0 : 100;
+            return Math.abs(counted - system) / system * 100;
+        };
+
+        const isInventoryOutOfTolerance = (systemQty, countedQty) =>
+            getInventoryVariancePercent(systemQty, countedQty) > INVENTORY_TOLERANCE_PERCENT;
+
+        const getPendingInventorySubmission = () =>
+            allInventorySubmissions.find(submission => submission.status === 'pending') || null;
+
+        const getPendingInventoryItemMap = () => {
+            const pending = getPendingInventorySubmission();
+            const map = new Map();
+            if (!pending) return map;
+            (pending.items || []).forEach(item => map.set(item.ingredientId, item));
+            return map;
+        };
+
+        const formatInventoryVariance = (systemQty, countedQty) => {
+            const pct = getInventoryVariancePercent(systemQty, countedQty);
+            const diff = (Number(countedQty) || 0) - (Number(systemQty) || 0);
+            const sign = diff > 0 ? '+' : '';
+            return `${sign}${diff.toFixed(2)} (${pct.toFixed(0)}%)`;
+        };
+
+        const downloadExcelFile = (headers, rows, filename) => {
+            const escapeCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+            const content = '\uFEFF' + [headers, ...rows].map(row => row.map(escapeCell).join(';')).join('\n');
+            const blob = new Blob([content], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        };
+
+        const getInventaireFilledCount = () => {
+            return allIngredients.filter(ing => {
+                const val = inventaireLocalCounts[ing.id];
+                return val !== undefined && val !== '' && !Number.isNaN(parseFloat(val));
+            }).length;
+        };
+
+        const updateInventaireProgress = () => {
+            const total = allIngredients.length;
+            const filled = getInventaireFilledCount();
+            const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
+            const progressText = document.getElementById('inventaire-progress-text');
+            const progressBar = document.getElementById('inventaire-progress-bar');
+            const submitBtn = document.getElementById('inventaire-submit-btn');
+            if (progressText) progressText.textContent = `${filled} / ${total}`;
+            if (progressBar) progressBar.style.width = `${pct}%`;
+            if (submitBtn) {
+                const canSubmit = canWrite('inventaire') && filled === total && total > 0;
+                submitBtn.disabled = !canSubmit;
+            }
+        };
+
+        const renderInventaireItems = () => {
+            const container = document.getElementById('inventaire-items');
+            if (!container) return;
+            const query = inventaireSearchQuery.trim().toLowerCase();
+            const ingredients = allIngredients
+                .filter(ing => !query || ing.name.toLowerCase().includes(query))
+                .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+
+            if (ingredients.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500 py-8 text-sm">Aucun ingrédient trouvé.</p>';
+                updateInventaireProgress();
+                return;
+            }
+
+            container.innerHTML = ingredients.map(ing => {
+                const value = inventaireLocalCounts[ing.id] ?? '';
+                const counted = value === '' ? null : parseFloat(value);
+                const hasValue = counted !== null && !Number.isNaN(counted);
+                const outOfTolerance = hasValue && isInventoryOutOfTolerance(ing.quantity, counted);
+                return `
+                    <div class="inventaire-item ${outOfTolerance ? 'is-variance' : ''}" data-id="${ing.id}">
+                        <div class="inventaire-item-info">
+                            <div class="inventaire-item-name">${ing.name}</div>
+                            <div class="inventaire-item-system">Stock système : ${ing.quantity} ${ing.unit}</div>
+                            ${outOfTolerance ? '<div class="inventory-variance-badge mt-1">Écart &gt; 15%</div>' : ''}
+                        </div>
+                        <input type="number" inputmode="decimal" step="any" min="0"
+                            class="inventaire-item-input inventaire-count-input"
+                            data-id="${ing.id}" placeholder="0" value="${value}"
+                            ${canWrite('inventaire') ? '' : 'disabled'}>
+                    </div>`;
+            }).join('');
+            updateInventaireProgress();
+        };
+
+        const renderInventaireHistory = () => {
+            const container = document.getElementById('inventaire-history-list');
+            if (!container) return;
+            let submissions = allInventorySubmissions.filter(s => s.status !== 'pending');
+            const { start, end } = inventaireHistoryFilter;
+            if (start) submissions = submissions.filter(s => (s.date || '') >= start);
+            if (end) submissions = submissions.filter(s => (s.date || '') <= end);
+            submissions = submissions.slice(0, 30);
+
+            if (submissions.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500 py-6 text-sm">Aucun inventaire enregistré.</p>';
+                return;
+            }
+
+            container.innerHTML = submissions.map(submission => {
+                const dateDisplay = submission.date ? submission.date.split('-').reverse().join('/') : '—';
+                const submittedAt = submission.submittedAt ? formatDateToDDMMYYYY(submission.submittedAt) : '—';
+                const validatedAt = submission.validatedAt ? formatDateToDDMMYYYY(submission.validatedAt) : '—';
+                const outCount = (submission.items || []).filter(item =>
+                    isInventoryOutOfTolerance(item.systemQuantity, item.countedQuantity)
+                ).length;
+                const statusLabel = submission.status === 'validated'
+                    ? '<span class="task-badge-ok">Validé</span>'
+                    : '<span class="task-badge-ko">Partiel</span>';
+                return `
+                    <div class="task-history-card is-ok">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    ${statusLabel}
+                                    <span class="text-base font-semibold text-gray-800">${dateDisplay}</span>
+                                </div>
+                                <p class="text-sm text-gray-600 mt-2">Saisi par ${submission.username || '—'} — ${submittedAt}</p>
+                                <p class="text-sm text-gray-500">Validé par ${submission.validatedByUsername || '—'} — ${validatedAt}</p>
+                                <p class="text-xs text-gray-500 mt-1">${(submission.items || []).length} ingrédients — ${outCount} écart(s) &gt; 15%</p>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+        };
+
+        const renderInventaire = () => {
+            if (!document.getElementById('inventaire-content')?.classList.contains('active')) return;
+            const today = new Date();
+            const dateLabel = document.getElementById('inventaire-date-label');
+            if (dateLabel) dateLabel.textContent = `Aujourd'hui : ${formatDateToDDMMYYYY(today).split(' à ')[0]}`;
+
+            const pending = getPendingInventorySubmission();
+            const pendingInfo = document.getElementById('inventaire-pending-info');
+            if (pendingInfo) {
+                if (pending && canWrite('inventaire')) {
+                    pendingInfo.classList.remove('hidden');
+                    pendingInfo.innerHTML = `<p class="font-semibold"><i class="fas fa-hourglass-half mr-1"></i>Inventaire en attente de validation</p>
+                        <p class="mt-1">Envoyé par <strong>${pending.username || '—'}</strong>. Vous pouvez le remplacer en renvoyant une nouvelle saisie complète.</p>`;
+                } else {
+                    pendingInfo.classList.add('hidden');
+                    pendingInfo.innerHTML = '';
+                }
+            }
+
+            allIngredients.forEach(ing => {
+                if (inventaireLocalCounts[ing.id] === undefined) inventaireLocalCounts[ing.id] = '';
+            });
+
+            renderInventaireItems();
+            renderInventaireHistory();
+        };
+
+        const submitInventaire = async () => {
+            if (!canWrite('inventaire')) return showToast('Permission refusée (lecture seule).');
+            if (getInventaireFilledCount() !== allIngredients.length) {
+                return showToast('Renseignez le stock réel pour tous les ingrédients.');
+            }
+
+            const items = allIngredients.map(ing => {
+                const countedQuantity = parseFloat(inventaireLocalCounts[ing.id]);
+                return {
+                    ingredientId: ing.id,
+                    name: ing.name,
+                    unit: ing.unit,
+                    systemQuantity: Number(ing.quantity) || 0,
+                    countedQuantity,
+                    validated: false
+                };
+            });
+
+            const payload = {
+                date: getTodayDateString(),
+                status: 'pending',
+                items,
+                submittedAt: serverTimestamp(),
+                userId: currentUserProfile?.id || '',
+                username: currentUserProfile?.username || '',
+                validatedAt: null,
+                validatedBy: '',
+                validatedByUsername: ''
+            };
+
+            try {
+                const pending = getPendingInventorySubmission();
+                if (pending) {
+                    await updateDoc(doc(inventorySubmissionsCol, pending.id), payload);
+                    showToast('Inventaire mis à jour et envoyé pour validation.');
+                } else {
+                    await addDoc(inventorySubmissionsCol, payload);
+                    showToast('Inventaire envoyé pour validation.');
+                }
+                inventaireLocalCounts = {};
+                allIngredients.forEach(ing => { inventaireLocalCounts[ing.id] = ''; });
+                renderInventaire();
+            } catch (error) {
+                console.error('Erreur envoi inventaire:', error);
+                showToast('Erreur lors de l\'envoi de l\'inventaire.');
+            }
+        };
+
+        const validateInventoryItem = async (submissionId, ingredientId) => {
+            if (!canWrite('ingredients')) return showToast('Permission refusée. Droits Stock requis.');
+            const submission = allInventorySubmissions.find(s => s.id === submissionId);
+            if (!submission || submission.status !== 'pending') return showToast('Inventaire introuvable.');
+            const item = (submission.items || []).find(i => i.ingredientId === ingredientId && !i.validated);
+            if (!item) return showToast('Ligne déjà validée.');
+
+            try {
+                const batch = writeBatch(db);
+                batch.update(doc(ingredientsCol, ingredientId), { quantity: item.countedQuantity });
+                const updatedItems = (submission.items || []).map(i =>
+                    i.ingredientId === ingredientId ? { ...i, validated: true } : i
+                );
+                const allValidated = updatedItems.every(i => i.validated);
+                batch.update(doc(inventorySubmissionsCol, submissionId), {
+                    items: updatedItems,
+                    status: allValidated ? 'validated' : 'pending',
+                    ...(allValidated ? {
+                        validatedAt: serverTimestamp(),
+                        validatedBy: currentUserProfile?.id || '',
+                        validatedByUsername: currentUserProfile?.username || ''
+                    } : {})
+                });
+                await batch.commit();
+                showToast(allValidated ? 'Inventaire entièrement validé.' : 'Ligne validée, stock mis à jour.');
+            } catch (error) {
+                console.error('Erreur validation inventaire:', error);
+                showToast('Erreur lors de la validation.');
+            }
+        };
+
+        const validateAllInventory = async () => {
+            if (!canWrite('ingredients')) return showToast('Permission refusée. Droits Stock requis.');
+            const submission = getPendingInventorySubmission();
+            if (!submission) return showToast('Aucun inventaire en attente.');
+            const pendingItems = (submission.items || []).filter(i => !i.validated);
+            if (pendingItems.length === 0) return showToast('Tout est déjà validé.');
+
+            if (!confirm(`Valider ${pendingItems.length} ligne(s) et mettre à jour le stock ?`)) return;
+
+            try {
+                const batch = writeBatch(db);
+                pendingItems.forEach(item => {
+                    batch.update(doc(ingredientsCol, item.ingredientId), { quantity: item.countedQuantity });
+                });
+                const updatedItems = (submission.items || []).map(i => ({ ...i, validated: true }));
+                batch.update(doc(inventorySubmissionsCol, submission.id), {
+                    items: updatedItems,
+                    status: 'validated',
+                    validatedAt: serverTimestamp(),
+                    validatedBy: currentUserProfile?.id || '',
+                    validatedByUsername: currentUserProfile?.username || ''
+                });
+                await batch.commit();
+                showToast('Inventaire validé, stocks mis à jour.');
+            } catch (error) {
+                console.error('Erreur validation inventaire:', error);
+                showToast('Erreur lors de la validation.');
+            }
+        };
+
+        const exportInventoryHistoryExcel = () => {
+            let submissions = [...allInventorySubmissions];
+            const { start, end } = inventaireHistoryFilter;
+            if (start) submissions = submissions.filter(s => (s.date || '') >= start);
+            if (end) submissions = submissions.filter(s => (s.date || '') <= end);
+            if (submissions.length === 0) return showToast('Aucune donnée à exporter.');
+
+            const headers = ['Date', 'Statut', 'Saisi par', 'Validé par', 'Ingrédient', 'Stock système', 'Stock réel', 'Écart %', 'Unité'];
+            const rows = [];
+            submissions.forEach(submission => {
+                (submission.items || []).forEach(item => {
+                    rows.push([
+                        submission.date || '',
+                        submission.status || '',
+                        submission.username || '',
+                        submission.validatedByUsername || '',
+                        item.name || '',
+                        item.systemQuantity ?? '',
+                        item.countedQuantity ?? '',
+                        getInventoryVariancePercent(item.systemQuantity, item.countedQuantity).toFixed(1),
+                        item.unit || ''
+                    ]);
+                });
+            });
+            downloadExcelFile(headers, rows, `historique_inventaire_${getTodayDateString()}.xls`);
+        };
+
+        const renderInventoryPendingBanner = () => {
+            const banner = document.getElementById('inventory-pending-banner');
+            const validateAllBtn = document.getElementById('validate-all-inventory-btn');
+            const pending = getPendingInventorySubmission();
+            if (!banner || !validateAllBtn) return;
+
+            if (pending) {
+                const pendingCount = (pending.items || []).filter(i => !i.validated).length;
+                banner.classList.remove('hidden');
+                banner.innerHTML = `<p class="font-semibold"><i class="fas fa-clipboard-list mr-1"></i>Inventaire en attente</p>
+                    <p class="mt-1">Saisi par <strong>${pending.username || '—'}</strong> le ${pending.date ? pending.date.split('-').reverse().join('/') : '—'} — ${pendingCount} ligne(s) à valider</p>`;
+                validateAllBtn.classList.toggle('hidden', !canWrite('ingredients') || pendingCount === 0);
+                validateAllBtn.dataset.submissionId = pending.id;
+            } else {
+                banner.classList.add('hidden');
+                banner.innerHTML = '';
+                validateAllBtn.classList.add('hidden');
+            }
+        };
+
+
         const renderIngredients = () => {
             const list = document.getElementById('ingredients-list');
             const placeholder = document.getElementById('ingredients-placeholder');
             const table = document.getElementById('ingredients-table');
             list.innerHTML = '';
+            renderInventoryPendingBanner();
+            const pending = getPendingInventorySubmission();
+            const pendingMap = getPendingInventoryItemMap();
             if (allIngredients.length === 0) {
                 table.style.display = 'none';
                 placeholder.style.display = 'block';
@@ -3622,13 +4118,40 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 }
                 ingredientsToRender.forEach(ing => {
                     const isLow = ing.quantity < LOW_STOCK_THRESHOLD;
+                    const invItem = pendingMap.get(ing.id);
+                    const hasInventory = !!invItem;
+                    const outOfTolerance = hasInventory && isInventoryOutOfTolerance(ing.quantity, invItem.countedQuantity);
                     const row = document.createElement('tr');
-                    row.className = isLow ? 'low-stock' : '';
+                    row.className = [isLow ? 'low-stock' : '', outOfTolerance ? 'inventory-variance-high' : ''].filter(Boolean).join(' ');
                     const costDisplay = (ing.cost && ing.cost > 0) ? `${ing.cost.toFixed(2)} Mad` : 'N/A';
                     const consoMoisDisplay = ing.consoMois > 0 ? `${ing.consoMois.toFixed(2)} ${ing.unit}` : '-';
                     const consoMoyenneDisplay = ing.consoMoyenne > 0 ? `${ing.consoMoyenne.toFixed(2)} ${ing.unit}` : '-';
                     const coutMensuelMoyen = ing.consoMoyenne > 0 && (ing.cost || 0) > 0 ? (ing.consoMoyenne * (ing.cost || 0)).toFixed(2) + ' Mad' : '-';
-                    row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td><td class="px-6 py-4 whitespace-nowrap"><span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> <span class="text-gray-500">${ing.unit}</span></td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${consoMoisDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${consoMoyenneDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${costDisplay}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${coutMensuelMoyen}</td><td class="px-6 py-4 whitespace-nowrap text-sm font-medium"><button data-id="${ing.id}" class="edit-ingredient-btn text-gray-600 hover:text-gray-900 mr-4">Modifier</button><button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button></td>`;
+                    const inventoryCell = hasInventory
+                        ? `<span class="${outOfTolerance ? 'low-stock-text' : 'font-semibold'}">${invItem.countedQuantity}</span> <span class="text-gray-500">${ing.unit}</span>`
+                        : '<span class="text-gray-400">—</span>';
+                    const varianceCell = hasInventory
+                        ? `<span class="${outOfTolerance ? 'inventory-variance-badge' : 'text-sm text-gray-600'}">${formatInventoryVariance(ing.quantity, invItem.countedQuantity)}</span>`
+                        : '<span class="text-gray-400">—</span>';
+                    const validateBtn = hasInventory && !invItem.validated && canWrite('ingredients')
+                        ? `<button type="button" class="validate-inventory-btn text-green-700 hover:text-green-900 font-semibold mr-3" data-submission-id="${pending.id}" data-ingredient-id="${ing.id}">Valider</button>`
+                        : hasInventory && invItem.validated
+                            ? '<span class="text-green-600 text-xs font-semibold mr-3">Validé</span>'
+                            : '';
+                    row.innerHTML = `
+                        <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">${ing.name}</td>
+                        <td class="px-4 py-4 whitespace-nowrap"><span class="${isLow ? 'low-stock-text' : ''}">${ing.quantity}</span> <span class="text-gray-500">${ing.unit}</span></td>
+                        <td class="px-4 py-4 whitespace-nowrap">${inventoryCell}</td>
+                        <td class="px-4 py-4 whitespace-nowrap">${varianceCell}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${consoMoisDisplay}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${consoMoyenneDisplay}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${costDisplay}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${coutMensuelMoyen}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                            ${validateBtn}
+                            <button data-id="${ing.id}" class="edit-ingredient-btn text-gray-600 hover:text-gray-900 mr-4">Modifier</button>
+                            <button data-id="${ing.id}" class="delete-ingredient-btn text-red-600 hover:text-red-900">Supprimer</button>
+                        </td>`;
                     list.appendChild(row);
                 });
             }
@@ -4663,6 +5186,47 @@ document.getElementById('tasklist-justification')?.addEventListener('input', (e)
     handleTasklistJustificationInput(e.target);
 });
 document.getElementById('tasklist-submit-btn').addEventListener('click', submitTasklist);
+
+document.getElementById('inventaire-submit-btn')?.addEventListener('click', submitInventaire);
+document.getElementById('inventaire-search')?.addEventListener('input', (e) => {
+    inventaireSearchQuery = e.target.value;
+    renderInventaireItems();
+});
+document.getElementById('inventaire-items')?.addEventListener('input', (e) => {
+    const input = e.target.closest('.inventaire-count-input');
+    if (!input) return;
+    inventaireLocalCounts[input.dataset.id] = input.value;
+    const item = input.closest('.inventaire-item');
+    const ing = allIngredients.find(i => i.id === input.dataset.id);
+    if (item && ing) {
+        const counted = input.value === '' ? null : parseFloat(input.value);
+        const outOfTolerance = counted !== null && !Number.isNaN(counted) && isInventoryOutOfTolerance(ing.quantity, counted);
+        item.classList.toggle('is-variance', outOfTolerance);
+        const badge = item.querySelector('.inventory-variance-badge');
+        if (outOfTolerance && !badge) {
+            const info = item.querySelector('.inventaire-item-info');
+            if (info) info.insertAdjacentHTML('beforeend', '<div class="inventory-variance-badge mt-1">Écart &gt; 15%</div>');
+        } else if (!outOfTolerance && badge) {
+            badge.remove();
+        }
+    }
+    updateInventaireProgress();
+});
+document.getElementById('inventaire-history-filter')?.addEventListener('click', () => {
+    inventaireHistoryFilter = {
+        start: document.getElementById('inventaire-history-start')?.value || '',
+        end: document.getElementById('inventaire-history-end')?.value || ''
+    };
+    renderInventaireHistory();
+});
+document.getElementById('inventaire-history-export')?.addEventListener('click', exportInventoryHistoryExcel);
+document.getElementById('validate-all-inventory-btn')?.addEventListener('click', validateAllInventory);
+document.getElementById('ingredients-list')?.addEventListener('click', (e) => {
+    const validateBtn = e.target.closest('.validate-inventory-btn');
+    if (!validateBtn) return;
+    validateInventoryItem(validateBtn.dataset.submissionId, validateBtn.dataset.ingredientId);
+});
+
 document.getElementById('tasklist-history-date').addEventListener('change', () => {
     tasklistHistoryDomKey = '';
     renderTasklistHistory(true);
