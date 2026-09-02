@@ -4374,11 +4374,14 @@ const renderOrderHistory = (history) => {
                     
                     const itemsHtml = order.items.map(item => {
                         const refundTag = (item.returned && item.returned > 0) ? `<span class="text-red-600 font-semibold ml-2">(remb)</span>` : '';
-                        return `<li>${item.quantity} x ${item.name}${refundTag}</li>`;
+                        const includedTag = (parseFloat(item.price) || 0) === 0 ? `<span class="text-gray-400 text-xs ml-1">(inclus)</span>` : '';
+                        return `<li>${item.quantity} x ${item.name}${includedTag}${refundTag}</li>`;
                     }).join(''); 
                     
                     const billNoHtml = order.billNo ? `<p class="text-xs text-gray-500 font-mono">Facture API: ${order.billNo}</p>` : '';
-                    const discountTagHtml = order.hadDiscount ? `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold ml-2 px-2 py-0.5 rounded-full">Rabais</span>` : '';
+                    const ticketHtml = order.ticketNo ? `<span class="inline-block bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded-full">Ticket #${order.ticketNo}</span>` : '';
+                    const canalHtml = order.salesChannel ? `<span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">${order.salesChannel}</span>` : '';
+                    const discountTagHtml = order.hadDiscount ? `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-0.5 rounded-full">Rabais</span>` : '';
                     
                     card.innerHTML = `
                     <div class="flex gap-4">
@@ -4389,8 +4392,10 @@ const renderOrderHistory = (history) => {
                         <div class="flex-grow flex justify-between items-start">
                             <div>
                                 <p class="font-bold text-gray-700">Vente du ${displayDate}</p>
-                                <div class="flex items-center mt-1 gap-2">
+                                <div class="flex flex-wrap items-center mt-1 gap-2">
                                     ${billNoHtml}
+                                    ${ticketHtml}
+                                    ${canalHtml}
                                     ${discountTagHtml} 
                                 </div>
                                 <ul class="list-disc list-inside text-sm text-gray-600 mt-2">${itemsHtml}</ul>
@@ -6608,8 +6613,11 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
                       const d = new Date(item.operDate.replace(' ', 'T')); 
                       if (!isNaN(d.getTime())) saleDate = d; 
                   }
-                  acc[billNo] = { billNo, items: [], totalPrice: 0, saleDate, hadDiscount: false };
+                  acc[billNo] = { billNo, ticketNo: item.ticketNo || null, salesChannel: item.salesChannel || null, items: [], totalPrice: 0, saleDate, hadDiscount: false };
               }
+
+              if (!acc[billNo].ticketNo && item.ticketNo) acc[billNo].ticketNo = item.ticketNo;
+              if (!acc[billNo].salesChannel && item.salesChannel) acc[billNo].salesChannel = item.salesChannel;
 
               const productNameLower = (item.goodsName || '').trim().toLowerCase(); 
               const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
@@ -6707,7 +6715,9 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
                  totalPrice: sale.totalPrice, 
                  createdAt: serverTimestamp(), 
                  saleDate: sale.saleDate, 
-                 billNo: sale.billNo, 
+                 billNo: sale.billNo,
+                 ticketNo: sale.ticketNo || null,
+                 salesChannel: sale.salesChannel || null,
                  hadDiscount: sale.hadDiscount
              });
              salesImportedCount++;

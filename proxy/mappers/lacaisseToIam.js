@@ -54,9 +54,6 @@ function isActiveSaleRow(row, ticketTotals) {
     if (isCancelledSaleType(row['Type de vente'])) return false;
     if (!cleanLabel(row.Produit)) return false;
 
-    const vente = parseFloat(row['Prix de vente']) || 0;
-    if (vente <= 0) return false;
-
     const ticketTotal = ticketTotals.get(getTicketKey(row)) || 0;
     return ticketTotal > 0;
 }
@@ -112,6 +109,16 @@ function mapLaCaisseRowToIam(row) {
         discount: Number(discount.toFixed(2)),
         operDate
     };
+
+    const ticketNo = row['Num ticket'];
+    if (ticketNo !== '' && ticketNo !== null && ticketNo !== undefined) {
+        iam.ticketNo = String(ticketNo);
+    }
+
+    const salesChannel = cleanLabel(row['Canal de vente']);
+    if (salesChannel) {
+        iam.salesChannel = salesChannel;
+    }
 
     if (printMemo) {
         iam.printMemo = printMemo;
