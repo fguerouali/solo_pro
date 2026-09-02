@@ -9,10 +9,20 @@ services:
     envVars:
       - key: NODE_ENV
         value: test
-      - key: POS_USERNAME
-        sync: false  # À configurer manuellement dans le dashboard Render
-      - key: POS_PASSWORD
-        sync: false  # À configurer manuellement dans le dashboard Render
+      - key: POS_PROVIDER
+        value: lacaisse
+      - key: LACAISSE_BASE_URL
+        value: https://api-legacy.lacaisse.ma
+      - key: LACAISSE_LOGIN
+        sync: false
+      - key: LACAISSE_PASSWORD
+        sync: false
+      - key: LACAISSE_API_TOKEN
+        sync: false
+      - key: LACAISSE_CAISSE_ID
+        value: "4418"
+      - key: LACAISSE_ID_CAISSE_LIST
+        value: "4418"
       - key: FRONTEND_URL
         fromService:
           type: static
