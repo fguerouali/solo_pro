@@ -25,6 +25,42 @@ function buildBillNo(row) {
     return `LC_${date}_${ticket}`;
 }
 
+function getTicketKey(row) {
+    const orderId = row['Id commande'];
+    if (orderId !== '' && orderId !== null && orderId !== undefined) {
+        return `order:${orderId}`;
+    }
+    return `ticket:${row.Date}|${row['Num ticket']}`;
+}
+
+function isCancelledSaleType(saleType) {
+    const normalized = String(saleType || '').trim().toLowerCase();
+    if (!normalized || normalized === 'vente') return false;
+    return /annul|avoir|retour|rembours|cancel|void/.test(normalized);
+}
+
+function buildTicketVenteTotals(rows) {
+    const totals = new Map();
+    for (const row of rows) {
+        if (isCancelledSaleType(row['Type de vente'])) continue;
+        const key = getTicketKey(row);
+        const vente = parseFloat(row['Prix de vente']) || 0;
+        totals.set(key, (totals.get(key) || 0) + vente);
+    }
+    return totals;
+}
+
+function isActiveSaleRow(row, ticketTotals) {
+    if (isCancelledSaleType(row['Type de vente'])) return false;
+    if (!cleanLabel(row.Produit)) return false;
+
+    const vente = parseFloat(row['Prix de vente']) || 0;
+    if (vente <= 0) return false;
+
+    const ticketTotal = ticketTotals.get(getTicketKey(row)) || 0;
+    return ticketTotal > 0;
+}
+
 function resolveGoodsNameAndMemo(row) {
     const produit = cleanLabel(row.Produit);
     const sousProduit = cleanLabel(row['Sous produit']);
@@ -55,13 +91,7 @@ function mapLaCaisseRowToIam(row) {
     const qty = parseFloat(row['Quantité']) || 0;
     const catalogue = parseFloat(row['Prix catalogue']) || 0;
     const vente = parseFloat(row['Prix de vente']) || 0;
-
-    let unitPrice = qty > 0 ? vente / qty : vente;
-    let effectiveLineTotal = vente;
-    if (effectiveLineTotal === 0 && catalogue > 0) {
-        effectiveLineTotal = catalogue;
-        unitPrice = qty > 0 ? effectiveLineTotal / qty : effectiveLineTotal;
-    }
+    const unitPrice = qty > 0 ? vente / qty : vente;
 
     let discount = 100;
     if (catalogue > 0 && vente > 0 && vente !== catalogue) {
@@ -91,18 +121,18 @@ function mapLaCaisseRowToIam(row) {
 }
 
 function mapLaCaisseRowsToIam(rows) {
+    const ticketTotals = buildTicketVenteTotals(rows);
     return rows
-        .filter(row => {
-            const saleType = String(row['Type de vente'] || 'Vente').trim();
-            return saleType === '' || saleType.toLowerCase() === 'vente';
-        })
-        .filter(row => cleanLabel(row.Produit))
+        .filter(row => isActiveSaleRow(row, ticketTotals))
         .map(mapLaCaisseRowToIam);
 }
 
 module.exports = {
     cleanLabel,
     buildBillNo,
+    getTicketKey,
+    isCancelledSaleType,
+    isActiveSaleRow,
     mapLaCaisseRowToIam,
     mapLaCaisseRowsToIam
 };
