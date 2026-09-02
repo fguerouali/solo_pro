@@ -371,6 +371,18 @@
             border-left: 4px solid #ef4444;
             margin-top: 0.5rem;
         }
+        .task-history-unchecked-list {
+            margin-top: 0.5rem;
+            padding: 0.65rem 0.75rem 0.65rem 1.5rem;
+            background: #fff7ed;
+            border-radius: 12px;
+            border-left: 4px solid #f97316;
+            color: #9a3412;
+            font-size: 0.85rem;
+            list-style: disc;
+        }
+        .task-history-unchecked-list li { margin: 0.2rem 0; }
+        .task-history-unchecked-list li.important { font-weight: 800; }
         .task-history-delete-btn {
             display: flex;
             align-items: center;
@@ -1373,8 +1385,7 @@
         </div>
 
         <section class="mt-10 pt-6 border-t border-gray-200">
-            <h3 class="text-lg font-bold text-gray-800 mb-1">Historique</h3>
-            <p class="text-sm text-gray-500 mb-3">Chaque envoi apparaît ici, y compris en attente de validation. Cliquez sur Excel pour télécharger.</p>
+            <h3 class="text-lg font-bold text-gray-800 mb-3">Historique</h3>
             <div class="flex flex-wrap gap-2 mb-4">
                 <input type="date" id="inventaire-history-start" class="input-style text-base py-2 flex-1 min-w-[9rem]">
                 <input type="date" id="inventaire-history-end" class="input-style text-base py-2 flex-1 min-w-[9rem]">
@@ -3110,6 +3121,17 @@ let allDailyPayments = [];
                 const totalCount = submission.totalItems || (submission.items || []).length;
                 const justification = getSubmissionJustification(submission);
                 const isOk = isChecklistSubmissionOk(submission);
+                const uncheckedTasks = (submission.items || []).filter(item => !item.checked);
+                const uncheckedList = !isOk && uncheckedTasks.length > 0
+                    ? `<div class="mt-2">
+                        <p class="text-xs font-semibold text-orange-800 mb-1">Tâches non faites :</p>
+                        <ul class="task-history-unchecked-list">
+                            ${uncheckedTasks.map(item =>
+                                `<li class="${item.important ? 'important' : ''}">${item.label}</li>`
+                            ).join('')}
+                        </ul>
+                       </div>`
+                    : '';
                 const statusLine = skippedCount > 0
                     ? `${checkedCount} faites, ${skippedCount} non faite(s) — ${totalCount} au total`
                     : `${checkedCount}/${totalCount} tâches validées`;
@@ -3132,6 +3154,7 @@ let allDailyPayments = [];
                                 <p class="text-sm text-gray-600 mt-2">${submission.username || '—'}</p>
                                 <p class="text-sm text-gray-500">${completedAt}</p>
                                 <p class="text-xs text-gray-500 mt-1">${statusLine}</p>
+                                ${uncheckedList}
                                 ${!isOk && justification ? `<p class="task-history-ko-justification"><i class="fas fa-comment-alt mr-1"></i>${justification}</p>` : ''}
                             </div>
                             ${deleteBtn}
@@ -3923,7 +3946,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
         const renderInventaireHistory = () => {
             const container = document.getElementById('inventaire-history-list');
             if (!container) return;
-            let submissions = [...allInventorySubmissions];
+            let submissions = allInventorySubmissions.filter(s => s.status !== 'pending');
             const { start, end } = inventaireHistoryFilter;
             if (start) submissions = submissions.filter(s => (s.date || '') >= start);
             if (end) submissions = submissions.filter(s => (s.date || '') <= end);
@@ -4016,21 +4039,16 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             };
 
             try {
-                let savedSubmission;
                 if (pending) {
                     await updateDoc(doc(inventorySubmissionsCol, pending.id), payload);
-                    savedSubmission = { id: pending.id, ...payload };
                     showToast(`Inventaire mis à jour (${newItems.length} ligne(s) envoyée(s)).`);
                 } else {
-                    const docRef = await addDoc(inventorySubmissionsCol, payload);
-                    savedSubmission = { id: docRef.id, ...payload };
+                    await addDoc(inventorySubmissionsCol, payload);
                     showToast(`Inventaire envoyé (${newItems.length} ligne(s)).`);
                 }
-                exportInventorySubmissionExcel(savedSubmission);
                 inventaireLocalCounts = {};
                 allIngredients.forEach(ing => { inventaireLocalCounts[ing.id] = ''; });
                 renderInventaire();
-                renderInventaireHistory();
             } catch (error) {
                 console.error('Erreur envoi inventaire:', error);
                 showToast('Erreur lors de l\'envoi de l\'inventaire.');
@@ -6094,28 +6112,46 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
             const select = document.getElementById('po-ingredient-select'); 
             const ingredientId = select.value; 
             const quantityInput = document.getElementById('po-quantity');
-            const priceInput = document.getElementById('po-price'); // Input for price per unit
+            const priceInput = document.getElementById('po-price');
             const quantity = parseFloat(quantityInput.value); 
-            const pricePerUnit = parseFloat(priceInput.value); 
-            
-            if (!ingredientId || isNaN(quantity) || quantity <= 0 || isNaN(pricePerUnit) || pricePerUnit < 0) {
-                 return showToast('Veuillez sélectionner un ingrédient et entrer une quantité et un prix par unité valides.'); 
+            let pricePerUnit = parseFloat(priceInput.value);
+            const ingredient = allIngredients.find(i => i.id === ingredientId);
+
+            if (!ingredientId || isNaN(quantity) || quantity <= 0) {
+                return showToast('Veuillez sélectionner un ingrédient et entrer une quantité valide.');
             }
-            const ingredient = allIngredients.find(i => i.id === ingredientId); 
+            if ((isNaN(pricePerUnit) || pricePerUnit < 0) && ingredient && (ingredient.cost || 0) > 0) {
+                pricePerUnit = ingredient.cost;
+            }
+            if (isNaN(pricePerUnit) || pricePerUnit < 0) {
+                return showToast('Veuillez entrer un prix par unité valide.');
+            }
             
             currentPurchaseOrderItems.push({
                 id: ingredient.id, 
                 name: ingredient.name, 
                 unit: ingredient.unit, 
                 quantity, 
-                price: pricePerUnit // Store price per unit correctly
+                price: pricePerUnit
             }); 
             
             renderCurrentPurchaseOrderItems(); 
             select.value = ''; 
             quantityInput.value = ''; 
             priceInput.value = ''; 
-        }); 
+        });
+
+        document.getElementById('po-ingredient-select').addEventListener('change', (e) => {
+            const ingredientId = e.target.value;
+            const priceInput = document.getElementById('po-price');
+            if (!priceInput) return;
+            if (!ingredientId) {
+                priceInput.value = '';
+                return;
+            }
+            const ingredient = allIngredients.find(i => i.id === ingredientId);
+            priceInput.value = ingredient && (ingredient.cost || 0) > 0 ? ingredient.cost : '';
+        });
         
         // --- MODIFICATION: Listener pour les changements d'input dans la liste PO ---
         document.getElementById('po-items-list').addEventListener('change', e => {
