@@ -24,7 +24,9 @@ app.get('/health', (req, res) => {
     res.json({
         ok: true,
         provider: POS_PROVIDER,
-        lacaisseConfigured: lacaisseProvider.isConfigured()
+        lacaisseConfigured: lacaisseProvider.isConfigured(),
+        routes: ['/api/login', '/api/sales', '/api/journal'],
+        version: 'journal-v1'
     });
 });
 
