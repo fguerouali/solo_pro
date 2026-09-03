@@ -736,6 +736,21 @@
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Panuozzo Vendus</h3>
                         <p id="kpi-total-panuozzo" class="text-3xl font-bold text-gray-900 mt-1">0</p>
                     </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Vente Sur Place</h3>
+                        <p id="kpi-sales-sur-place" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+                        <p id="kpi-sales-sur-place-rate" class="text-lg font-semibold text-gray-500 mt-1">0 %</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Vente Emporter</h3>
+                        <p id="kpi-sales-emporter" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+                        <p id="kpi-sales-emporter-rate" class="text-lg font-semibold text-gray-500 mt-1">0 %</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Vente Livraison</h3>
+                        <p id="kpi-sales-livraison" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+                        <p id="kpi-sales-livraison-rate" class="text-lg font-semibold text-gray-500 mt-1">0 %</p>
+                    </div>
 
                     <h3 class="col-span-full text-xs font-semibold text-gray-400 uppercase tracking-widest mt-2">Rentabilité</h3>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
@@ -1261,7 +1276,7 @@
                                 <span id="day-total-sales" class="font-semibold text-gray-900">0.00 Mad</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-600">TPE + Glovo :</span>
+                                <span class="text-gray-600">TPE + Glovo TPE :</span>
                                 <span id="day-digital-payments" class="font-semibold text-blue-600">0.00 Mad</span>
                             </div>
                             <div class="flex justify-between border-t pt-2 mt-2">
@@ -3650,6 +3665,18 @@ let allDailyPayments = [];
                 return sum + lossCost;
             }, 0);
 
+            const filteredDailyPayments = !filterStartDate ? allDailyPayments : allDailyPayments.filter(payment => {
+                return isWithinDateRange(payment.date, filterStartDate, filterEndDate);
+            });
+            let salesSurPlace = 0;
+            let salesEmporter = 0;
+            let salesLivraison = 0;
+            filteredDailyPayments.forEach(payment => {
+                salesSurPlace += payment.notesSurPlace || 0;
+                salesEmporter += payment.notesEmporter || 0;
+                salesLivraison += payment.notesLivraison || 0;
+            });
+
             let totalSales = 0;
             let totalCogs = 0;
             let totalPizzasSold = 0;
@@ -3713,6 +3740,12 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             document.getElementById('kpi-total-orders').textContent = totalOrders;
             document.getElementById('kpi-total-pizzas').textContent = totalPizzasSold;
             document.getElementById('kpi-total-panuozzo').textContent = totalPanuozzoSold;
+            document.getElementById('kpi-sales-sur-place').textContent = `${salesSurPlace.toFixed(2)} Mad`;
+            document.getElementById('kpi-sales-sur-place-rate').textContent = pctOfSales(salesSurPlace);
+            document.getElementById('kpi-sales-emporter').textContent = `${salesEmporter.toFixed(2)} Mad`;
+            document.getElementById('kpi-sales-emporter-rate').textContent = pctOfSales(salesEmporter);
+            document.getElementById('kpi-sales-livraison').textContent = `${salesLivraison.toFixed(2)} Mad`;
+            document.getElementById('kpi-sales-livraison-rate').textContent = pctOfSales(salesLivraison);
             document.getElementById('kpi-avg-order-value').textContent = `${avgOrderValue.toFixed(2)} Mad`;
             document.getElementById('kpi-gross-margin').textContent = `${grossMargin.toFixed(2)} Mad`;
             document.getElementById('kpi-gross-margin-rate').textContent = `${grossMarginRate.toFixed(1)} %`;
@@ -5344,7 +5377,7 @@ const renderDailyPayments = () => {
                     <div>
                         <h3 class="font-semibold text-gray-900">${formattedDate}</h3>
                         <p class="text-sm text-gray-600">Total ventes : ${payment.totalSales.toFixed(2)} Mad</p>
-                        <p class="text-xs text-orange-600">Glovo Cash : ${glovoCash.toFixed(2)} Mad</p>
+                        <p class="text-xs text-orange-600">Glovo Espèces : ${glovoCash.toFixed(2)} Mad</p>
                     </div>
                     <button data-id="${payment.id}" class="delete-daily-payment-btn text-gray-400 hover:text-red-600 transition-colors">
                         <i class="fas fa-trash-alt"></i>
@@ -5356,7 +5389,7 @@ const renderDailyPayments = () => {
                         <p class="font-semibold">${payment.tpeAmount.toFixed(2)} Mad</p>
                     </div>
                     <div class="bg-purple-50 p-2 rounded">
-                        <p class="text-xs text-purple-600">Glovo</p>
+                        <p class="text-xs text-purple-600">Glovo TPE</p>
                         <p class="font-semibold">${payment.glovoAmount.toFixed(2)} Mad</p>
                     </div>
                     <div class="bg-green-50 p-2 rounded">
