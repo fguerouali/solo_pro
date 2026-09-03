@@ -1209,6 +1209,7 @@
                         <div>
                             <label for="payment-date" class="block text-sm font-medium text-gray-700">Date</label>
                             <input type="date" id="payment-date" required class="mt-1 w-full input-style">
+                            <p id="journal-autofill-status" class="text-xs text-gray-500 mt-1"></p>
                         </div>
                         <div>
                             <label for="tpe-amount" class="block text-sm font-medium text-gray-700">Montant TPE (Mad)</label>
@@ -1218,10 +1219,33 @@
                             <label for="glovo-amount" class="block text-sm font-medium text-gray-700">Montant Glovo TPE (Mad)</label>
                             <input type="number" id="glovo-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
                         </div>
-                        <!-- ✅ NOUVEAU CHAMP AJOUTÉ -->
                         <div>
                             <label for="glovo-cash-amount" class="block text-sm font-medium text-gray-700">Montant Glovo Espèces (Mad)</label>
                             <input type="number" id="glovo-cash-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
+                            <div>
+                                <label for="notes-sur-place" class="block text-sm font-medium text-gray-700">Notes sur place</label>
+                                <input type="number" id="notes-sur-place" min="0" step="0.01" value="0" class="mt-1 w-full input-style">
+                            </div>
+                            <div>
+                                <label for="notes-emporter" class="block text-sm font-medium text-gray-700">Notes emporter</label>
+                                <input type="number" id="notes-emporter" min="0" step="0.01" value="0" class="mt-1 w-full input-style">
+                            </div>
+                            <div>
+                                <label for="notes-livraison" class="block text-sm font-medium text-gray-700">Notes livraison</label>
+                                <input type="number" id="notes-livraison" min="0" step="0.01" value="0" class="mt-1 w-full input-style">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label for="articles-annules-avant-note" class="block text-sm font-medium text-gray-700">Articles annulés avant note</label>
+                                <input type="number" id="articles-annules-avant-note" min="0" step="0.01" value="0" class="mt-1 w-full input-style">
+                            </div>
+                            <div>
+                                <label for="articles-annules-apres-note" class="block text-sm font-medium text-gray-700">Articles annulés après note</label>
+                                <input type="number" id="articles-annules-apres-note" min="0" step="0.01" value="0" class="mt-1 w-full input-style">
+                            </div>
                         </div>
                     </div>
                     
@@ -2058,6 +2082,8 @@ let allDailyPayments = [];
             await ensureChecklistConfig();
             populateAdminChecklistConfig();
             document.getElementById('payment-date').value = getTodayDateString();
+            updateDailyPaymentCalculations();
+            autofillFinanceFromJournal();
             document.getElementById('sale-date').value = getTodayDateString();
             document.getElementById('api-start-date').value = getTodayDateString();
             document.getElementById('api-end-date').value = getTodayDateString();
@@ -5170,6 +5196,77 @@ const renderSalaryPaymentsHistory = () => {
 // === SECTION FINANCE ===
 // ======================
 
+const setFinanceFieldValue = (id, value) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = Number.isFinite(value) ? Number(value).toFixed(2) : '0';
+};
+
+const setJournalAutofillStatus = (message, isError = false) => {
+    const statusEl = document.getElementById('journal-autofill-status');
+    if (!statusEl) return;
+    statusEl.textContent = message || '';
+    statusEl.className = isError
+        ? 'text-xs text-red-600 mt-1'
+        : 'text-xs text-gray-500 mt-1';
+};
+
+const applyJournalSummaryToForm = (summary) => {
+    setFinanceFieldValue('tpe-amount', summary.tpeAmount);
+    setFinanceFieldValue('glovo-amount', summary.glovoTpeAmount);
+    setFinanceFieldValue('glovo-cash-amount', summary.glovoCashAmount);
+    setFinanceFieldValue('notes-sur-place', summary.notesSurPlace);
+    setFinanceFieldValue('notes-emporter', summary.notesEmporter);
+    setFinanceFieldValue('notes-livraison', summary.notesLivraison);
+    setFinanceFieldValue('articles-annules-avant-note', summary.articlesAnnulesAvantNote);
+    setFinanceFieldValue('articles-annules-apres-note', summary.articlesAnnulesApresNote);
+};
+
+const fetchJournalSummaryForDate = async (dateValue) => {
+    if (!dateValue || !PROXY_URL) return null;
+
+    setJournalAutofillStatus('Chargement LaCaisse…');
+    const authResponse = await fetch(`${PROXY_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+    });
+    if (!authResponse.ok) {
+        const err = await authResponse.json().catch(() => ({}));
+        throw new Error(err.message || 'Auth proxy échouée');
+    }
+    const { token } = await authResponse.json();
+    if (!token) throw new Error('Token proxy manquant');
+
+    const journalResponse = await fetch(
+        `${PROXY_URL}/api/journal?date=${encodeURIComponent(dateValue)}&token=${encodeURIComponent(token)}`
+    );
+    const payload = await journalResponse.json().catch(() => ({}));
+    if (!journalResponse.ok) {
+        throw new Error(payload.message || 'Erreur journal LaCaisse');
+    }
+    return payload.data || null;
+};
+
+const autofillFinanceFromJournal = async () => {
+    const dateValue = document.getElementById('payment-date')?.value;
+    if (!dateValue) return;
+
+    try {
+        const summary = await fetchJournalSummaryForDate(dateValue);
+        if (!summary) {
+            setJournalAutofillStatus('Aucune donnée journal pour cette date.', true);
+            return;
+        }
+        applyJournalSummaryToForm(summary);
+        setJournalAutofillStatus('Prérempli depuis LaCaisse (modifiable).');
+        updateDailyPaymentCalculations();
+    } catch (error) {
+        console.error('Autofill journal Finance:', error);
+        setJournalAutofillStatus(error.message || 'Impossible de charger le journal.', true);
+    }
+};
+
 // Calculer les ventes d'une date spécifique
 const calculateSalesForDate = (dateInput) => {
     const selectedDate = new Date(dateInput);
@@ -5221,8 +5318,13 @@ const renderDailyPayments = () => {
             const formattedDate = date ? `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}` : 'Date inconnue';
             
             const totalDigital = payment.tpeAmount + payment.glovoAmount;
-            const glovoCash = payment.glovoCashAmount || 0; // ✅ AJOUTÉ
+            const glovoCash = payment.glovoCashAmount || 0;
             const expectedCash = payment.totalSales - totalDigital;
+            const notesSurPlace = payment.notesSurPlace || 0;
+            const notesEmporter = payment.notesEmporter || 0;
+            const notesLivraison = payment.notesLivraison || 0;
+            const annulAvant = payment.articlesAnnulesAvantNote || 0;
+            const annulApres = payment.articlesAnnulesApresNote || 0;
             
             card.innerHTML = `
                 <div class="flex justify-between items-start mb-3">
@@ -5249,6 +5351,30 @@ const renderDailyPayments = () => {
                         <p class="font-semibold">${expectedCash.toFixed(2)} Mad</p>
                     </div>
                 </div>
+                <div class="grid grid-cols-3 gap-2 text-xs mt-2">
+                    <div class="bg-gray-50 p-2 rounded">
+                        <p class="text-gray-500">Sur place</p>
+                        <p class="font-medium">${notesSurPlace.toFixed(2)}</p>
+                    </div>
+                    <div class="bg-gray-50 p-2 rounded">
+                        <p class="text-gray-500">Emporter</p>
+                        <p class="font-medium">${notesEmporter.toFixed(2)}</p>
+                    </div>
+                    <div class="bg-gray-50 p-2 rounded">
+                        <p class="text-gray-500">Livraison</p>
+                        <p class="font-medium">${notesLivraison.toFixed(2)}</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs mt-2">
+                    <div class="bg-red-50 p-2 rounded">
+                        <p class="text-red-500">Annulés avant note</p>
+                        <p class="font-medium">${annulAvant.toFixed(2)} Mad</p>
+                    </div>
+                    <div class="bg-red-50 p-2 rounded">
+                        <p class="text-red-500">Annulés après note</p>
+                        <p class="font-medium">${annulApres.toFixed(2)} Mad</p>
+                    </div>
+                </div>
             `;
             container.appendChild(card);
         });
@@ -5256,7 +5382,10 @@ const renderDailyPayments = () => {
 };
 
 // Event Listeners pour Finance
-document.getElementById('payment-date').addEventListener('change', updateDailyPaymentCalculations);
+document.getElementById('payment-date').addEventListener('change', () => {
+    updateDailyPaymentCalculations();
+    autofillFinanceFromJournal();
+});
 document.getElementById('tpe-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
 document.getElementById('glovo-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
 document.getElementById('glovo-cash-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
@@ -5407,13 +5536,23 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
     });
     
    try {
-        const glovoCashAmount = parseFloat(document.getElementById('glovo-cash-amount').value) || 0; // ✅ AJOUTÉ
+        const glovoCashAmount = parseFloat(document.getElementById('glovo-cash-amount').value) || 0;
+        const notesSurPlace = parseFloat(document.getElementById('notes-sur-place').value) || 0;
+        const notesEmporter = parseFloat(document.getElementById('notes-emporter').value) || 0;
+        const notesLivraison = parseFloat(document.getElementById('notes-livraison').value) || 0;
+        const articlesAnnulesAvantNote = parseFloat(document.getElementById('articles-annules-avant-note').value) || 0;
+        const articlesAnnulesApresNote = parseFloat(document.getElementById('articles-annules-apres-note').value) || 0;
         
         const data = {
             date: paymentDate,
             tpeAmount,
             glovoAmount,
-            glovoCashAmount, // ✅ AJOUTÉ
+            glovoCashAmount,
+            notesSurPlace,
+            notesEmporter,
+            notesLivraison,
+            articlesAnnulesAvantNote,
+            articlesAnnulesApresNote,
             totalSales,
             expectedCash: totalSales - (tpeAmount + glovoAmount),
             createdAt: serverTimestamp()
@@ -5430,7 +5569,13 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
         // Réinitialiser le formulaire
         document.getElementById('tpe-amount').value = '0';
         document.getElementById('glovo-amount').value = '0';
-        document.getElementById('glovo-cash-amount').value = '0'; // ✅ AJOUTÉ
+        document.getElementById('glovo-cash-amount').value = '0';
+        document.getElementById('notes-sur-place').value = '0';
+        document.getElementById('notes-emporter').value = '0';
+        document.getElementById('notes-livraison').value = '0';
+        document.getElementById('articles-annules-avant-note').value = '0';
+        document.getElementById('articles-annules-apres-note').value = '0';
+        setJournalAutofillStatus('');
         updateDailyPaymentCalculations();
         
     } catch (error) {

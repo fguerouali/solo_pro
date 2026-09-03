@@ -1,12 +1,14 @@
 const fs = require('fs');
 const fetch = require('node-fetch');
 const XLSX = require('xlsx');
-const { toLaCaisseDate } = require('../utils/dateFormat');
+const { toLaCaisseDate, toJournalDateTime } = require('../utils/dateFormat');
 const { mapLaCaisseRowsToIam } = require('../mappers/lacaisseToIam');
+const { mapJournalToFinanceSummary } = require('../mappers/journalSummary');
 const LaCaisseAuthService = require('../services/lacaisseAuth');
 
 const DEFAULT_BASE_URL = 'https://api-legacy.lacaisse.ma';
 const DEFAULT_CAISSE_ID = '4418';
+const DEFAULT_JOURNAL_ID = '3';
 
 class LaCaissePOSProvider {
     constructor(options = {}) {
@@ -16,9 +18,11 @@ class LaCaissePOSProvider {
             options.idCaisseList ||
             process.env.LACAISSE_ID_CAISSE_LIST ||
             this.caisseId;
+        this.journalId = options.journalId || process.env.LACAISSE_JOURNAL_ID || DEFAULT_JOURNAL_ID;
         this.sampleFile = options.sampleFile || process.env.LACAISSE_SAMPLE_FILE || '';
         this.auth = options.auth || new LaCaisseAuthService(options.authOptions || {});
         this.cache = new Map();
+        this.journalCache = new Map();
         this.cacheTtlMs = options.cacheTtlMs || 5 * 60 * 1000;
     }
 
@@ -124,6 +128,55 @@ class LaCaissePOSProvider {
         const size = Math.max(1, parseInt(pageSize, 10) || 100);
         const start = (page - 1) * size;
         return allLines.slice(start, start + size);
+    }
+
+    buildJournalUrl(isoDate, tokenApi) {
+        const params = new URLSearchParams({
+            id_journal: this.journalId,
+            id_caisse: this.caisseId,
+            date_debut: toJournalDateTime(isoDate, '00:00:00'),
+            date_fin: toJournalDateTime(isoDate, '23:59:59'),
+            token_api: tokenApi
+        });
+        return `${this.baseUrl}/details_journal.php?${params.toString()}`;
+    }
+
+    async getJournalSummary(isoDate) {
+        const cacheKey = `journal|${isoDate}`;
+        const entry = this.journalCache.get(cacheKey);
+        if (entry && Date.now() - entry.createdAt <= this.cacheTtlMs) {
+            return entry.data;
+        }
+
+        const tokenApi = await this.auth.getTokenApi();
+        const url = this.buildJournalUrl(isoDate, tokenApi);
+        console.log(`[LaCaisse] Journal: ${url.replace(tokenApi, this.maskToken(tokenApi))}`);
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { Accept: 'application/json,*/*' }
+        });
+        const bodyText = await response.text();
+
+        if (!response.ok) {
+            throw new Error(`Journal LaCaisse HTTP ${response.status}: ${bodyText.slice(0, 200)}`);
+        }
+
+        if (bodyText.includes('Nous avons modifié la clé')) {
+            this.auth.clearCache();
+            throw new Error('Token LaCaisse invalide ou expiré pour le journal.');
+        }
+
+        let payload;
+        try {
+            payload = JSON.parse(bodyText);
+        } catch {
+            throw new Error('Réponse journal LaCaisse invalide (JSON attendu).');
+        }
+
+        const summary = mapJournalToFinanceSummary(payload);
+        this.journalCache.set(cacheKey, { createdAt: Date.now(), data: summary });
+        return summary;
     }
 }
 

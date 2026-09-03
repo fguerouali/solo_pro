@@ -23,6 +23,8 @@ services:
         value: "4418"
       - key: LACAISSE_ID_CAISSE_LIST
         value: "4418"
+      - key: LACAISSE_JOURNAL_ID
+        value: "3"
       - key: FRONTEND_URL
         fromService:
           type: static

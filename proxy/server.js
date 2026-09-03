@@ -71,6 +71,35 @@ app.get('/api/sales', async (req, res) => {
     }
 });
 
+// Journal caisse → préremplissage Finance (TPE, Glovo, notes, annulations).
+app.get('/api/journal', async (req, res) => {
+    console.log('Proxy received journal request to /api/journal');
+    const { date, token } = req.query;
+
+    if (!token) {
+        return res.status(401).json({ message: 'Jeton d\'authentification manquant.' });
+    }
+    if (!date) {
+        return res.status(400).json({ message: 'Date requise (YYYY-MM-DD).' });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) {
+        return res.status(400).json({ message: 'Format de date invalide. Attendu: YYYY-MM-DD.' });
+    }
+    if (!lacaisseProvider.isConfigured()) {
+        return res.status(500).json({ message: 'LaCaisse non configuré sur le proxy.' });
+    }
+
+    try {
+        const data = await lacaisseProvider.getJournalSummary(date);
+        res.json({ code: 200, data });
+    } catch (error) {
+        console.error('Error in /api/journal (LaCaisse):', error);
+        res.status(500).json({
+            message: `Erreur journal LaCaisse: ${error.message}`
+        });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Proxy server listening on port ${PORT}`);
     console.log(`Allowing requests from: ${FRONTEND_URL}`);
