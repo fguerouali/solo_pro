@@ -66,6 +66,10 @@ function mapJournalToFinanceSummary(payload = {}) {
             stats,
             (label) => label.includes('articles annules apres note')
         ),
+        totalNotesPayee: findStatAmount(
+            stats,
+            (label) => label.includes('total notes payee') || label.includes('total notes payees')
+        ),
         totalTtc: findPaymentAmount(payments, (label) => label === 'total ttc'),
         dateDebut: payload.date_debut || null,
         dateFin: payload.date_fin || null

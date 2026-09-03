@@ -1212,6 +1212,10 @@
                             <p id="journal-autofill-status" class="text-xs text-gray-500 mt-1"></p>
                         </div>
                         <div>
+                            <label for="total-sales-amount" class="block text-sm font-medium text-gray-700">Total ventes (Mad)</label>
+                            <input type="number" id="total-sales-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                        </div>
+                        <div>
                             <label for="tpe-amount" class="block text-sm font-medium text-gray-700">Montant TPE (Mad)</label>
                             <input type="number" id="tpe-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
                         </div>
@@ -5212,6 +5216,7 @@ const setJournalAutofillStatus = (message, isError = false) => {
 };
 
 const applyJournalSummaryToForm = (summary) => {
+    setFinanceFieldValue('total-sales-amount', summary.totalNotesPayee);
     setFinanceFieldValue('tpe-amount', summary.tpeAmount);
     setFinanceFieldValue('glovo-amount', summary.glovoTpeAmount);
     setFinanceFieldValue('glovo-cash-amount', summary.glovoCashAmount);
@@ -5287,14 +5292,22 @@ const updateDailyPaymentCalculations = () => {
     const dateValue = document.getElementById('payment-date').value;
     const tpeAmount = parseFloat(document.getElementById('tpe-amount').value) || 0;
     const glovoAmount = parseFloat(document.getElementById('glovo-amount').value) || 0;
+    const totalSalesInput = document.getElementById('total-sales-amount');
+    const totalSales = parseFloat(totalSalesInput?.value);
     
     if (!dateValue) return;
     
-    const totalSales = calculateSalesForDate(dateValue);
+    const resolvedTotalSales = Number.isFinite(totalSales)
+        ? totalSales
+        : calculateSalesForDate(dateValue);
+    if (totalSalesInput && !Number.isFinite(totalSales)) {
+        totalSalesInput.value = resolvedTotalSales.toFixed(2);
+    }
+
     const digitalPayments = tpeAmount + glovoAmount;
-    const expectedCash = Math.max(0, totalSales - digitalPayments);
+    const expectedCash = Math.max(0, resolvedTotalSales - digitalPayments);
     
-    document.getElementById('day-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
+    document.getElementById('day-total-sales').textContent = `${resolvedTotalSales.toFixed(2)} Mad`;
     document.getElementById('day-digital-payments').textContent = `${digitalPayments.toFixed(2)} Mad`;
     document.getElementById('day-expected-cash').textContent = `${expectedCash.toFixed(2)} Mad`;
     document.getElementById('day-expected-cash').className = 
@@ -5389,6 +5402,7 @@ document.getElementById('payment-date').addEventListener('change', () => {
 document.getElementById('tpe-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
 document.getElementById('glovo-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
 document.getElementById('glovo-cash-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
+document.getElementById('total-sales-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
 
 // Event Listeners Task List
 document.getElementById('tasklist-content').addEventListener('click', handleTasklistClick);
@@ -5525,7 +5539,8 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
         return;
     }
     
-    const totalSales = calculateSalesForDate(dateValue);
+    const totalSalesRaw = parseFloat(document.getElementById('total-sales-amount').value);
+    const totalSales = Number.isFinite(totalSalesRaw) ? totalSalesRaw : calculateSalesForDate(dateValue);
     const paymentDate = new Date(dateValue);
     paymentDate.setHours(12, 0, 0, 0);
     
@@ -5567,6 +5582,7 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
         }
         
         // Réinitialiser le formulaire
+        document.getElementById('total-sales-amount').value = '0';
         document.getElementById('tpe-amount').value = '0';
         document.getElementById('glovo-amount').value = '0';
         document.getElementById('glovo-cash-amount').value = '0';
