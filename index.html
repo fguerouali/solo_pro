@@ -149,6 +149,42 @@
             background: linear-gradient(90deg, #f87171, #dc2626);
         }
 
+        .list-pagination-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: #fff;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border: 1px solid #e5e7eb;
+        }
+        .list-pagination-bar.hidden { display: none; }
+        .list-pagination-info { font-size: 0.875rem; color: #4b5563; }
+        .list-pagination-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+        .list-pagination-controls select {
+            font-size: 0.875rem;
+            padding: 0.35rem 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            background: #fff;
+        }
+        .list-pagination-btn {
+            font-size: 0.875rem;
+            font-weight: 600;
+            padding: 0.35rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+            background: #f9fafb;
+            color: #1f2937;
+            cursor: pointer;
+        }
+        .list-pagination-btn:hover:not(:disabled) { background: #e5e7eb; }
+        .list-pagination-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
         /* Task List — boutons tactiles mobile */
         .tasklist-shell {
             padding-left: max(1rem, env(safe-area-inset-left));
@@ -2438,6 +2474,109 @@ let allDailyPayments = [];
             };
         };
 
+        // Pagination listes historiques : 50 / 100 / Tout (rendu DOM uniquement)
+        const listPagination = {
+            purchases: { page: 1, size: 50 },
+            orders: { page: 1, size: 50 },
+            losses: { page: 1, size: 50 },
+            charges: { page: 1, size: 50 },
+            salaryPayments: { page: 1, size: 50 },
+            dailyPayments: { page: 1, size: 50 },
+            checklists: { page: 1, size: 50 },
+            inventories: { page: 1, size: 50 }
+        };
+        const listPaginationRerenders = {};
+
+        const getPaginatedSlice = (key, items) => {
+            if (!listPagination[key]) listPagination[key] = { page: 1, size: 50 };
+            const state = listPagination[key];
+            const total = items.length;
+            if (state.size === 'all') {
+                return {
+                    items,
+                    total,
+                    page: 1,
+                    size: 'all',
+                    totalPages: 1,
+                    from: total ? 1 : 0,
+                    to: total
+                };
+            }
+            const size = Number(state.size) || 50;
+            const totalPages = Math.max(1, Math.ceil(total / size) || 1);
+            if (state.page > totalPages) state.page = totalPages;
+            if (state.page < 1) state.page = 1;
+            const start = (state.page - 1) * size;
+            const pageItems = items.slice(start, start + size);
+            return {
+                items: pageItems,
+                total,
+                page: state.page,
+                size,
+                totalPages,
+                from: total ? start + 1 : 0,
+                to: Math.min(start + size, total)
+            };
+        };
+
+        const mountPaginationBar = (listElementId, key, meta, rerenderFn) => {
+            listPaginationRerenders[key] = rerenderFn;
+            const listEl = document.getElementById(listElementId);
+            if (!listEl) return;
+            let bar = document.getElementById(`${key}-pagination-bar`);
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = `${key}-pagination-bar`;
+                bar.className = 'list-pagination-bar';
+                listEl.insertAdjacentElement('afterend', bar);
+            }
+            if (!meta.total) {
+                bar.innerHTML = '';
+                bar.classList.add('hidden');
+                return;
+            }
+            bar.classList.remove('hidden');
+            const sizeVal = meta.size === 'all' ? 'all' : String(meta.size);
+            const canPrev = meta.size !== 'all' && meta.page > 1;
+            const canNext = meta.size !== 'all' && meta.page < meta.totalPages;
+            bar.innerHTML = `
+                <div class="list-pagination-info">
+                    ${meta.from}–${meta.to} sur ${meta.total}
+                    ${meta.size === 'all' ? '' : ` · page ${meta.page}/${meta.totalPages}`}
+                </div>
+                <div class="list-pagination-controls">
+                    <label class="text-sm text-gray-600">Afficher
+                        <select data-pagination-size="${key}" aria-label="Nombre d'éléments">
+                            <option value="50" ${sizeVal === '50' ? 'selected' : ''}>50</option>
+                            <option value="100" ${sizeVal === '100' ? 'selected' : ''}>100</option>
+                            <option value="all" ${sizeVal === 'all' ? 'selected' : ''}>Tout</option>
+                        </select>
+                    </label>
+                    <button type="button" class="list-pagination-btn" data-pagination-prev="${key}" ${canPrev ? '' : 'disabled'}>Préc.</button>
+                    <button type="button" class="list-pagination-btn" data-pagination-next="${key}" ${canNext ? '' : 'disabled'}>Suiv.</button>
+                </div>`;
+            bar.querySelector(`[data-pagination-size="${key}"]`)?.addEventListener('change', (e) => {
+                const value = e.target.value;
+                listPagination[key].size = value === 'all' ? 'all' : Number(value);
+                listPagination[key].page = 1;
+                listPaginationRerenders[key]?.();
+            });
+            bar.querySelector(`[data-pagination-prev="${key}"]`)?.addEventListener('click', () => {
+                if (!canPrev) return;
+                listPagination[key].page -= 1;
+                listPaginationRerenders[key]?.();
+            });
+            bar.querySelector(`[data-pagination-next="${key}"]`)?.addEventListener('click', () => {
+                if (!canNext) return;
+                listPagination[key].page += 1;
+                listPaginationRerenders[key]?.();
+            });
+        };
+
+        const resetListPaginationPage = (key) => {
+            if (listPagination[key]) listPagination[key].page = 1;
+        };
+
         const markDirty = (...keys) => {
             keys.forEach(key => { renderPending[key] = true; });
             scheduleAppRefresh();
@@ -3145,19 +3284,19 @@ let allDailyPayments = [];
             let submissions = [...allChecklistSubmissions];
             if (filterDate) {
                 submissions = submissions.filter(submission => submission.date === filterDate);
-            } else {
-                submissions = submissions.slice(0, 40);
             }
-            const historyKey = `${filterDate}|${submissions.map(s => s.id).join(',')}`;
+            const page = getPaginatedSlice('checklists', submissions);
+            const historyKey = `${filterDate}|${page.page}|${page.size}|${submissions.map(s => s.id).join(',')}`;
             if (!force && historyKey === tasklistHistoryDomKey) return;
             tasklistHistoryDomKey = historyKey;
 
-            if (submissions.length === 0) {
+            if (page.total === 0) {
                 container.innerHTML = '<p class="text-center text-gray-500 py-6 text-sm">Aucun check enregistré.</p>';
+                mountPaginationBar('tasklist-history-list', 'checklists', page, () => renderTasklistHistory(true));
                 return;
             }
 
-            container.innerHTML = submissions.map(submission => {
+            container.innerHTML = page.items.map(submission => {
                 const typeLabel = submission.type === 'opening' ? 'Ouverture' : 'Fermeture';
                 const badgeClass = submission.type === 'opening' ? 'task-badge-opening' : 'task-badge-closing';
                 const completedAt = submission.completedAt ? formatDateToDDMMYYYY(submission.completedAt) : '—';
@@ -3206,6 +3345,7 @@ let allDailyPayments = [];
                         </div>
                     </div>`;
             }).join('');
+            mountPaginationBar('tasklist-history-list', 'checklists', page, () => renderTasklistHistory(true));
         };
 
         const buildTaskItemHtml = (item, state, readOnly) => {
@@ -4013,14 +4153,15 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const { start, end } = inventaireHistoryFilter;
             if (start) submissions = submissions.filter(s => (s.date || '') >= start);
             if (end) submissions = submissions.filter(s => (s.date || '') <= end);
-            submissions = submissions.slice(0, 40);
+            const page = getPaginatedSlice('inventories', submissions);
 
-            if (submissions.length === 0) {
+            if (page.total === 0) {
                 container.innerHTML = '<p class="text-center text-gray-500 py-6 text-sm">Aucun inventaire enregistré.</p>';
+                mountPaginationBar('inventaire-history-list', 'inventories', page, renderInventaireHistory);
                 return;
             }
 
-            container.innerHTML = submissions.map(submission => {
+            container.innerHTML = page.items.map(submission => {
                 const dateDisplay = submission.date ? submission.date.split('-').reverse().join('/') : '—';
                 const submittedAt = submission.submittedAt ? formatDateToDDMMYYYY(submission.submittedAt) : '—';
                 const validatedAt = submission.validatedAt ? formatDateToDDMMYYYY(submission.validatedAt) : '—';
@@ -4050,6 +4191,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         </div>
                     </div>`;
             }).join('');
+            mountPaginationBar('inventaire-history-list', 'inventories', page, renderInventaireHistory);
         };
 
         const renderInventaire = () => {
@@ -4415,9 +4557,14 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
         }
         
         const productCost = calculateProductCost(product); card.innerHTML = `<div class="p-6"><div class="flex justify-between items-start"><div><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p></div><span class="text-gray-400 text-xl">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div><p class="text-gray-800 font-bold text-2xl text-right mt-4">${product.price.toFixed(2)} Mad</p></div><div class="bg-gray-50 px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
+let lastRenderedOrderHistory = [];
+let lastRenderedPurchaseOrders = [];
+let lastRenderedCharges = [];
+
 const renderOrderHistory = (history) => { 
             const container = document.getElementById('order-history-list'); 
             const placeholder = document.getElementById('order-history-placeholder'); 
+            lastRenderedOrderHistory = Array.isArray(history) ? history : [];
             
             // Réinitialiser le bouton de suppression massive à chaque affichage
             const selectAllCheckbox = document.getElementById('select-all-orders');
@@ -4426,11 +4573,13 @@ const renderOrderHistory = (history) => {
             if(deleteBtn) deleteBtn.classList.add('hidden');
 
             container.innerHTML = ''; 
+            const page = getPaginatedSlice('orders', lastRenderedOrderHistory);
             
-            if (history.length === 0) { 
-                container.appendChild(placeholder); 
+            if (page.total === 0) { 
+                container.appendChild(placeholder);
+                mountPaginationBar('order-history-list', 'orders', page, () => renderOrderHistory(lastRenderedOrderHistory));
             } else { 
-                history.forEach(order => { 
+                page.items.forEach(order => { 
                     const card = document.createElement('div'); 
                     card.className = 'bg-white p-4 rounded-xl shadow-md border-l-4 border-gray-800 transition-all hover:shadow-lg'; 
                     const displayDate = formatDateToDDMMYYYY(order.saleDate || order.createdAt); 
@@ -4473,7 +4622,8 @@ const renderOrderHistory = (history) => {
                     </div>`; 
                     
                     container.appendChild(card);
-                }); 
+                });
+                mountPaginationBar('order-history-list', 'orders', page, () => renderOrderHistory(lastRenderedOrderHistory));
             } 
         };
         const renderSuppliers = () => { const container = document.getElementById('suppliers-list'); const placeholder = document.getElementById('suppliers-placeholder'); container.innerHTML = ''; if (allSuppliers.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allSuppliers.forEach(sup => { const div = document.createElement('div'); div.className = "bg-white p-3 rounded-lg shadow-sm flex justify-between items-center"; div.innerHTML = `<div><p class="font-semibold">${sup.name}</p><p class="text-sm text-gray-500">${sup.contact || ''}</p></div><div><button data-id="${sup.id}" class="edit-supplier-btn text-gray-400 hover:text-gray-800 mr-2"><i class="fas fa-edit"></i></button><button data-id="${sup.id}" class="delete-supplier-btn text-gray-400 hover:text-red-600"><i class="fas fa-trash"></i></button></div>`; container.appendChild(div); }); } };
@@ -4504,18 +4654,22 @@ const renderOrderHistory = (history) => {
                 filtered = filtered.filter(po => po.paymentStatus !== 'paid');
             }
             
+            resetListPaginationPage('purchases');
             renderPurchaseOrders(filtered);
         };
         
         const renderPurchaseOrders = (purchaseOrders) => { 
             const container = document.getElementById('purchase-orders-list'); 
-            const placeholder = document.getElementById('purchase-orders-placeholder'); 
-            container.innerHTML = ''; 
-            if (purchaseOrders.length === 0) { 
+            const placeholder = document.getElementById('purchase-orders-placeholder');
+            lastRenderedPurchaseOrders = Array.isArray(purchaseOrders) ? purchaseOrders : [];
+            container.innerHTML = '';
+            const page = getPaginatedSlice('purchases', lastRenderedPurchaseOrders);
+            if (page.total === 0) { 
                 container.innerHTML = ''; 
-                container.appendChild(placeholder); 
+                container.appendChild(placeholder);
+                mountPaginationBar('purchase-orders-list', 'purchases', page, () => renderPurchaseOrders(lastRenderedPurchaseOrders));
             } else { 
-                purchaseOrders.forEach(po => { 
+                page.items.forEach(po => { 
                     const supplier = allSuppliers.find(s => s.id === po.supplierId); 
                     const div = document.createElement('div'); 
                     const isReceived = po.status === 'received'; 
@@ -4566,19 +4720,42 @@ const renderOrderHistory = (history) => {
                         </div>
                     </div>${actionsHtml}`; 
                     container.appendChild(div); 
-                }); 
+                });
+                mountPaginationBar('purchase-orders-list', 'purchases', page, () => renderPurchaseOrders(lastRenderedPurchaseOrders));
             } 
         };
-        const renderLossHistory = () => { const container = document.getElementById('loss-history-list'); const placeholder = document.getElementById('loss-history-placeholder'); container.innerHTML = ''; if (allLosses.length === 0) { container.innerHTML = ''; container.appendChild(placeholder); } else { allLosses.forEach(loss => { const card = document.createElement('div'); card.className = 'bg-yellow-50 p-4 rounded-xl shadow-md border-l-4 border-yellow-400'; const date = loss.createdAt ? new Date(loss.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue'; const reasonHtml = loss.reason ? `<p class="text-sm text-gray-500 italic mt-1">"${loss.reason}"</p>` : ''; card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-yellow-800">Perte du ${date}</p><p class="text-gray-700 mt-2"><span class="font-semibold">${loss.quantity} ${loss.unit || ''}</span> de <span class="font-semibold">${loss.itemName}</span></p>${reasonHtml}</div><div class="flex items-center gap-4 text-right"><button data-id="${loss.id}" class="delete-loss-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`; container.appendChild(card); }); } };
+        const renderLossHistory = () => {
+            const container = document.getElementById('loss-history-list');
+            const placeholder = document.getElementById('loss-history-placeholder');
+            container.innerHTML = '';
+            const page = getPaginatedSlice('losses', allLosses);
+            if (page.total === 0) {
+                container.appendChild(placeholder);
+                mountPaginationBar('loss-history-list', 'losses', page, renderLossHistory);
+            } else {
+                page.items.forEach(loss => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-yellow-50 p-4 rounded-xl shadow-md border-l-4 border-yellow-400';
+                    const date = loss.createdAt ? new Date(loss.createdAt.seconds * 1000).toLocaleString('fr-FR') : 'Date inconnue';
+                    const reasonHtml = loss.reason ? `<p class="text-sm text-gray-500 italic mt-1">"${loss.reason}"</p>` : '';
+                    card.innerHTML = `<div class="flex justify-between items-start"><div><p class="font-bold text-yellow-800">Perte du ${date}</p><p class="text-gray-700 mt-2"><span class="font-semibold">${loss.quantity} ${loss.unit || ''}</span> de <span class="font-semibold">${loss.itemName}</span></p>${reasonHtml}</div><div class="flex items-center gap-4 text-right"><button data-id="${loss.id}" class="delete-loss-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-trash-alt"></i></button></div></div>`;
+                    container.appendChild(card);
+                });
+                mountPaginationBar('loss-history-list', 'losses', page, renderLossHistory);
+            }
+        };
         const renderCharges = (charges) => {
     const container = document.getElementById('charges-list');
     const placeholder = document.getElementById('charges-placeholder');
+    lastRenderedCharges = Array.isArray(charges) ? charges : [];
     container.innerHTML = '';
+    const page = getPaginatedSlice('charges', lastRenderedCharges);
 
-    if (charges.length === 0) {
+    if (page.total === 0) {
         container.appendChild(placeholder);
+        mountPaginationBar('charges-list', 'charges', page, () => renderCharges(lastRenderedCharges));
     } else {
-        charges.forEach(charge => {
+        page.items.forEach(charge => {
             const card = document.createElement('div');
             card.className = 'bg-white p-3 rounded-lg shadow-sm flex justify-between items-center gap-3';
 
@@ -4605,6 +4782,7 @@ const renderOrderHistory = (history) => {
             `;
             container.appendChild(card);
         });
+        mountPaginationBar('charges-list', 'charges', page, () => renderCharges(lastRenderedCharges));
     }
 };
 // ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
@@ -4995,6 +5173,7 @@ document.getElementById('current-order-list').addEventListener('click', e => { c
 
         const handleDateFilter = () => {
             const filterValue = document.getElementById('history-date-filter').value;
+            resetListPaginationPage('orders');
             if (!filterValue) {
                 renderOrderHistory(orderHistory);
                 return;
@@ -5013,6 +5192,7 @@ document.getElementById('current-order-list').addEventListener('click', e => { c
                 
                 return orderDate.getTime() === filterTime;
             });
+            resetListPaginationPage('orders');
             renderOrderHistory(filtered);
         };
 
@@ -5190,11 +5370,13 @@ const renderSalaryPaymentsHistory = () => {
     const container = document.getElementById('salary-payments-history');
     const placeholder = document.getElementById('salary-payments-placeholder');
     container.innerHTML = '';
+    const page = getPaginatedSlice('salaryPayments', allSalaryPayments);
 
-    if (allSalaryPayments.length === 0) {
+    if (page.total === 0) {
         container.appendChild(placeholder);
+        mountPaginationBar('salary-payments-history', 'salaryPayments', page, renderSalaryPaymentsHistory);
     } else {
-        allSalaryPayments.forEach(payment => {
+        page.items.forEach(payment => {
             const card = document.createElement('div');
             card.className = 'bg-white p-4 rounded-lg shadow-sm';
             
@@ -5227,6 +5409,7 @@ const renderSalaryPaymentsHistory = () => {
             `;
             container.appendChild(card);
         });
+        mountPaginationBar('salary-payments-history', 'salaryPayments', page, renderSalaryPaymentsHistory);
     }
 };
 // ======================
@@ -5352,11 +5535,13 @@ const renderDailyPayments = () => {
     const container = document.getElementById('daily-payments-list');
     const placeholder = document.getElementById('daily-payments-placeholder');
     container.innerHTML = '';
+    const page = getPaginatedSlice('dailyPayments', allDailyPayments);
     
-    if (allDailyPayments.length === 0) {
+    if (page.total === 0) {
         container.appendChild(placeholder);
+        mountPaginationBar('daily-payments-list', 'dailyPayments', page, renderDailyPayments);
     } else {
-        allDailyPayments.forEach(payment => {
+        page.items.forEach(payment => {
             const card = document.createElement('div');
             card.className = 'bg-white p-4 rounded-lg shadow-sm';
             
@@ -5424,6 +5609,7 @@ const renderDailyPayments = () => {
             `;
             container.appendChild(card);
         });
+        mountPaginationBar('daily-payments-list', 'dailyPayments', page, renderDailyPayments);
     }
 };
 
@@ -5474,6 +5660,7 @@ document.getElementById('inventaire-history-filter')?.addEventListener('click', 
         start: document.getElementById('inventaire-history-start')?.value || '',
         end: document.getElementById('inventaire-history-end')?.value || ''
     };
+    resetListPaginationPage('inventories');
     renderInventaireHistory();
 });
 document.getElementById('inventaire-history-export')?.addEventListener('click', exportInventoryHistoryExcel);
@@ -5493,11 +5680,13 @@ document.getElementById('ingredients-list')?.addEventListener('click', (e) => {
 
 document.getElementById('tasklist-history-date').addEventListener('change', () => {
     tasklistHistoryDomKey = '';
+    resetListPaginationPage('checklists');
     renderTasklistHistory(true);
 });
 document.getElementById('tasklist-history-clear').addEventListener('click', () => {
     document.getElementById('tasklist-history-date').value = '';
     tasklistHistoryDomKey = '';
+    resetListPaginationPage('checklists');
     renderTasklistHistory(true);
 });
 document.getElementById('tasklist-history-list').addEventListener('click', (e) => {
