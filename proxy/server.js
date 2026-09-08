@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const LaCaissePOSProvider = require('./providers/lacaisseProvider');
+const { getGoogleReviewsSummary } = require('./services/googleReviews');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,6 +10,8 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'https://solo-pro.onrender.com'
 const POS_PROVIDER = (process.env.POS_PROVIDER || 'lacaisse').toLowerCase();
 
 const lacaisseProvider = new LaCaissePOSProvider();
+let googleReviewsCache = null;
+const GOOGLE_REVIEWS_CACHE_TTL_MS = 30 * 60 * 1000;
 
 if (!lacaisseProvider.isConfigured()) {
     console.warn('ATTENTION: LACAISSE_LOGIN/LACAISSE_PASSWORD ou LACAISSE_SAMPLE_FILE requis pour l\'import des ventes.');
@@ -25,8 +28,9 @@ app.get('/health', (req, res) => {
         ok: true,
         provider: POS_PROVIDER,
         lacaisseConfigured: lacaisseProvider.isConfigured(),
-        routes: ['/api/login', '/api/sales', '/api/journal'],
-        version: 'journal-v1'
+        googlePlacesConfigured: Boolean(process.env.GOOGLE_PLACES_API_KEY),
+        routes: ['/api/login', '/api/sales', '/api/journal', '/api/google-reviews'],
+        version: 'google-reviews-v1'
     });
 });
 
@@ -98,6 +102,30 @@ app.get('/api/journal', async (req, res) => {
         console.error('Error in /api/journal (LaCaisse):', error);
         res.status(500).json({
             message: `Erreur journal LaCaisse: ${error.message}`
+        });
+    }
+});
+
+// Avis Google (note globale + total + avis récents).
+app.get('/api/google-reviews', async (req, res) => {
+    console.log('Proxy received google-reviews request');
+    try {
+        if (
+            googleReviewsCache &&
+            Date.now() - googleReviewsCache.cachedAt < GOOGLE_REVIEWS_CACHE_TTL_MS
+        ) {
+            return res.json({ code: 200, data: googleReviewsCache.data, cached: true });
+        }
+
+        const data = await getGoogleReviewsSummary();
+        googleReviewsCache = { cachedAt: Date.now(), data };
+        res.json({ code: 200, data, cached: false });
+    } catch (error) {
+        console.error('Error in /api/google-reviews:', error);
+        const status = error.code === 'MISSING_API_KEY' ? 503 : 500;
+        res.status(status).json({
+            message: error.message,
+            code: error.code || 'GOOGLE_REVIEWS_ERROR'
         });
     }
 });

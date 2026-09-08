@@ -787,6 +787,15 @@
                         <p id="kpi-sales-livraison" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
                         <p id="kpi-sales-livraison-rate" class="text-lg font-semibold text-gray-500 mt-1">0 %</p>
                     </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center" title="Avis Google Solo Pizzeria Napoletana">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Avis Google</h3>
+                        <p id="kpi-google-rating" class="text-3xl font-bold text-gray-900 mt-1">—</p>
+                        <div id="kpi-google-stars" class="text-amber-400 text-base mt-0.5 tracking-tight" aria-hidden="true">☆☆☆☆☆</div>
+                        <p id="kpi-google-new-reviews" class="text-sm font-semibold text-gray-800 mt-2">Nouveaux : —</p>
+                        <p id="kpi-google-new-stars" class="text-xs text-gray-500">Étoiles nouveaux : —</p>
+                        <p id="kpi-google-total-reviews" class="text-xs text-gray-400 mt-1">Total : —</p>
+                        <a id="kpi-google-link" href="https://share.google/GX15aEMbOqaVjxGMs" target="_blank" rel="noopener noreferrer" class="inline-block text-xs text-blue-600 hover:underline mt-1">Voir sur Google</a>
+                    </div>
 
                     <h3 class="col-span-full text-xs font-semibold text-gray-400 uppercase tracking-widest mt-2">Rentabilité</h3>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
@@ -899,12 +908,6 @@
         </div>
     </div>
 </div>
-                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Alertes de Stock</h2>
-                <div id="low-stock-alerts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <div id="low-stock-placeholder" class="text-center col-span-full py-10 text-gray-500">
-                        <i class="fas fa-check-circle fa-2x text-green-500 mb-2"></i><p>Aucune alerte de stock bas pour le moment.</p>
-                    </div>
-                </div>
             </div>
 
             <!-- Ingrédients -->
@@ -1956,7 +1959,8 @@
         // --- COLLECTIONS REFS ---
         let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol, chargesCol;
 		let employeesCol, absencesCol, salaryPaymentsCol;
-		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol;
+		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol, googleReviewsRef;
+        let googleReviewsState = { rating: null, reviewCount: null, snapshots: [], recentReviews: [], url: 'https://share.google/GX15aEMbOqaVjxGMs', status: 'idle' };
         // --- ETAT GLOBAL ---
         let allIngredients = [];
         let allProducts = [];
@@ -2119,6 +2123,7 @@ let allDailyPayments = [];
             usersCol = collection(db, `artifacts/${appId}/public/data/users`);
             checklistSubmissionsCol = collection(db, `artifacts/${appId}/public/data/checklistSubmissions`);
             checklistConfigRef = doc(db, `artifacts/${appId}/public/data/settings/checklistConfig`);
+            googleReviewsRef = doc(db, `artifacts/${appId}/public/data/settings/googleReviews`);
             inventorySubmissionsCol = collection(db, `artifacts/${appId}/public/data/inventorySubmissions`);
             collectionsInitialized = true;
         };
@@ -2152,6 +2157,7 @@ let allDailyPayments = [];
             const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
             document.getElementById('export-start-date').value = `${firstDayOfMonth.getFullYear()}-${String(firstDayOfMonth.getMonth() + 1).padStart(2, '0')}-${String(firstDayOfMonth.getDate()).padStart(2, '0')}`;
             document.getElementById('export-end-date').value = `${lastDayOfMonth.getFullYear()}-${String(lastDayOfMonth.getMonth() + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`;
+            refreshGoogleReviews();
         };
 
         const createUserAccount = async (username, password, role, usePrimaryAuth = false) => {
@@ -2467,6 +2473,16 @@ let allDailyPayments = [];
                 const itemsContainer = document.getElementById('tasklist-items');
                 if (itemsContainer) itemsContainer.dataset.domKey = '';
                 scheduleTasklistDataSync();
+            });
+            onSnapshot(googleReviewsRef, snapshot => {
+                if (!snapshot.exists()) return;
+                const data = snapshot.data() || {};
+                googleReviewsState.snapshots = Array.isArray(data.snapshots) ? data.snapshots : [];
+                if (data.rating != null) googleReviewsState.rating = data.rating;
+                if (data.reviewCount != null) googleReviewsState.reviewCount = data.reviewCount;
+                if (data.url) googleReviewsState.url = data.url;
+                if (Array.isArray(data.recentReviews)) googleReviewsState.recentReviews = data.recentReviews;
+                renderGoogleReviewsKpi();
             });
         }
 
@@ -3726,6 +3742,154 @@ let allDailyPayments = [];
             };
         };
 
+        const getTodayDateKey = () => {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        };
+
+        const formatGoogleStarGlyphs = (rating) => {
+            if (rating == null || Number.isNaN(Number(rating))) return '☆☆☆☆☆';
+            const filled = Math.max(0, Math.min(5, Math.round(Number(rating))));
+            return `${'★'.repeat(filled)}${'☆'.repeat(5 - filled)}`;
+        };
+
+        const getKpiPeriodAgeDays = () => {
+            const { startDate, endDate } = kpiFilterState;
+            if (!startDate) return null;
+            const start = new Date(`${startDate}T00:00:00`);
+            const end = endDate ? new Date(`${endDate}T23:59:59`) : new Date();
+            if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+            return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+        };
+
+        const computeNewGoogleReviewsCount = (currentCount, snapshots, startDate) => {
+            if (currentCount == null) return null;
+            const sorted = (snapshots || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+            if (sorted.length === 0) return null;
+            let baseline = null;
+            if (!startDate) {
+                baseline = sorted[0];
+            } else {
+                for (const snap of sorted) {
+                    if (String(snap.date) <= String(startDate)) baseline = snap;
+                    else break;
+                }
+            }
+            if (!baseline || baseline.reviewCount == null) return null;
+            return Math.max(0, currentCount - Number(baseline.reviewCount));
+        };
+
+        const computeNewGoogleReviewsStars = (recentReviews, periodDays) => {
+            const reviews = Array.isArray(recentReviews) ? recentReviews : [];
+            const inPeriod = periodDays == null
+                ? reviews
+                : reviews.filter((r) => r.ageDays != null && Number(r.ageDays) <= periodDays);
+            if (inPeriod.length === 0) return null;
+            const avg = inPeriod.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / inPeriod.length;
+            return { avg, count: inPeriod.length };
+        };
+
+        const renderGoogleReviewsKpi = () => {
+            const ratingEl = document.getElementById('kpi-google-rating');
+            const starsEl = document.getElementById('kpi-google-stars');
+            const newEl = document.getElementById('kpi-google-new-reviews');
+            const newStarsEl = document.getElementById('kpi-google-new-stars');
+            const totalEl = document.getElementById('kpi-google-total-reviews');
+            const linkEl = document.getElementById('kpi-google-link');
+            if (!ratingEl || !starsEl || !newEl || !newStarsEl || !totalEl) return;
+
+            const { rating, reviewCount, snapshots, recentReviews, url, status, errorMessage } = googleReviewsState;
+            if (url && linkEl) linkEl.href = url;
+
+            if (status === 'error' && rating == null) {
+                ratingEl.textContent = '—';
+                starsEl.textContent = '☆☆☆☆☆';
+                newEl.textContent = 'Nouveaux : —';
+                newStarsEl.textContent = errorMessage ? String(errorMessage).slice(0, 80) : 'Clé Google manquante';
+                totalEl.textContent = 'Total : —';
+                return;
+            }
+
+            ratingEl.textContent = rating != null ? Number(rating).toFixed(1) : '—';
+            starsEl.textContent = formatGoogleStarGlyphs(rating);
+            totalEl.textContent = reviewCount != null ? `Total : ${reviewCount} avis` : 'Total : —';
+
+            const newCount = computeNewGoogleReviewsCount(reviewCount, snapshots, kpiFilterState.startDate);
+            newEl.textContent = newCount != null ? `Nouveaux : ${newCount}` : 'Nouveaux : —';
+
+            const periodDays = getKpiPeriodAgeDays();
+            const newStars = computeNewGoogleReviewsStars(recentReviews, periodDays);
+            if (newStars) {
+                newStarsEl.textContent = `Étoiles nouveaux : ${newStars.avg.toFixed(1)} ${formatGoogleStarGlyphs(newStars.avg)} (${newStars.count})`;
+            } else if (newCount === 0) {
+                newStarsEl.textContent = 'Étoiles nouveaux : aucun avis';
+            } else {
+                newStarsEl.textContent = 'Étoiles nouveaux : —';
+            }
+        };
+
+        const persistGoogleReviewsSnapshot = async (summary) => {
+            if (!googleReviewsRef || !summary) return;
+            const today = getTodayDateKey();
+            let existing = [];
+            try {
+                const snap = await getDoc(googleReviewsRef);
+                if (snap.exists()) existing = Array.isArray(snap.data().snapshots) ? snap.data().snapshots : [];
+            } catch (_) { /* ignore */ }
+
+            const withoutToday = existing.filter((s) => s && s.date !== today);
+            const nextSnapshots = [
+                ...withoutToday,
+                { date: today, reviewCount: summary.reviewCount ?? null, rating: summary.rating ?? null }
+            ]
+                .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+                .slice(-120);
+
+            googleReviewsState = {
+                ...googleReviewsState,
+                rating: summary.rating ?? null,
+                reviewCount: summary.reviewCount ?? null,
+                recentReviews: Array.isArray(summary.recentReviews) ? summary.recentReviews : [],
+                url: summary.url || googleReviewsState.url,
+                snapshots: nextSnapshots,
+                status: 'ok',
+                errorMessage: null
+            };
+
+            await setDoc(googleReviewsRef, {
+                rating: summary.rating ?? null,
+                reviewCount: summary.reviewCount ?? null,
+                placeId: summary.placeId || null,
+                name: summary.name || null,
+                url: summary.url || googleReviewsState.url,
+                recentReviews: googleReviewsState.recentReviews,
+                snapshots: nextSnapshots,
+                fetchedAt: summary.fetchedAt || new Date().toISOString(),
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+        };
+
+        const refreshGoogleReviews = async () => {
+            if (!PROXY_URL) return;
+            googleReviewsState.status = 'loading';
+            renderGoogleReviewsKpi();
+            try {
+                const response = await fetch(`${PROXY_URL}/api/google-reviews`);
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload.message || `HTTP ${response.status}`);
+                }
+                const summary = payload.data || payload;
+                await persistGoogleReviewsSnapshot(summary);
+                renderGoogleReviewsKpi();
+            } catch (error) {
+                console.error('Google reviews refresh failed:', error);
+                googleReviewsState.status = 'error';
+                googleReviewsState.errorMessage = error.message || 'Erreur avis Google';
+                renderGoogleReviewsKpi();
+            }
+        };
+
         const getTopFromBucket = (bucket, limit) => Object.values(bucket)
             .sort((a, b) => b.count - a.count)
             .slice(0, limit);
@@ -3890,6 +4054,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             document.getElementById('kpi-sales-emporter-rate').textContent = pctOfSales(salesEmporter);
             document.getElementById('kpi-sales-livraison').textContent = `${salesLivraison.toFixed(2)} Mad`;
             document.getElementById('kpi-sales-livraison-rate').textContent = pctOfSales(salesLivraison);
+            renderGoogleReviewsKpi();
             document.getElementById('kpi-avg-order-value').textContent = `${avgOrderValue.toFixed(2)} Mad`;
             document.getElementById('kpi-gross-margin').textContent = `${grossMargin.toFixed(2)} Mad`;
             document.getElementById('kpi-gross-margin-rate').textContent = `${grossMarginRate.toFixed(1)} %`;
@@ -3913,22 +4078,6 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             renderTopProducts(topDrinks, 'top-drinks-list', 'Aucune boisson vendue dans cette période');
             renderTopProducts(topPanuozzo, 'top-panuozzo-list', 'Aucun panuozzo vendu dans cette période');
             renderTopProducts(topDesserts, 'top-desserts-list', 'Aucun dessert vendu dans cette période');
-            // --- Low Stock Alerts (unfiltered) ---
-            const container = document.getElementById('low-stock-alerts');
-            const placeholder = document.getElementById('low-stock-placeholder');
-            container.innerHTML = '';
-            const lowStockItems = allIngredients.filter(ing => ing.quantity < LOW_STOCK_THRESHOLD);
-            if (lowStockItems.length === 0) {
-                container.innerHTML = '';
-                container.appendChild(placeholder);
-            } else {
-                lowStockItems.forEach(item => {
-                    const alertDiv = document.createElement('div');
-                    alertDiv.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow';
-                    alertDiv.innerHTML = `<p class="font-bold">${item.name}</p><p>Stock restant: ${item.quantity} ${item.unit}</p>`;
-                    container.appendChild(alertDiv);
-                });
-            }
 
             renderOperatingChargesBreakdown(filteredCharges, totalSales, filterLabel);
         };

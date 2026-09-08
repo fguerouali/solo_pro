@@ -25,6 +25,12 @@ services:
         value: "4418"
       - key: LACAISSE_JOURNAL_ID
         value: "3"
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+      - key: GOOGLE_PLACE_ID
+        sync: false
+      - key: GOOGLE_PLACE_QUERY
+        value: "Solo Pizzeria Napoletana Casablanca"
       - key: FRONTEND_URL
         fromService:
           type: static
