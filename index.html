@@ -1151,7 +1151,7 @@
                                 <option value="Assurances">Assurances</option>
                                 <option value="Comptable">Comptable</option>
                                 <option value="Marketing">Marketing</option>
-                                <option value="CNSS/(RAS/LOYER)/IGR">CNSS/(RAS/LOYER)/IGR</option>
+                                <option value="CNSS/IMPOT/TAXES">CNSS/IMPOT/TAXES</option>
                                 <option value="Autre charge">Autre charge</option>
                             </select>
                         </div>
@@ -1670,7 +1670,7 @@
                         <option value="Assurances">Assurances</option>
                         <option value="Comptable">Comptable</option>
                         <option value="Marketing">Marketing</option>
-                        <option value="CNSS/(RAS/LOYER)/IGR">CNSS/(RAS/LOYER)/IGR</option>
+                        <option value="CNSS/IMPOT/TAXES">CNSS/IMPOT/TAXES</option>
                         <option value="Salaires">Salaires</option>
                         <option value="Autre charge">Autre charge</option>
                     </select>
@@ -3623,10 +3623,16 @@ let allDailyPayments = [];
             'Assurances',
             'Comptable',
             'Marketing',
+            'CNSS/IMPOT/TAXES',
             'CNSS/(RAS/LOYER)/IGR',
             'Autre charge',
             'Salaires'
         ];
+
+        const normalizeChargeCategory = (category) => {
+            if (category === 'CNSS/(RAS/LOYER)/IGR') return 'CNSS/IMPOT/TAXES';
+            return category;
+        };
 
         const isStructuredCharge = (charge) => {
             if (charge.type === 'salary') return true;
@@ -3645,14 +3651,14 @@ let allDailyPayments = [];
 
         const getChargeDisplayCategory = (charge) => {
             if (charge.type === 'salary') return 'Salaires';
-            if (charge.category) return charge.category;
+            if (charge.category) return normalizeChargeCategory(charge.category);
             return 'Autre charge';
         };
 
         const getChargeCategoryLabel = (charge) => {
             if (charge.type === 'salary') return 'Salaires';
             if (charge.category === 'Autre charge' || !charge.category) return charge.name || 'Autre charge';
-            if (charge.category) return charge.category;
+            if (charge.category) return normalizeChargeCategory(charge.category);
             return charge.name || 'Autre charge';
         };
 
@@ -6441,7 +6447,7 @@ const syncChargeTagCustomName = (chargeType) => {
 const resolveChargeTagDefaults = (charge) => {
     if (charge.category && STRUCTURED_CHARGE_CATEGORIES.includes(charge.category)) {
         return {
-            category: charge.category,
+            category: normalizeChargeCategory(charge.category),
             customName: charge.category === 'Autre charge' ? (charge.name || '') : ''
         };
     }
