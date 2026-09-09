@@ -791,7 +791,7 @@
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Avis Google</h3>
                         <p id="kpi-google-rating" class="text-3xl font-bold text-gray-900 mt-1">—</p>
                         <div id="kpi-google-stars" class="text-amber-400 text-base mt-0.5 tracking-tight" aria-hidden="true">☆☆☆☆☆</div>
-                        <p id="kpi-google-new-reviews" class="text-sm font-semibold text-gray-800 mt-2">Nouveaux : —</p>
+                        <p id="kpi-google-new-reviews" class="text-sm font-semibold text-gray-800 mt-2">Nouveaux (période) : —</p>
                         <p id="kpi-google-new-stars" class="text-xs text-gray-500">Étoiles nouveaux : —</p>
                         <p id="kpi-google-total-reviews" class="text-xs text-gray-400 mt-1">Total : —</p>
                         <a id="kpi-google-link" href="https://share.google/GX15aEMbOqaVjxGMs" target="_blank" rel="noopener noreferrer" class="inline-block text-xs text-blue-600 hover:underline mt-1">Voir sur Google</a>
@@ -3768,28 +3768,114 @@ let allDailyPayments = [];
             return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / 86400000));
         };
 
-        const computeNewGoogleReviewsCount = (currentCount, snapshots, startDate) => {
-            if (currentCount == null) return null;
-            const sorted = (snapshots || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
-            if (sorted.length === 0) return null;
-            let baseline = null;
-            if (!startDate) {
-                baseline = sorted[0];
-            } else {
-                for (const snap of sorted) {
-                    if (String(snap.date) <= String(startDate)) baseline = snap;
-                    else break;
-                }
-            }
-            if (!baseline || baseline.reviewCount == null) return null;
-            return Math.max(0, currentCount - Number(baseline.reviewCount));
+        const getSnapshotOpenCount = (snap) => {
+            if (!snap) return null;
+            if (snap.openReviewCount != null) return Number(snap.openReviewCount);
+            if (snap.reviewCount != null) return Number(snap.reviewCount);
+            return null;
         };
 
-        const computeNewGoogleReviewsStars = (recentReviews, periodDays) => {
+        const getSnapshotCloseCount = (snap) => {
+            if (!snap || snap.reviewCount == null) return null;
+            return Number(snap.reviewCount);
+        };
+
+        const countRecentReviewsInPeriod = (recentReviews, startDate, endDate) => {
             const reviews = Array.isArray(recentReviews) ? recentReviews : [];
-            const inPeriod = periodDays == null
-                ? reviews
-                : reviews.filter((r) => r.ageDays != null && Number(r.ageDays) <= periodDays);
+            if (reviews.length === 0) return null;
+            const startTs = startDate ? Math.floor(new Date(`${startDate}T00:00:00`).getTime() / 1000) : null;
+            const endTs = endDate
+                ? Math.floor(new Date(`${endDate}T23:59:59`).getTime() / 1000)
+                : Math.floor(Date.now() / 1000);
+            if (startTs != null && Number.isNaN(startTs)) return null;
+            if (Number.isNaN(endTs)) return null;
+
+            const dated = reviews.filter((r) => r.time != null);
+            if (dated.length === 0) {
+                const periodDays = getKpiPeriodAgeDays();
+                if (periodDays == null) return null;
+                return reviews.filter((r) => r.ageDays != null && Number(r.ageDays) <= periodDays).length;
+            }
+            const matched = dated.filter((r) => {
+                const t = Number(r.time);
+                if (startTs != null && t < startTs) return false;
+                if (t > endTs) return false;
+                return true;
+            });
+            return matched.length;
+        };
+
+        const computeNewGoogleReviewsCount = (currentCount, snapshots, startDate, endDate, recentReviews) => {
+            const sorted = (snapshots || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+            const today = getTodayDateKey();
+            const periodEnd = endDate || today;
+
+            // Un jour calendaire passé : delta open→close de ce jour
+            if (startDate && periodEnd === startDate && startDate < today) {
+                const daySnap = sorted.find((s) => String(s.date) === String(startDate));
+                const open = getSnapshotOpenCount(daySnap);
+                const close = getSnapshotCloseCount(daySnap);
+                if (open != null && close != null) return Math.max(0, close - open);
+                return countRecentReviewsInPeriod(recentReviews, startDate, periodEnd);
+            }
+
+            // Période jusqu'à aujourd'hui (ou en cours) : total actuel − baseline au début
+            if (currentCount != null && sorted.length > 0) {
+                let baseline = null;
+                if (!startDate) {
+                    baseline = getSnapshotOpenCount(sorted[0]);
+                } else {
+                    const onStart = sorted.find((s) => String(s.date) === String(startDate));
+                    if (onStart) {
+                        baseline = getSnapshotOpenCount(onStart);
+                    } else {
+                        let before = null;
+                        for (const snap of sorted) {
+                            if (String(snap.date) < String(startDate)) before = snap;
+                            else break;
+                        }
+                        baseline = getSnapshotCloseCount(before);
+                    }
+                }
+                if (baseline != null) {
+                    const delta = Math.max(0, Number(currentCount) - Number(baseline));
+                    // Si pas encore d'historique utile (1er snapshot du jour = total),
+                    // basculer sur les avis récents datés de la période.
+                    if (delta > 0 || !startDate) return delta;
+                }
+            }
+
+            const fromRecent = countRecentReviewsInPeriod(recentReviews, startDate, periodEnd);
+            if (fromRecent != null) return fromRecent;
+            if (currentCount != null && sorted.length > 0) {
+                // Premier jour de tracking : 0 nouveau depuis l'open du jour
+                if (startDate === today || (!startDate && sorted.length === 1 && sorted[0].date === today)) {
+                    const open = getSnapshotOpenCount(sorted.find((s) => s.date === today) || sorted[0]);
+                    if (open != null) return Math.max(0, Number(currentCount) - open);
+                }
+            }
+            return null;
+        };
+
+        const computeNewGoogleReviewsStars = (recentReviews, startDate, endDate) => {
+            const reviews = Array.isArray(recentReviews) ? recentReviews : [];
+            if (reviews.length === 0) return null;
+            const startTs = startDate ? Math.floor(new Date(`${startDate}T00:00:00`).getTime() / 1000) : null;
+            const endTs = endDate
+                ? Math.floor(new Date(`${endDate}T23:59:59`).getTime() / 1000)
+                : Math.floor(Date.now() / 1000);
+            const periodDays = getKpiPeriodAgeDays();
+
+            const inPeriod = reviews.filter((r) => {
+                if (r.time != null) {
+                    const t = Number(r.time);
+                    if (startTs != null && t < startTs) return false;
+                    if (t > endTs) return false;
+                    return true;
+                }
+                if (periodDays == null) return true;
+                return r.ageDays != null && Number(r.ageDays) <= periodDays;
+            });
             if (inPeriod.length === 0) return null;
             const avg = inPeriod.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / inPeriod.length;
             return { avg, count: inPeriod.length };
@@ -3810,7 +3896,7 @@ let allDailyPayments = [];
             if (status === 'error' && rating == null) {
                 ratingEl.textContent = '—';
                 starsEl.textContent = '☆☆☆☆☆';
-                newEl.textContent = 'Nouveaux : —';
+                newEl.textContent = 'Nouveaux (période) : —';
                 newStarsEl.textContent = errorMessage ? String(errorMessage).slice(0, 80) : 'Clé Google manquante';
                 totalEl.textContent = 'Total : —';
                 return;
@@ -3820,11 +3906,17 @@ let allDailyPayments = [];
             starsEl.textContent = formatGoogleStarGlyphs(rating);
             totalEl.textContent = reviewCount != null ? `Total : ${reviewCount} avis` : 'Total : —';
 
-            const newCount = computeNewGoogleReviewsCount(reviewCount, snapshots, kpiFilterState.startDate);
-            newEl.textContent = newCount != null ? `Nouveaux : ${newCount}` : 'Nouveaux : —';
+            const { startDate, endDate } = kpiFilterState;
+            const newCount = computeNewGoogleReviewsCount(
+                reviewCount,
+                snapshots,
+                startDate,
+                endDate,
+                recentReviews
+            );
+            newEl.textContent = newCount != null ? `Nouveaux (période) : ${newCount}` : 'Nouveaux (période) : —';
 
-            const periodDays = getKpiPeriodAgeDays();
-            const newStars = computeNewGoogleReviewsStars(recentReviews, periodDays);
+            const newStars = computeNewGoogleReviewsStars(recentReviews, startDate, endDate || getTodayDateKey());
             if (newStars) {
                 newStarsEl.textContent = `Étoiles nouveaux : ${newStars.avg.toFixed(1)} ${formatGoogleStarGlyphs(newStars.avg)} (${newStars.count})`;
             } else if (newCount === 0) {
@@ -3843,10 +3935,22 @@ let allDailyPayments = [];
                 if (snap.exists()) existing = Array.isArray(snap.data().snapshots) ? snap.data().snapshots : [];
             } catch (_) { /* ignore */ }
 
+            const todayExisting = existing.find((s) => s && s.date === today);
+            const openReviewCount = todayExisting?.openReviewCount != null
+                ? Number(todayExisting.openReviewCount)
+                : (todayExisting?.reviewCount != null
+                    ? Number(todayExisting.reviewCount)
+                    : (summary.reviewCount ?? null));
+
             const withoutToday = existing.filter((s) => s && s.date !== today);
             const nextSnapshots = [
                 ...withoutToday,
-                { date: today, reviewCount: summary.reviewCount ?? null, rating: summary.rating ?? null }
+                {
+                    date: today,
+                    openReviewCount,
+                    reviewCount: summary.reviewCount ?? null,
+                    rating: summary.rating ?? null
+                }
             ]
                 .sort((a, b) => String(a.date).localeCompare(String(b.date)))
                 .slice(-120);
@@ -3862,17 +3966,21 @@ let allDailyPayments = [];
                 errorMessage: null
             };
 
-            await setDoc(googleReviewsRef, {
-                rating: summary.rating ?? null,
-                reviewCount: summary.reviewCount ?? null,
-                placeId: summary.placeId || null,
-                name: summary.name || null,
-                url: summary.url || googleReviewsState.url,
-                recentReviews: googleReviewsState.recentReviews,
-                snapshots: nextSnapshots,
-                fetchedAt: summary.fetchedAt || new Date().toISOString(),
-                updatedAt: serverTimestamp()
-            }, { merge: true });
+            try {
+                await setDoc(googleReviewsRef, {
+                    rating: summary.rating ?? null,
+                    reviewCount: summary.reviewCount ?? null,
+                    placeId: summary.placeId || null,
+                    name: summary.name || null,
+                    url: summary.url || googleReviewsState.url,
+                    recentReviews: googleReviewsState.recentReviews,
+                    snapshots: nextSnapshots,
+                    fetchedAt: summary.fetchedAt || new Date().toISOString(),
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+            } catch (error) {
+                console.error('Impossible de sauver le snapshot avis Google:', error);
+            }
         };
 
         const refreshGoogleReviews = async () => {
