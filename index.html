@@ -3716,10 +3716,24 @@ let allDailyPayments = [];
             }
         };
 
+        const PREDEFINED_OPERATING_CHARGE_TYPES = STRUCTURED_CHARGE_CATEGORIES
+            .map(normalizeChargeCategory)
+            .filter((value, index, arr) => value && arr.indexOf(value) === index);
+
+        const getOperatingChargeTypeLabel = (charge) => {
+            if (charge.type === 'salary') return 'Salaires';
+            const raw = charge.category || '';
+            const normalized = normalizeChargeCategory(raw);
+            if (PREDEFINED_OPERATING_CHARGE_TYPES.includes(normalized)) return normalized;
+            if (STRUCTURED_CHARGE_CATEGORIES.includes(raw)) return normalizeChargeCategory(raw);
+            return null;
+        };
+
         const buildOperatingChargesBreakdown = (charges) => {
             const totals = new Map();
             charges.filter(isTaggedCharge).forEach(charge => {
-                const label = getChargeCategoryLabel(charge);
+                // Uniquement les types prédéfinis (pas les noms libres saisis)
+                const label = getOperatingChargeTypeLabel(charge);
                 if (!label) return;
                 totals.set(label, (totals.get(label) || 0) + (charge.amount || 0));
             });
@@ -3740,7 +3754,7 @@ let allDailyPayments = [];
             const breakdown = buildOperatingChargesBreakdown(charges);
             const totalOperating = breakdown.reduce((sum, item) => sum + item.amount, 0);
 
-            subtitle.textContent = `${periodLabel} — uniquement les charges étiquetées (par date de charge)`;
+            subtitle.textContent = `${periodLabel} — uniquement les types de charges prédéfinis`;
 
             if (breakdown.length === 0) {
                 list.innerHTML = '<p class="text-center text-gray-500 py-6">Aucune charge étiquetée sur cette période.</p>';
