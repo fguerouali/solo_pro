@@ -1168,9 +1168,9 @@
                                 <option value="Autre charge">Autre charge</option>
                             </select>
                         </div>
-                        <div id="charge-custom-name-container" class="hidden">
-                            <label for="charge-custom-name" class="block text-sm font-medium text-gray-700">Précisez la charge</label>
-                            <input type="text" id="charge-custom-name" class="mt-1 w-full input-style" placeholder="Nom de la charge">
+                        <div>
+                            <label for="charge-name" class="block text-sm font-medium text-gray-700">Nom de la charge <span class="text-gray-400 font-normal">(optionnel)</span></label>
+                            <input type="text" id="charge-name" class="mt-1 w-full input-style" placeholder="Ex. Facture mars, Acompte...">
                         </div>
                         <div>
                             <label for="charge-amount" class="block text-sm font-medium text-gray-700">Montant (Mad)</label>
@@ -6566,21 +6566,50 @@ document.getElementById('salary-payments-history').addEventListener('click', asy
 // --- CHARGES ---
 
 // Gérer l'ajout d'une charge
-const syncChargeCustomName = (chargeType) => {
-    const customContainer = document.getElementById('charge-custom-name-container');
-    const customInput = document.getElementById('charge-custom-name');
-    const isOther = chargeType === 'Autre charge';
-    customContainer.classList.toggle('hidden', !isOther);
-    customInput.required = isOther;
-    if (!isOther) customInput.value = '';
-};
-
 const resetChargeFormDefaults = () => {
     document.getElementById('charge-type').value = '';
-    document.getElementById('charge-custom-name').value = '';
+    const nameInput = document.getElementById('charge-name');
+    if (nameInput) nameInput.value = '';
     document.getElementById('charge-date').value = getTodayDateString();
-    syncChargeCustomName('');
 };
+
+document.getElementById('charge-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const chargeType = document.getElementById('charge-type').value;
+    const optionalName = (document.getElementById('charge-name')?.value || '').trim();
+    // Nom saisi si fourni, sinon le type (comportement historique pour les anciennes charges)
+    const name = optionalName || chargeType;
+    const amount = parseFloat(document.getElementById('charge-amount').value);
+    const dateValue = document.getElementById('charge-date').value;
+
+    if (!chargeType || !name || isNaN(amount) || amount <= 0 || !dateValue) {
+        showToast("Veuillez remplir tous les champs avec des valeurs valides.");
+        return;
+    }
+
+    const chargeDate = new Date(dateValue);
+    // Ajuster l'heure à midi pour éviter les problèmes de fuseau horaire
+    chargeDate.setHours(12, 0, 0, 0); 
+
+    try {
+        await addDoc(chargesCol, {
+            name: name,
+            category: chargeType,
+            tagged: true,
+            amount: amount,
+            date: chargeDate,
+            createdAt: serverTimestamp()
+        });
+
+        showToast('Charge enregistrée !');
+        document.getElementById('charge-form').reset();
+        resetChargeFormDefaults();
+    } catch (error) {
+        console.error("Erreur ajout charge: ", error);
+        showToast("Erreur lors de l'enregistrement de la charge.");
+    }
+});
 
 const syncChargeTagCustomName = (chargeType) => {
     const customContainer = document.getElementById('charge-tag-custom-name-container');
@@ -6615,47 +6644,6 @@ const openChargeTagModal = (charge) => {
     syncChargeTagCustomName(defaults.category);
     openModal('charge-tag-modal');
 };
-
-document.getElementById('charge-type').addEventListener('change', (e) => {
-    syncChargeCustomName(e.target.value);
-});
-
-document.getElementById('charge-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const chargeType = document.getElementById('charge-type').value;
-    const customName = document.getElementById('charge-custom-name').value.trim();
-    const name = chargeType === 'Autre charge' ? customName : chargeType;
-    const amount = parseFloat(document.getElementById('charge-amount').value);
-    const dateValue = document.getElementById('charge-date').value;
-
-    if (!chargeType || !name || isNaN(amount) || amount <= 0 || !dateValue) {
-        showToast("Veuillez remplir tous les champs avec des valeurs valides.");
-        return;
-    }
-
-    const chargeDate = new Date(dateValue);
-    // Ajuster l'heure à midi pour éviter les problèmes de fuseau horaire
-    chargeDate.setHours(12, 0, 0, 0); 
-
-    try {
-        await addDoc(chargesCol, {
-            name: name,
-            category: chargeType,
-            tagged: true,
-            amount: amount,
-            date: chargeDate,
-            createdAt: serverTimestamp()
-        });
-
-        showToast('Charge enregistrée !');
-        document.getElementById('charge-form').reset();
-        resetChargeFormDefaults();
-    } catch (error) {
-        console.error("Erreur ajout charge: ", error);
-        showToast("Erreur lors de l'enregistrement de la charge.");
-    }
-});
 
 document.getElementById('charge-tag-type').addEventListener('change', (e) => {
     syncChargeTagCustomName(e.target.value);
