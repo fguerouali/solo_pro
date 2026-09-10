@@ -1287,7 +1287,7 @@
                             <input type="number" id="tpe-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
                         </div>
                         <div>
-                            <label for="glovo-amount" class="block text-sm font-medium text-gray-700">Montant Glovo TPE (Mad)</label>
+                            <label for="glovo-amount" class="block text-sm font-medium text-gray-700">Montant Glovo Online (Mad)</label>
                             <input type="number" id="glovo-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
                         </div>
                         <div>
@@ -1328,7 +1328,7 @@
                                 <span id="day-total-sales" class="font-semibold text-gray-900">0.00 Mad</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-600">TPE + Glovo TPE :</span>
+                                <span class="text-gray-600">TPE + Glovo Online :</span>
                                 <span id="day-digital-payments" class="font-semibold text-blue-600">0.00 Mad</span>
                             </div>
                             <div class="flex justify-between border-t pt-2 mt-2">
@@ -2727,6 +2727,11 @@ let allDailyPayments = [];
             const n = Number(value);
             if (!Number.isFinite(n)) return '0,00 Mad';
             return `${n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Mad`;
+        };
+        const formatKpiDecimal = (value) => {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '0,00';
+            return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         };
         const formatKpiInteger = (value) => {
             const n = Number(value);
@@ -5826,9 +5831,9 @@ const updateDailyPaymentCalculations = () => {
     const digitalPayments = tpeAmount + glovoAmount;
     const expectedCash = Math.max(0, resolvedTotalSales - digitalPayments);
     
-    document.getElementById('day-total-sales').textContent = `${resolvedTotalSales.toFixed(2)} Mad`;
-    document.getElementById('day-digital-payments').textContent = `${digitalPayments.toFixed(2)} Mad`;
-    document.getElementById('day-expected-cash').textContent = `${expectedCash.toFixed(2)} Mad`;
+    document.getElementById('day-total-sales').textContent = formatKpiMoney(resolvedTotalSales);
+    document.getElementById('day-digital-payments').textContent = formatKpiMoney(digitalPayments);
+    document.getElementById('day-expected-cash').textContent = formatKpiMoney(expectedCash);
     document.getElementById('day-expected-cash').className = 
         expectedCash < 0 ? 'font-bold text-red-600 text-lg' : 'font-bold text-green-600 text-lg';
 };
@@ -5864,8 +5869,8 @@ const renderDailyPayments = () => {
                 <div class="flex justify-between items-start mb-3">
                     <div>
                         <h3 class="font-semibold text-gray-900">${formattedDate}</h3>
-                        <p class="text-sm text-gray-600">Total ventes : ${payment.totalSales.toFixed(2)} Mad</p>
-                        <p class="text-xs text-orange-600">Glovo Espèces : ${glovoCash.toFixed(2)} Mad</p>
+                        <p class="text-sm text-gray-600">Total ventes : ${formatKpiMoney(payment.totalSales)}</p>
+                        <p class="text-xs text-orange-600">Glovo Espèces : ${formatKpiMoney(glovoCash)}</p>
                     </div>
                     <button data-id="${payment.id}" class="delete-daily-payment-btn text-gray-400 hover:text-red-600 transition-colors">
                         <i class="fas fa-trash-alt"></i>
@@ -5874,39 +5879,39 @@ const renderDailyPayments = () => {
                 <div class="grid grid-cols-3 gap-2 text-sm">
                     <div class="bg-blue-50 p-2 rounded">
                         <p class="text-xs text-blue-600">TPE</p>
-                        <p class="font-semibold">${payment.tpeAmount.toFixed(2)} Mad</p>
+                        <p class="font-semibold">${formatKpiMoney(payment.tpeAmount)}</p>
                     </div>
                     <div class="bg-purple-50 p-2 rounded">
-                        <p class="text-xs text-purple-600">Glovo TPE</p>
-                        <p class="font-semibold">${payment.glovoAmount.toFixed(2)} Mad</p>
+                        <p class="text-xs text-purple-600">Glovo Online</p>
+                        <p class="font-semibold">${formatKpiMoney(payment.glovoAmount)}</p>
                     </div>
                     <div class="bg-green-50 p-2 rounded">
                         <p class="text-xs text-green-600">Espèces</p>
-                        <p class="font-semibold">${expectedCash.toFixed(2)} Mad</p>
+                        <p class="font-semibold">${formatKpiMoney(expectedCash)}</p>
                     </div>
                 </div>
                 <div class="grid grid-cols-3 gap-2 text-xs mt-2">
                     <div class="bg-gray-50 p-2 rounded">
                         <p class="text-gray-500">Sur place</p>
-                        <p class="font-medium">${notesSurPlace.toFixed(2)}</p>
+                        <p class="font-medium">${formatKpiDecimal(notesSurPlace)}</p>
                     </div>
                     <div class="bg-gray-50 p-2 rounded">
                         <p class="text-gray-500">Emporter</p>
-                        <p class="font-medium">${notesEmporter.toFixed(2)}</p>
+                        <p class="font-medium">${formatKpiDecimal(notesEmporter)}</p>
                     </div>
                     <div class="bg-gray-50 p-2 rounded">
                         <p class="text-gray-500">Livraison</p>
-                        <p class="font-medium">${notesLivraison.toFixed(2)}</p>
+                        <p class="font-medium">${formatKpiDecimal(notesLivraison)}</p>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-xs mt-2">
                     <div class="bg-red-50 p-2 rounded">
                         <p class="text-red-500">Annulés avant note</p>
-                        <p class="font-medium">${annulAvant.toFixed(2)} Mad</p>
+                        <p class="font-medium">${formatKpiMoney(annulAvant)}</p>
                     </div>
                     <div class="bg-red-50 p-2 rounded">
                         <p class="text-red-500">Annulés après note</p>
-                        <p class="font-medium">${annulApres.toFixed(2)} Mad</p>
+                        <p class="font-medium">${formatKpiMoney(annulApres)}</p>
                     </div>
                 </div>
             `;
@@ -6179,7 +6184,7 @@ document.getElementById('export-declarations-form').addEventListener('submit', (
     });
     
     // Générer le CSV avec séparateur point-virgule
-    let csv = "Date;Total Vente;TPE;Espèce;Glovo TPE;Glovo Cash\n";
+    let csv = "Date;Total Vente;TPE;Espèce;Glovo Online;Glovo Cash\n";
     
     filteredPayments.forEach(payment => {
         const date = toDate(payment.date);
@@ -6189,12 +6194,11 @@ document.getElementById('export-declarations-form').addEventListener('submit', (
         
         const totalSales = payment.totalSales || 0;
         const tpe = payment.tpeAmount || 0;
-        const glovoTPE = payment.glovoAmount || 0;
+        const glovoOnline = payment.glovoAmount || 0;
         const glovoCash = payment.glovoCashAmount || 0;
-        const espece = totalSales - tpe - glovoTPE - glovoCash;
+        const espece = totalSales - tpe - glovoOnline - glovoCash;
         
-        // Utiliser le point-virgule comme séparateur et le point pour les décimales
-        csv += `${formattedDate};${totalSales.toFixed(2)};${tpe.toFixed(2)};${espece.toFixed(2)};${glovoTPE.toFixed(2)};${glovoCash.toFixed(2)}\n`;
+        csv += `${formattedDate};${formatKpiDecimal(totalSales)};${formatKpiDecimal(tpe)};${formatKpiDecimal(espece)};${formatKpiDecimal(glovoOnline)};${formatKpiDecimal(glovoCash)}\n`;
     });
     
     // Générer le nom de fichier avec la période
