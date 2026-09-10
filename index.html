@@ -626,6 +626,20 @@
         }
 
         .hidden { display: none !important; }
+        .kpi-value {
+            font-size: 1.05rem;
+            line-height: 1.35;
+            font-weight: 700;
+            letter-spacing: -0.015em;
+            word-break: break-word;
+        }
+        @media (min-width: 768px) {
+            .kpi-value { font-size: 1.2rem; }
+        }
+        .kpi-rate {
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
         .module-read-only .btn-primary,
         .module-read-only button[class*="delete-"],
         .module-read-only button[class*="edit-"],
@@ -753,43 +767,43 @@
                     <h3 class="col-span-full text-xs font-semibold text-gray-400 uppercase tracking-widest">Activité</h3>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes</h3>
-                        <p id="kpi-total-sales" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
-                        <p id="kpi-total-sales-rate" class="text-lg font-semibold text-gray-500 mt-1">100 %</p>
+                        <p id="kpi-total-sales" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
+                        <p id="kpi-total-sales-rate" class="kpi-rate text-gray-500 mt-1">100 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes (Nbre)</h3>
-                        <p id="kpi-total-orders" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+                        <p id="kpi-total-orders" class="kpi-value text-gray-900 mt-1">0</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Panier Moyen</h3>
-                        <p id="kpi-avg-order-value" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
+                        <p id="kpi-avg-order-value" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Pizzas Vendues</h3>
-                        <p id="kpi-total-pizzas" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+                        <p id="kpi-total-pizzas" class="kpi-value text-gray-900 mt-1">0</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Panuozzo Vendus</h3>
-                        <p id="kpi-total-panuozzo" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+                        <p id="kpi-total-panuozzo" class="kpi-value text-gray-900 mt-1">0</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Vente Sur Place</h3>
-                        <p id="kpi-sales-sur-place" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
-                        <p id="kpi-sales-sur-place-rate" class="text-lg font-semibold text-gray-500 mt-1">0 %</p>
+                        <p id="kpi-sales-sur-place" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
+                        <p id="kpi-sales-sur-place-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Vente Emporter</h3>
-                        <p id="kpi-sales-emporter" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
-                        <p id="kpi-sales-emporter-rate" class="text-lg font-semibold text-gray-500 mt-1">0 %</p>
+                        <p id="kpi-sales-emporter" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
+                        <p id="kpi-sales-emporter-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Vente Livraison</h3>
-                        <p id="kpi-sales-livraison" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
-                        <p id="kpi-sales-livraison-rate" class="text-lg font-semibold text-gray-500 mt-1">0 %</p>
+                        <p id="kpi-sales-livraison" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
+                        <p id="kpi-sales-livraison-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center" title="Avis Google Solo Pizzeria Napoletana">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Avis Google</h3>
-                        <p id="kpi-google-rating" class="text-3xl font-bold text-gray-900 mt-1">—</p>
+                        <p id="kpi-google-rating" class="kpi-value text-gray-900 mt-1">—</p>
                         <div id="kpi-google-stars" class="text-amber-400 text-base mt-0.5 tracking-tight" aria-hidden="true">☆☆☆☆☆</div>
                         <p id="kpi-google-received" class="text-sm font-semibold text-gray-800 mt-2">Avis reçus : —</p>
                         <p id="kpi-google-total" class="text-xs text-gray-400 mt-1">Total : —</p>
@@ -799,51 +813,51 @@
                     <h3 class="col-span-full text-xs font-semibold text-gray-400 uppercase tracking-widest mt-2">Rentabilité</h3>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Food Cost</h3>
-                        <p id="kpi-food-cost" class="text-3xl font-bold text-orange-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-food-cost-rate" class="text-lg font-semibold text-orange-500 mt-1">0 %</p>
+                        <p id="kpi-food-cost" class="kpi-value text-orange-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-food-cost-rate" class="kpi-rate text-orange-500 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Marge Brute</h3>
-                        <p id="kpi-gross-margin" class="text-3xl font-bold text-green-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-gross-margin-rate" class="text-lg font-semibold text-green-500 mt-1">0 %</p>
+                        <p id="kpi-gross-margin" class="kpi-value text-green-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-gross-margin-rate" class="kpi-rate text-green-500 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">EBITDA</h3>
-                        <p id="kpi-ebitda" class="text-3xl font-bold text-blue-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-ebitda-rate" class="text-lg font-semibold text-blue-500 mt-1">0 %</p>
+                        <p id="kpi-ebitda" class="kpi-value text-blue-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-ebitda-rate" class="kpi-rate text-blue-500 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Bénéfice Net</h3>
-                        <p id="kpi-net-profit" class="text-3xl font-bold text-green-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-net-profit-rate" class="text-lg font-semibold text-green-500 mt-1">0 %</p>
+                        <p id="kpi-net-profit" class="kpi-value text-green-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-net-profit-rate" class="kpi-rate text-green-500 mt-1">0 %</p>
                         <p class="text-xs text-gray-400 mt-1">Marge nette</p>
                     </div>
 
                     <h3 class="col-span-full text-xs font-semibold text-gray-400 uppercase tracking-widest mt-2">Coûts & Achats</h3>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Achats (Reçus)</h3>
-                        <p id="kpi-total-purchases" class="text-3xl font-bold text-gray-900 mt-1">0.00 Mad</p>
-                        <p id="kpi-total-purchases-rate" class="text-lg font-semibold text-gray-500 mt-1">0 %</p>
+                        <p id="kpi-total-purchases" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
+                        <p id="kpi-total-purchases-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Achats (Non Payés)</h3>
-                        <p id="kpi-unpaid-purchases" class="text-3xl font-bold text-red-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-unpaid-purchases-rate" class="text-lg font-semibold text-red-400 mt-1">0 %</p>
+                        <p id="kpi-unpaid-purchases" class="kpi-value text-red-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-unpaid-purchases-rate" class="kpi-rate text-red-400 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Pertes</h3>
-                        <p id="kpi-total-losses" class="text-3xl font-bold text-red-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-total-losses-rate" class="text-lg font-semibold text-red-400 mt-1">0 %</p>
+                        <p id="kpi-total-losses" class="kpi-value text-red-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-total-losses-rate" class="kpi-rate text-red-400 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Masse Salariale</h3>
-                        <p id="kpi-payroll" class="text-3xl font-bold text-purple-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-payroll-rate" class="text-lg font-semibold text-purple-500 mt-1">0 %</p>
+                        <p id="kpi-payroll" class="kpi-value text-purple-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-payroll-rate" class="kpi-rate text-purple-500 mt-1">0 %</p>
                     </div>
                     <div id="kpi-operating-charges-card" class="bg-white p-4 rounded-2xl shadow-lg text-center kpi-detail-card" title="Cliquer pour voir le détail par type de charge">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Charges d'exploitation</h3>
-                        <p id="kpi-total-charges" class="text-3xl font-bold text-red-600 mt-1">0.00 Mad</p>
-                        <p id="kpi-total-charges-rate" class="text-lg font-semibold text-red-400 mt-1">0 %</p>
+                        <p id="kpi-total-charges" class="kpi-value text-red-600 mt-1">0.00 Mad</p>
+                        <p id="kpi-total-charges-rate" class="kpi-rate text-red-400 mt-1">0 %</p>
                         <p class="text-xs text-gray-400 mt-1"><i class="fas fa-chart-pie mr-1"></i>Cliquer pour détailler</p>
                     </div>
                 </div>
@@ -2709,6 +2723,16 @@ let allDailyPayments = [];
         
         // --- HELPERS ---
         const showToast = (message) => { const toast = document.getElementById('toast'); document.getElementById('toast-message').textContent = message; toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), 3000); };
+        const formatKpiMoney = (value) => {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '0,00 Mad';
+            return `${n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Mad`;
+        };
+        const formatKpiInteger = (value) => {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '0';
+            return Math.round(n).toLocaleString('fr-FR');
+        };
         const openModal = (id) => document.getElementById(id).classList.add('flex');
         const closeModal = (id) => document.getElementById(id).classList.remove('flex');
         
@@ -3726,7 +3750,7 @@ let allDailyPayments = [];
                                     <p class="font-semibold text-gray-800">${item.name}</p>
                                     <p class="text-sm text-gray-500">${chargeShare.toFixed(1)} % des charges · ${salesShare.toFixed(1)} % du CA</p>
                                 </div>
-                                <p class="text-lg font-bold text-red-600">${item.amount.toFixed(2)} Mad</p>
+                                <p class="text-base font-bold text-red-600">${formatKpiMoney(item.amount)}</p>
                             </div>
                             <div class="mt-3 bg-red-50 rounded-full overflow-hidden">
                                 <div class="charge-breakdown-bar" style="width: ${Math.max(chargeShare, item.amount > 0 ? 2 : 0)}%"></div>
@@ -3836,11 +3860,11 @@ let allDailyPayments = [];
 
             ratingEl.textContent = rating != null ? Number(rating).toFixed(1) : '—';
             starsEl.textContent = formatGoogleStarGlyphs(rating);
-            totalEl.textContent = reviewCount != null ? `Total : ${reviewCount} avis` : 'Total : —';
 
             const { startDate, endDate } = kpiFilterState;
             const received = sumReceivedReviewsForPeriod(snapshots, reviewCount, startDate, endDate);
-            receivedEl.textContent = received != null ? `Avis reçus : ${received}` : 'Avis reçus : —';
+            receivedEl.textContent = received != null ? `Avis reçus : ${formatKpiInteger(received)}` : 'Avis reçus : —';
+            totalEl.textContent = reviewCount != null ? `Total : ${formatKpiInteger(reviewCount)} avis` : 'Total : —';
         };
 
         const persistGoogleReviewsSnapshot = async (summary) => {
@@ -4085,36 +4109,36 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
 // ^ ^ ^ **FIN DES 4 CALCULS** ^ ^ ^
             // --- Update KPI DOM ---
-            document.getElementById('kpi-total-sales').textContent = `${totalSales.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-sales').textContent = formatKpiMoney(totalSales);
             document.getElementById('kpi-total-sales-rate').textContent = totalSales > 0 ? '100 %' : '0 %';
-            document.getElementById('kpi-total-purchases').textContent = `${totalPurchases.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-purchases').textContent = formatKpiMoney(totalPurchases);
             document.getElementById('kpi-total-purchases-rate').textContent = pctOfSales(totalPurchases);
-            document.getElementById('kpi-unpaid-purchases').textContent = `${totalUnpaidPurchases.toFixed(2)} Mad`;
+            document.getElementById('kpi-unpaid-purchases').textContent = formatKpiMoney(totalUnpaidPurchases);
             document.getElementById('kpi-unpaid-purchases-rate').textContent = pctOfSales(totalUnpaidPurchases);
-            document.getElementById('kpi-total-losses').textContent = `${totalLossesValue.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-losses').textContent = formatKpiMoney(totalLossesValue);
             document.getElementById('kpi-total-losses-rate').textContent = `${lossRate.toFixed(1)} %`;
-            document.getElementById('kpi-total-orders').textContent = totalOrders;
-            document.getElementById('kpi-total-pizzas').textContent = totalPizzasSold;
-            document.getElementById('kpi-total-panuozzo').textContent = totalPanuozzoSold;
-            document.getElementById('kpi-sales-sur-place').textContent = `${salesSurPlace.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-orders').textContent = formatKpiInteger(totalOrders);
+            document.getElementById('kpi-total-pizzas').textContent = formatKpiInteger(totalPizzasSold);
+            document.getElementById('kpi-total-panuozzo').textContent = formatKpiInteger(totalPanuozzoSold);
+            document.getElementById('kpi-sales-sur-place').textContent = formatKpiMoney(salesSurPlace);
             document.getElementById('kpi-sales-sur-place-rate').textContent = pctOfSales(salesSurPlace);
-            document.getElementById('kpi-sales-emporter').textContent = `${salesEmporter.toFixed(2)} Mad`;
+            document.getElementById('kpi-sales-emporter').textContent = formatKpiMoney(salesEmporter);
             document.getElementById('kpi-sales-emporter-rate').textContent = pctOfSales(salesEmporter);
-            document.getElementById('kpi-sales-livraison').textContent = `${salesLivraison.toFixed(2)} Mad`;
+            document.getElementById('kpi-sales-livraison').textContent = formatKpiMoney(salesLivraison);
             document.getElementById('kpi-sales-livraison-rate').textContent = pctOfSales(salesLivraison);
             renderGoogleReviewsKpi();
-            document.getElementById('kpi-avg-order-value').textContent = `${avgOrderValue.toFixed(2)} Mad`;
-            document.getElementById('kpi-gross-margin').textContent = `${grossMargin.toFixed(2)} Mad`;
+            document.getElementById('kpi-avg-order-value').textContent = formatKpiMoney(avgOrderValue);
+            document.getElementById('kpi-gross-margin').textContent = formatKpiMoney(grossMargin);
             document.getElementById('kpi-gross-margin-rate').textContent = `${grossMarginRate.toFixed(1)} %`;
-            document.getElementById('kpi-food-cost').textContent = `${totalCogs.toFixed(2)} Mad`;
+            document.getElementById('kpi-food-cost').textContent = formatKpiMoney(totalCogs);
             document.getElementById('kpi-food-cost-rate').textContent = `${foodCostRate.toFixed(1)} %`;
-            document.getElementById('kpi-payroll').textContent = `${totalPayroll.toFixed(2)} Mad`;
+            document.getElementById('kpi-payroll').textContent = formatKpiMoney(totalPayroll);
             document.getElementById('kpi-payroll-rate').textContent = `${payrollRate.toFixed(1)} %`;
-            document.getElementById('kpi-total-charges').textContent = `${operatingCharges.toFixed(2)} Mad`;
+            document.getElementById('kpi-total-charges').textContent = formatKpiMoney(operatingCharges);
             document.getElementById('kpi-total-charges-rate').textContent = pctOfSales(operatingCharges);
-            document.getElementById('kpi-ebitda').textContent = `${ebitda.toFixed(2)} Mad`;
+            document.getElementById('kpi-ebitda').textContent = formatKpiMoney(ebitda);
             document.getElementById('kpi-ebitda-rate').textContent = `${ebitdaRate.toFixed(1)} %`;
-            document.getElementById('kpi-net-profit').textContent = `${netProfit.toFixed(2)} Mad`;
+            document.getElementById('kpi-net-profit').textContent = formatKpiMoney(netProfit);
             document.getElementById('kpi-net-profit-rate').textContent = pctOfSales(netProfit);
   // --- TOP 10 PIZZAS ET TOP 5 BOISSONS ---
             const topPizzas = getTopFromBucket(topBuckets.Pizza, 15);
