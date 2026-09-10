@@ -4484,12 +4484,15 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 showToast(allValidated ? 'Inventaire entièrement validé.' : 'Ligne validée, stock mis à jour.');
             } catch (error) {
                 console.error('Erreur validation inventaire:', error);
-                showToast('Erreur lors de la validation.');
+                showToast(`Erreur validation : ${error.message || 'échec Firestore'}`);
             }
         };
 
         const validateAllInventory = async () => {
             if (!canWrite('ingredients')) return showToast('Permission refusée. Droits Stock requis.');
+            const btn = document.getElementById('validate-all-inventory-btn');
+            if (btn?.dataset.busy === '1') return;
+
             const submission = getPendingInventorySubmission();
             if (!submission) return showToast('Aucun inventaire en attente.');
             const pendingItems = (submission.items || []).filter(i => !i.validated);
@@ -4497,24 +4500,57 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
             if (!confirm(`Valider ${pendingItems.length} ligne(s) et mettre à jour le stock ?`)) return;
 
+            const knownIds = new Set(allIngredients.map(ing => ing.id));
+            const toApply = pendingItems.filter(item => item.ingredientId && knownIds.has(item.ingredientId));
+            const skipped = pendingItems.length - toApply.length;
+
+            if (toApply.length === 0) {
+                return showToast('Aucun ingrédient correspondant trouvé dans le stock.');
+            }
+
+            btn.dataset.busy = '1';
+            btn.disabled = true;
             try {
-                const batch = writeBatch(db);
-                pendingItems.forEach(item => {
-                    batch.update(doc(ingredientsCol, item.ingredientId), { quantity: item.countedQuantity });
-                });
-                const updatedItems = (submission.items || []).map(i => ({ ...i, validated: true }));
-                batch.update(doc(inventorySubmissionsCol, submission.id), {
+                // Firestore limite un batch à 500 opérations
+                const CHUNK = 400;
+                for (let i = 0; i < toApply.length; i += CHUNK) {
+                    const chunk = toApply.slice(i, i + CHUNK);
+                    const batch = writeBatch(db);
+                    chunk.forEach(item => {
+                        batch.update(doc(ingredientsCol, item.ingredientId), {
+                            quantity: Number(item.countedQuantity) || 0
+                        });
+                    });
+                    await batch.commit();
+                }
+
+                const appliedIds = new Set(toApply.map(i => i.ingredientId));
+                const updatedItems = (submission.items || []).map(i =>
+                    appliedIds.has(i.ingredientId) ? { ...i, validated: true } : i
+                );
+                const allValidated = updatedItems.every(i => i.validated);
+                await updateDoc(doc(inventorySubmissionsCol, submission.id), {
                     items: updatedItems,
-                    status: 'validated',
-                    validatedAt: serverTimestamp(),
-                    validatedBy: currentUserProfile?.id || '',
-                    validatedByUsername: currentUserProfile?.username || ''
+                    status: allValidated ? 'validated' : 'pending',
+                    ...(allValidated ? {
+                        validatedAt: serverTimestamp(),
+                        validatedBy: currentUserProfile?.id || '',
+                        validatedByUsername: currentUserProfile?.username || ''
+                    } : {})
                 });
-                await batch.commit();
-                showToast('Inventaire validé, stocks mis à jour.');
+
+                const skipMsg = skipped > 0 ? ` (${skipped} ligne(s) ignorée(s) : ingrédient absent)` : '';
+                showToast(allValidated
+                    ? `Inventaire validé, stocks mis à jour.${skipMsg}`
+                    : `Stocks mis à jour pour ${toApply.length} ligne(s).${skipMsg}`);
             } catch (error) {
                 console.error('Erreur validation inventaire:', error);
-                showToast('Erreur lors de la validation.');
+                showToast(`Erreur validation : ${error.message || 'échec Firestore'}`);
+            } finally {
+                if (btn) {
+                    btn.dataset.busy = '0';
+                    btn.disabled = false;
+                }
             }
         };
 
