@@ -4488,6 +4488,51 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             }
         };
 
+        const closeInventorySubmission = async (submission, { markAllValidated = true } = {}) => {
+            const updatedItems = markAllValidated
+                ? (submission.items || []).map(i => ({ ...i, validated: true }))
+                : (submission.items || []);
+            await updateDoc(doc(inventorySubmissionsCol, submission.id), {
+                items: updatedItems,
+                status: 'validated',
+                validatedAt: serverTimestamp(),
+                validatedBy: currentUserProfile?.id || '',
+                validatedByUsername: currentUserProfile?.username || ''
+            });
+        };
+
+        let inventoryOrphanCleanupRunning = false;
+        const cleanupOrphanPendingInventory = async () => {
+            if (inventoryOrphanCleanupRunning || !canWrite('ingredients')) return;
+            const submission = getPendingInventorySubmission();
+            if (!submission) return;
+            const knownIds = new Set(allIngredients.map(ing => ing.id));
+            const pendingItems = (submission.items || []).filter(i => !i.validated);
+            if (pendingItems.length === 0) {
+                inventoryOrphanCleanupRunning = true;
+                try {
+                    await closeInventorySubmission(submission);
+                } catch (error) {
+                    console.error('Erreur cloture inventaire:', error);
+                } finally {
+                    inventoryOrphanCleanupRunning = false;
+                }
+                return;
+            }
+            // Toutes les lignes restantes pointent vers des ingredients absents → cloturer
+            if (pendingItems.every(i => !i.ingredientId || !knownIds.has(i.ingredientId))) {
+                inventoryOrphanCleanupRunning = true;
+                try {
+                    await closeInventorySubmission(submission);
+                    showToast('Inventaire cloturé (lignes orphelines nettoyées).');
+                } catch (error) {
+                    console.error('Erreur nettoyage inventaire orphelin:', error);
+                } finally {
+                    inventoryOrphanCleanupRunning = false;
+                }
+            }
+        };
+
         const validateAllInventory = async () => {
             if (!canWrite('ingredients')) return showToast('Permission refusée. Droits Stock requis.');
             const btn = document.getElementById('validate-all-inventory-btn');
@@ -4496,7 +4541,15 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const submission = getPendingInventorySubmission();
             if (!submission) return showToast('Aucun inventaire en attente.');
             const pendingItems = (submission.items || []).filter(i => !i.validated);
-            if (pendingItems.length === 0) return showToast('Tout est déjà validé.');
+            if (pendingItems.length === 0) {
+                try {
+                    await closeInventorySubmission(submission);
+                    showToast('Inventaire cloturé.');
+                } catch (error) {
+                    showToast(`Erreur : ${error.message || 'échec Firestore'}`);
+                }
+                return;
+            }
 
             if (!confirm(`Valider ${pendingItems.length} ligne(s) et mettre à jour le stock ?`)) return;
 
@@ -4504,14 +4557,9 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const toApply = pendingItems.filter(item => item.ingredientId && knownIds.has(item.ingredientId));
             const skipped = pendingItems.length - toApply.length;
 
-            if (toApply.length === 0) {
-                return showToast('Aucun ingrédient correspondant trouvé dans le stock.');
-            }
-
             btn.dataset.busy = '1';
             btn.disabled = true;
             try {
-                // Firestore limite un batch à 500 opérations
                 const CHUNK = 400;
                 for (let i = 0; i < toApply.length; i += CHUNK) {
                     const chunk = toApply.slice(i, i + CHUNK);
@@ -4524,25 +4572,11 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     await batch.commit();
                 }
 
-                const appliedIds = new Set(toApply.map(i => i.ingredientId));
-                const updatedItems = (submission.items || []).map(i =>
-                    appliedIds.has(i.ingredientId) ? { ...i, validated: true } : i
-                );
-                const allValidated = updatedItems.every(i => i.validated);
-                await updateDoc(doc(inventorySubmissionsCol, submission.id), {
-                    items: updatedItems,
-                    status: allValidated ? 'validated' : 'pending',
-                    ...(allValidated ? {
-                        validatedAt: serverTimestamp(),
-                        validatedBy: currentUserProfile?.id || '',
-                        validatedByUsername: currentUserProfile?.username || ''
-                    } : {})
-                });
+                // Toujours cloturer l'inventaire (y compris lignes orphelines)
+                await closeInventorySubmission(submission);
 
-                const skipMsg = skipped > 0 ? ` (${skipped} ligne(s) ignorée(s) : ingrédient absent)` : '';
-                showToast(allValidated
-                    ? `Inventaire validé, stocks mis à jour.${skipMsg}`
-                    : `Stocks mis à jour pour ${toApply.length} ligne(s).${skipMsg}`);
+                const skipMsg = skipped > 0 ? ` (${skipped} ligne(s) sans stock ignorée(s))` : '';
+                showToast(`Inventaire validé, stocks mis à jour.${skipMsg}`);
             } catch (error) {
                 console.error('Erreur validation inventaire:', error);
                 showToast(`Erreur validation : ${error.message || 'échec Firestore'}`);
@@ -4587,11 +4621,18 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const pending = getPendingInventorySubmission();
             if (!banner || !validateAllBtn) return;
 
+            cleanupOrphanPendingInventory();
+
             if (pending) {
+                const knownIds = new Set(allIngredients.map(ing => ing.id));
                 const pendingCount = (pending.items || []).filter(i => !i.validated).length;
+                const orphanCount = (pending.items || []).filter(i => !i.validated && (!i.ingredientId || !knownIds.has(i.ingredientId))).length;
                 banner.classList.remove('hidden');
+                const orphanNote = orphanCount > 0
+                    ? ` <span class="text-amber-700">(${orphanCount} ligne(s) sans ingrédient correspondant)</span>`
+                    : '';
                 banner.innerHTML = `<p class="font-semibold"><i class="fas fa-clipboard-list mr-1"></i>Inventaire en attente</p>
-                    <p class="mt-1">Saisi par <strong>${pending.username || '—'}</strong> le ${pending.date ? pending.date.split('-').reverse().join('/') : '—'} — ${pendingCount} ligne(s) à valider</p>`;
+                    <p class="mt-1">Saisi par <strong>${pending.username || '—'}</strong> le ${pending.date ? pending.date.split('-').reverse().join('/') : '—'} — ${pendingCount} ligne(s) à valider${orphanNote}</p>`;
                 validateAllBtn.classList.toggle('hidden', !canWrite('ingredients') || pendingCount === 0);
                 validateAllBtn.dataset.submissionId = pending.id;
             } else {
