@@ -792,6 +792,7 @@
                         <p id="kpi-google-rating" class="text-3xl font-bold text-gray-900 mt-1">—</p>
                         <div id="kpi-google-stars" class="text-amber-400 text-base mt-0.5 tracking-tight" aria-hidden="true">☆☆☆☆☆</div>
                         <p id="kpi-google-received" class="text-sm font-semibold text-gray-800 mt-2">Avis reçus : —</p>
+                        <p id="kpi-google-total" class="text-xs text-gray-400 mt-1">Total : —</p>
                         <a id="kpi-google-link" href="https://share.google/GX15aEMbOqaVjxGMs" target="_blank" rel="noopener noreferrer" class="inline-block text-xs text-blue-600 hover:underline mt-1">Voir sur Google</a>
                     </div>
 
@@ -3818,8 +3819,9 @@ let allDailyPayments = [];
             const ratingEl = document.getElementById('kpi-google-rating');
             const starsEl = document.getElementById('kpi-google-stars');
             const receivedEl = document.getElementById('kpi-google-received');
+            const totalEl = document.getElementById('kpi-google-total');
             const linkEl = document.getElementById('kpi-google-link');
-            if (!ratingEl || !starsEl || !receivedEl) return;
+            if (!ratingEl || !starsEl || !receivedEl || !totalEl) return;
 
             const { rating, reviewCount, snapshots, url, status, errorMessage } = googleReviewsState;
             if (url && linkEl) linkEl.href = url;
@@ -3828,11 +3830,13 @@ let allDailyPayments = [];
                 ratingEl.textContent = '—';
                 starsEl.textContent = '☆☆☆☆☆';
                 receivedEl.textContent = errorMessage ? String(errorMessage).slice(0, 80) : 'Avis reçus : —';
+                totalEl.textContent = 'Total : —';
                 return;
             }
 
             ratingEl.textContent = rating != null ? Number(rating).toFixed(1) : '—';
             starsEl.textContent = formatGoogleStarGlyphs(rating);
+            totalEl.textContent = reviewCount != null ? `Total : ${reviewCount} avis` : 'Total : —';
 
             const { startDate, endDate } = kpiFilterState;
             const received = sumReceivedReviewsForPeriod(snapshots, reviewCount, startDate, endDate);
