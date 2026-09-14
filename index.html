@@ -3801,60 +3801,20 @@ let allDailyPayments = [];
             return `${'★'.repeat(filled)}${'☆'.repeat(5 - filled)}`;
         };
 
-        const getYesterdayDateKey = () => {
-            const d = new Date();
-            d.setDate(d.getDate() - 1);
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        };
-
-        const getSnapshotCloseCount = (snap) => {
-            if (!snap || snap.reviewCount == null) return null;
-            return Number(snap.reviewCount);
-        };
-
-        /**
-         * Avis reçus sur les dernières ~24h =
-         * total Google actuel − total connu hier (snapshot veille / open du jour).
-         * Indépendant du filtre dashboard.
-         */
-        const countReceivedReviewsLast24h = (currentCount, snapshots, recentReviews) => {
-            if (currentCount == null) return null;
-
-            const today = getTodayDateKey();
-            const yesterday = getYesterdayDateKey();
-            const sorted = (snapshots || [])
-                .filter((s) => s && s.date && s.reviewCount != null)
-                .slice()
-                .sort((a, b) => String(a.date).localeCompare(String(b.date)));
-
-            const todaySnap = sorted.find((s) => String(s.date) === today);
-            const yesterdaySnap = sorted.find((s) => String(s.date) === yesterday);
-
-            let baseline = null;
-            if (yesterdaySnap?.reviewCount != null) {
-                baseline = Number(yesterdaySnap.reviewCount);
-            } else if (todaySnap?.openReviewCount != null) {
-                baseline = Number(todaySnap.openReviewCount);
-            } else {
-                let before = null;
-                for (const snap of sorted) {
-                    if (String(snap.date) < today) before = snap;
-                    else break;
-                }
-                if (before?.reviewCount != null) baseline = Number(before.reviewCount);
-            }
-
-            if (baseline != null) {
-                return Math.max(0, Number(currentCount) - baseline);
-            }
-
-            // Fallback : avis récents datés < 24h (API Places ≤ 5 avis)
+        /** Nombre d'avis Google dont la date est < 24 h (via recentReviews Places). */
+        const countReceivedReviewsLast24h = (recentReviews) => {
+            const reviews = Array.isArray(recentReviews) ? recentReviews : [];
             const cutoffSec = Math.floor(Date.now() / 1000) - 86400;
-            const fromRecent = (recentReviews || []).filter((r) => {
-                if (r.time != null) return Number(r.time) >= cutoffSec;
-                return r.ageDays != null && Number(r.ageDays) <= 0;
+            return reviews.filter((r) => {
+                if (r.time != null && !Number.isNaN(Number(r.time))) {
+                    return Number(r.time) >= cutoffSec;
+                }
+                const rel = String(r.relativeTime || '').toLowerCase();
+                if (/heure|minute|hour|\bmin\b|instant|just now|à l'instant/.test(rel)) return true;
+                if (/hier|yesterday|semaine|week|mois|month|an|year|jour|day/.test(rel)) return false;
+                if (r.ageDays != null) return Number(r.ageDays) < 1;
+                return false;
             }).length;
-            return fromRecent;
         };
 
         const renderGoogleReviewsKpi = () => {
@@ -3865,7 +3825,7 @@ let allDailyPayments = [];
             const linkEl = document.getElementById('kpi-google-link');
             if (!ratingEl || !starsEl || !receivedEl || !totalEl) return;
 
-            const { rating, reviewCount, snapshots, recentReviews, url, status, errorMessage } = googleReviewsState;
+            const { rating, reviewCount, recentReviews, url, status, errorMessage } = googleReviewsState;
             if (url && linkEl) linkEl.href = url;
 
             if (status === 'error' && rating == null) {
@@ -3879,10 +3839,8 @@ let allDailyPayments = [];
             ratingEl.textContent = rating != null ? Number(rating).toFixed(1) : '—';
             starsEl.textContent = formatGoogleStarGlyphs(rating);
 
-            const received24h = countReceivedReviewsLast24h(reviewCount, snapshots, recentReviews);
-            receivedEl.textContent = received24h != null
-                ? `Avis reçus (24h) : ${formatKpiInteger(received24h)}`
-                : 'Avis reçus (24h) : —';
+            const received24h = countReceivedReviewsLast24h(recentReviews);
+            receivedEl.textContent = `Avis reçus (24h) : ${formatKpiInteger(received24h)}`;
             totalEl.textContent = reviewCount != null ? `Total : ${formatKpiInteger(reviewCount)} avis` : 'Total : —';
         };
 

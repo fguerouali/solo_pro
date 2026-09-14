@@ -6,7 +6,7 @@ const DEFAULT_MAPS_URL = 'https://share.google/GX15aEMbOqaVjxGMs';
 function parseRelativeReviewAgeDays(relativeTime) {
     const text = String(relativeTime || '').toLowerCase();
     if (!text) return null;
-    if (/heure|minute|hour|minute|just|à l'instant|an hour|a minute/.test(text)) return 0;
+    if (/heure|minute|hour|\bmin\b|just|instant|à l'instant|an hour|a minute/.test(text)) return 0;
     if (/hier|yesterday/.test(text)) return 1;
     const numMatch = text.match(/(\d+)/);
     const n = numMatch ? parseInt(numMatch[1], 10) : 1;
