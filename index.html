@@ -2464,7 +2464,11 @@ let allDailyPayments = [];
             });
             onSnapshot(inventorySubmissionsCol, snapshot => {
                 const nextSubmissions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                const nextKey = nextSubmissions.map(s => `${s.id}:${s.status}:${(s.items || []).length}`).join('|');
+                const nextKey = nextSubmissions.map(s => {
+                    const items = s.items || [];
+                    const validatedCount = items.filter(i => i.validated).length;
+                    return `${s.id}:${s.status}:${items.length}:${validatedCount}`;
+                }).join('|');
                 if (nextKey === inventorySubmissionsKey) return;
                 inventorySubmissionsKey = nextKey;
                 allInventorySubmissions = nextSubmissions.sort((a, b) => {
@@ -4523,6 +4527,22 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     validatedByUsername: currentUserProfile?.username || ''
                 } : {})
             });
+            // Mise à jour locale immédiate (évite d'attendre le snapshot)
+            allInventorySubmissions = allInventorySubmissions.map(s =>
+                s.id === submission.id
+                    ? {
+                        ...s,
+                        items: updatedItems,
+                        status: allValidated ? 'validated' : 'pending'
+                    }
+                    : s
+            );
+            inventorySubmissionsKey = allInventorySubmissions.map(s => {
+                const items = s.items || [];
+                const vCount = items.filter(i => i.validated).length;
+                return `${s.id}:${s.status}:${items.length}:${vCount}`;
+            }).join('|');
+            renderIngredients();
             return true;
         };
 
