@@ -4490,6 +4490,21 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     } : {})
                 });
                 await batch.commit();
+                allInventorySubmissions = allInventorySubmissions.map(s =>
+                    s.id === submissionId
+                        ? {
+                            ...s,
+                            items: updatedItems,
+                            status: allValidated ? 'validated' : 'pending'
+                        }
+                        : s
+                );
+                inventorySubmissionsKey = allInventorySubmissions.map(s => {
+                    const items = s.items || [];
+                    const vCount = items.filter(i => i.validated).length;
+                    return `${s.id}:${s.status}:${items.length}:${vCount}`;
+                }).join('|');
+                renderIngredients();
                 showToast(allValidated ? 'Inventaire entièrement validé.' : 'Ligne validée, stock mis à jour.');
             } catch (error) {
                 console.error('Erreur validation inventaire:', error);
