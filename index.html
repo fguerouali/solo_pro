@@ -4493,6 +4493,39 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             }
         };
 
+        /** Après modification manuelle du stock : valider la ligne d'inventaire avec la qty corrigée. */
+        const resolvePendingInventoryAfterIngredientEdit = async (ingredientId, newQuantity) => {
+            const submission = getPendingInventorySubmission();
+            if (!submission) return false;
+            const pendingItem = (submission.items || []).find(
+                i => i.ingredientId === ingredientId && !i.validated
+            );
+            if (!pendingItem) return false;
+
+            const qty = Number(newQuantity);
+            const updatedItems = (submission.items || []).map(i =>
+                i.ingredientId === ingredientId
+                    ? {
+                        ...i,
+                        countedQuantity: Number.isFinite(qty) ? qty : i.countedQuantity,
+                        validated: true,
+                        validatedByEdit: true
+                    }
+                    : i
+            );
+            const allValidated = updatedItems.every(i => i.validated);
+            await updateDoc(doc(inventorySubmissionsCol, submission.id), {
+                items: updatedItems,
+                status: allValidated ? 'validated' : 'pending',
+                ...(allValidated ? {
+                    validatedAt: serverTimestamp(),
+                    validatedBy: currentUserProfile?.id || '',
+                    validatedByUsername: currentUserProfile?.username || ''
+                } : {})
+            });
+            return true;
+        };
+
         const closeInventorySubmission = async (submission, { markAllValidated = true } = {}) => {
             const updatedItems = markAllValidated
                 ? (submission.items || []).map(i => ({ ...i, validated: true }))
@@ -5147,7 +5180,60 @@ const renderOrderHistory = (history) => {
         });
 
         // --- INGREDIENTS ---
-        document.getElementById('add-ingredient-btn').addEventListener('click', () => { document.getElementById('ingredient-modal-title').textContent = 'Ajouter un ingrédient'; document.getElementById('ingredient-form').reset(); document.getElementById('ingredient-id').value = ''; openModal('ingredient-modal'); }); document.getElementById('cancel-ingredient').addEventListener('click', () => closeModal('ingredient-modal')); document.getElementById('ingredient-form').addEventListener('submit', async (e) => { e.preventDefault(); const id = document.getElementById('ingredient-id').value; const data = { name: document.getElementById('ingredient-name').value, quantity: parseFloat(document.getElementById('ingredient-quantity').value), unit: document.getElementById('ingredient-unit').value, cost: parseFloat(document.getElementById('ingredient-cost').value) || 0 }; try { if (id) await updateDoc(doc(ingredientsCol, id), data); else await addDoc(ingredientsCol, {...data, createdAt: serverTimestamp()}); showToast(id ? 'Ingrédient mis à jour !' : 'Ingrédient ajouté !'); closeModal('ingredient-modal'); } catch(error) { console.error(error); showToast("Erreur lors de l'opération."); } }); document.getElementById('ingredients-list').addEventListener('click', async e => { const target = e.target.closest('[data-id]'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-ingredient-btn')) { if(confirm('Voulez-vous vraiment supprimer cet ingrédient ?')) { await deleteDoc(doc(ingredientsCol, id)); showToast('Ingrédient supprimé.'); } } else if (target.classList.contains('edit-ingredient-btn')) { const docSnap = await getDoc(doc(ingredientsCol, id)); const data = docSnap.data(); document.getElementById('ingredient-modal-title').textContent = 'Modifier un ingrédient'; document.getElementById('ingredient-id').value = docSnap.id; document.getElementById('ingredient-name').value = data.name; document.getElementById('ingredient-quantity').value = data.quantity; document.getElementById('ingredient-unit').value = data.unit; document.getElementById('ingredient-cost').value = data.cost || ''; openModal('ingredient-modal'); } });
+        document.getElementById('add-ingredient-btn').addEventListener('click', () => {
+            document.getElementById('ingredient-modal-title').textContent = 'Ajouter un ingrédient';
+            document.getElementById('ingredient-form').reset();
+            document.getElementById('ingredient-id').value = '';
+            openModal('ingredient-modal');
+        });
+        document.getElementById('cancel-ingredient').addEventListener('click', () => closeModal('ingredient-modal'));
+        document.getElementById('ingredient-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('ingredient-id').value;
+            const data = {
+                name: document.getElementById('ingredient-name').value,
+                quantity: parseFloat(document.getElementById('ingredient-quantity').value),
+                unit: document.getElementById('ingredient-unit').value,
+                cost: parseFloat(document.getElementById('ingredient-cost').value) || 0
+            };
+            try {
+                if (id) {
+                    await updateDoc(doc(ingredientsCol, id), data);
+                    const inventoryResolved = await resolvePendingInventoryAfterIngredientEdit(id, data.quantity);
+                    showToast(inventoryResolved
+                        ? 'Stock corrigé et ligne d\'inventaire validée.'
+                        : 'Ingrédient mis à jour !');
+                } else {
+                    await addDoc(ingredientsCol, { ...data, createdAt: serverTimestamp() });
+                    showToast('Ingrédient ajouté !');
+                }
+                closeModal('ingredient-modal');
+            } catch (error) {
+                console.error(error);
+                showToast("Erreur lors de l'opération.");
+            }
+        });
+        document.getElementById('ingredients-list').addEventListener('click', async e => {
+            const target = e.target.closest('[data-id]');
+            if (!target) return;
+            const id = target.dataset.id;
+            if (target.classList.contains('delete-ingredient-btn')) {
+                if (confirm('Voulez-vous vraiment supprimer cet ingrédient ?')) {
+                    await deleteDoc(doc(ingredientsCol, id));
+                    showToast('Ingrédient supprimé.');
+                }
+            } else if (target.classList.contains('edit-ingredient-btn')) {
+                const docSnap = await getDoc(doc(ingredientsCol, id));
+                const data = docSnap.data();
+                document.getElementById('ingredient-modal-title').textContent = 'Modifier un ingrédient';
+                document.getElementById('ingredient-id').value = docSnap.id;
+                document.getElementById('ingredient-name').value = data.name;
+                document.getElementById('ingredient-quantity').value = data.quantity;
+                document.getElementById('ingredient-unit').value = data.unit;
+                document.getElementById('ingredient-cost').value = data.cost || '';
+                openModal('ingredient-modal');
+            }
+        });
         
         // --- PRODUITS ---
         const populateIngredientSelects = () => {  const recipeSelect = document.getElementById('recipe-ingredient-select');  const linkedSelect = document.getElementById('linked-ingredient-select');  const poSelect = document.getElementById('po-ingredient-select'); const lossIngredientSelect = document.getElementById('loss-ingredient-select'); const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join('');  recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`;  linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`; poSelect.innerHTML = `<option value="">Choisir...</option>${options}`; lossIngredientSelect.innerHTML = `<option value="">Choisir...</option>${options}`};
