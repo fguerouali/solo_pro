@@ -921,6 +921,36 @@
         </div>
     </div>
 </div>
+
+                <!-- Analyse IA -->
+                <div id="ai-analysis-section" class="bg-white p-6 rounded-2xl shadow-lg mb-8" data-readonly-allowed="true">
+                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-800 flex items-center">
+                                <i class="fas fa-brain text-indigo-600 mr-2"></i>
+                                Analyse IA
+                            </h3>
+                            <p class="text-sm text-gray-500 mt-1">
+                                Analyse complète de l’activité (période dashboard actuelle) → 5 préconisations avec actions et justifications.
+                            </p>
+                            <p id="ai-analysis-period-hint" class="text-xs text-gray-400 mt-1"></p>
+                        </div>
+                        <button type="button" id="ai-analysis-run-btn" class="btn-primary whitespace-nowrap">
+                            <i class="fas fa-magic mr-2"></i>Analyser mon activité
+                        </button>
+                    </div>
+                    <div id="ai-analysis-loading" class="hidden text-center py-8 text-gray-600">
+                        <i class="fas fa-spinner fa-spin text-2xl text-indigo-500 mb-3"></i>
+                        <p class="font-medium">Analyse de votre activité en cours…</p>
+                        <p class="text-sm text-gray-400 mt-1">Ventes, stock, charges, pertes, avis Google…</p>
+                    </div>
+                    <div id="ai-analysis-error" class="hidden mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm"></div>
+                    <div id="ai-analysis-results" class="hidden space-y-4">
+                        <div id="ai-analysis-summary" class="p-4 rounded-xl bg-indigo-50 border border-indigo-100 text-gray-800 text-sm leading-relaxed"></div>
+                        <div id="ai-analysis-recommendations" class="space-y-3"></div>
+                        <p id="ai-analysis-meta" class="text-xs text-gray-400"></p>
+                    </div>
+                </div>
             </div>
 
             <!-- Ingrédients -->
@@ -4133,6 +4163,338 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             renderTopProducts(topDesserts, 'top-desserts-list', 'Aucun dessert vendu dans cette période');
 
             renderOperatingChargesBreakdown(filteredCharges, totalSales, filterLabel);
+            const aiPeriodHint = document.getElementById('ai-analysis-period-hint');
+            if (aiPeriodHint) aiPeriodHint.textContent = `Période analysée : ${filterLabel.replace(/^Période\s*:\s*/i, '')}`;
+        };
+
+        const roundAi = (value, digits = 2) => {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return 0;
+            const f = 10 ** digits;
+            return Math.round(n * f) / f;
+        };
+
+        const buildAiAnalysisSnapshot = () => {
+            const { startDate: filterStartDate, endDate: filterEndDate, label: filterLabel } = kpiFilterState;
+            const productById = getProductByIdMap();
+            const ingredientById = getIngredientByIdMap();
+
+            const filteredOrders = !filterStartDate ? orderHistory : orderHistory.filter(order =>
+                isWithinDateRange(order.saleDate || order.createdAt, filterStartDate, filterEndDate)
+            );
+            const filteredLosses = !filterStartDate ? allLosses : allLosses.filter(loss =>
+                isWithinDateRange(loss.createdAt, filterStartDate, filterEndDate)
+            );
+            const filteredCharges = !filterStartDate ? allCharges : allCharges.filter(charge =>
+                charge.date && isWithinDateRange(charge.date, filterStartDate, filterEndDate)
+            );
+            const filteredDailyPayments = !filterStartDate ? allDailyPayments : allDailyPayments.filter(payment =>
+                isWithinDateRange(payment.date, filterStartDate, filterEndDate)
+            );
+
+            let totalPurchases = 0;
+            let totalUnpaidPurchases = 0;
+            let unpaidPurchaseCount = 0;
+            for (const purchaseOrder of allPurchaseOrders) {
+                if (purchaseOrder.status !== 'received') continue;
+                if (filterStartDate && !isWithinDateRange(purchaseOrder.receivedAt, filterStartDate, filterEndDate)) continue;
+                const cost = purchaseOrder.totalCost || 0;
+                totalPurchases += cost;
+                if (purchaseOrder.paymentStatus !== 'paid') {
+                    totalUnpaidPurchases += cost;
+                    unpaidPurchaseCount += 1;
+                }
+            }
+
+            let salesSurPlace = 0;
+            let salesEmporter = 0;
+            let salesLivraison = 0;
+            let tpe = 0;
+            let glovoOnline = 0;
+            let cash = 0;
+            filteredDailyPayments.forEach(payment => {
+                salesSurPlace += payment.notesSurPlace || 0;
+                salesEmporter += payment.notesEmporter || 0;
+                salesLivraison += payment.notesLivraison || 0;
+                tpe += payment.tpeAmount || 0;
+                glovoOnline += payment.glovoAmount || 0;
+                cash += (payment.cashAmount || 0) + (payment.glovoCashAmount || 0);
+            });
+
+            let totalSales = 0;
+            let totalCogs = 0;
+            let totalPizzasSold = 0;
+            let totalPanuozzoSold = 0;
+            const topBuckets = { Pizza: {}, Boisson: {}, Panuozzo: {}, Dessert: {} };
+            filteredOrders.forEach(order => {
+                totalSales += order.totalPrice || 0;
+                (order.items || []).forEach(item => {
+                    const product = productById.get(item.id);
+                    if (!product) return;
+                    totalCogs += getCachedProductCost(product, ingredientById) * item.quantity;
+                    if (product.type === 'Pizza') totalPizzasSold += item.quantity;
+                    if (product.type === 'Panuozzo') totalPanuozzoSold += item.quantity;
+                    if (topBuckets[product.type]) {
+                        if (!topBuckets[product.type][item.id]) {
+                            topBuckets[product.type][item.id] = { name: item.name, count: 0, revenue: 0 };
+                        }
+                        topBuckets[product.type][item.id].count += item.quantity;
+                        topBuckets[product.type][item.id].revenue += item.quantity * (item.price || 0);
+                    }
+                });
+            });
+
+            const totalOrders = filteredOrders.length;
+            const grossMargin = totalSales - totalCogs;
+            const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+            const foodCostRate = totalSales > 0 ? (totalCogs / totalSales) * 100 : 0;
+            const grossMarginRate = totalSales > 0 ? (grossMargin / totalSales) * 100 : 0;
+            const totalPayroll = filteredCharges
+                .filter(charge => charge.type === 'salary')
+                .reduce((sum, charge) => sum + (charge.amount || 0), 0);
+            const operatingCharges = filteredCharges.reduce((sum, charge) => sum + (charge.amount || 0), 0);
+            const ebitda = grossMargin - operatingCharges;
+            const netProfit = totalSales - (operatingCharges + totalPurchases);
+
+            const totalLossesValue = filteredLosses.reduce((sum, loss) => {
+                let lossCost = 0;
+                if (loss.type === 'product') {
+                    const product = productById.get(loss.itemId);
+                    if (product) lossCost = getCachedProductCost(product, ingredientById) * loss.quantity;
+                } else {
+                    const ingredient = ingredientById.get(loss.itemId);
+                    if (ingredient) lossCost = (ingredient.cost || 0) * loss.quantity;
+                }
+                return sum + lossCost;
+            }, 0);
+
+            const lossReasons = {};
+            filteredLosses.forEach(loss => {
+                const key = (loss.reason || loss.note || 'Non précisé').toString().slice(0, 80);
+                if (!lossReasons[key]) lossReasons[key] = { count: 0, value: 0 };
+                lossReasons[key].count += 1;
+                let lossCost = 0;
+                if (loss.type === 'product') {
+                    const product = productById.get(loss.itemId);
+                    if (product) lossCost = getCachedProductCost(product, ingredientById) * loss.quantity;
+                } else {
+                    const ingredient = ingredientById.get(loss.itemId);
+                    if (ingredient) lossCost = (ingredient.cost || 0) * loss.quantity;
+                }
+                lossReasons[key].value += lossCost;
+            });
+
+            const lowStock = allIngredients
+                .filter(ing => (ing.quantity || 0) < LOW_STOCK_THRESHOLD)
+                .sort((a, b) => (a.quantity || 0) - (b.quantity || 0))
+                .slice(0, 20)
+                .map(ing => ({
+                    name: ing.name,
+                    quantity: roundAi(ing.quantity),
+                    unit: ing.unit || '',
+                    cost: roundAi(ing.cost || 0)
+                }));
+
+            const pending = getPendingInventorySubmission();
+            const pendingVariances = pending
+                ? (pending.items || [])
+                    .filter(i => !i.validated)
+                    .map(i => {
+                        const variance = getInventoryVariancePercent(i.systemQuantity, i.countedQuantity);
+                        return {
+                            name: i.name || ingredientById.get(i.ingredientId)?.name || '?',
+                            system: roundAi(i.systemQuantity),
+                            counted: roundAi(i.countedQuantity),
+                            variancePercent: roundAi(variance, 1),
+                            unit: i.unit || ''
+                        };
+                    })
+                    .filter(i => Math.abs(i.variancePercent) >= INVENTORY_TOLERANCE_PERCENT)
+                    .sort((a, b) => Math.abs(b.variancePercent) - Math.abs(a.variancePercent))
+                    .slice(0, 15)
+                : [];
+
+            const productsWithoutRecipe = allProducts.filter(p =>
+                !(p.recipe && p.recipe.length) && !p.linkedIngredientId
+            ).length;
+
+            const recentReviews = (googleReviewsState.recentReviews || []).slice(0, 5).map(r => ({
+                rating: r.rating,
+                text: String(r.text || r.comment || '').slice(0, 180),
+                relativeTime: r.relativeTime || r.time || null
+            }));
+
+            const mapTop = (bucket, limit) => getTopFromBucket(bucket, limit).map(p => ({
+                name: p.name,
+                count: p.count,
+                revenue: roundAi(p.revenue)
+            }));
+
+            return {
+                business: 'Solo Pizzeria Napoletana — Casablanca',
+                currency: 'MAD',
+                period: {
+                    label: filterLabel,
+                    start: filterStartDate ? filterStartDate.toISOString().slice(0, 10) : null,
+                    end: filterEndDate ? filterEndDate.toISOString().slice(0, 10) : null
+                },
+                kpis: {
+                    totalSales: roundAi(totalSales),
+                    totalOrders,
+                    avgOrderValue: roundAi(avgOrderValue),
+                    totalPizzasSold,
+                    totalPanuozzoSold,
+                    foodCost: roundAi(totalCogs),
+                    foodCostRatePct: roundAi(foodCostRate, 1),
+                    grossMargin: roundAi(grossMargin),
+                    grossMarginRatePct: roundAi(grossMarginRate, 1),
+                    operatingCharges: roundAi(operatingCharges),
+                    payroll: roundAi(totalPayroll),
+                    payrollRatePct: totalSales > 0 ? roundAi((totalPayroll / totalSales) * 100, 1) : 0,
+                    ebitda: roundAi(ebitda),
+                    ebitdaRatePct: totalSales > 0 ? roundAi((ebitda / totalSales) * 100, 1) : 0,
+                    netProfit: roundAi(netProfit),
+                    purchasesReceived: roundAi(totalPurchases),
+                    unpaidPurchases: roundAi(totalUnpaidPurchases),
+                    unpaidPurchaseCount,
+                    lossesValue: roundAi(totalLossesValue),
+                    lossesRatePct: totalSales > 0 ? roundAi((totalLossesValue / totalSales) * 100, 1) : 0,
+                    lossesCount: filteredLosses.length
+                },
+                channels: {
+                    surPlace: roundAi(salesSurPlace),
+                    emporter: roundAi(salesEmporter),
+                    livraison: roundAi(salesLivraison),
+                    tpe: roundAi(tpe),
+                    glovoOnline: roundAi(glovoOnline),
+                    cash: roundAi(cash)
+                },
+                chargesBreakdown: buildOperatingChargesBreakdown(filteredCharges)
+                    .slice(0, 12)
+                    .map(c => ({ name: c.name, amount: roundAi(c.amount) })),
+                topProducts: {
+                    pizzas: mapTop(topBuckets.Pizza, 10),
+                    boissons: mapTop(topBuckets.Boisson, 8),
+                    panuozzo: mapTop(topBuckets.Panuozzo, 8),
+                    desserts: mapTop(topBuckets.Dessert, 8)
+                },
+                stock: {
+                    ingredientsCount: allIngredients.length,
+                    lowStockThreshold: LOW_STOCK_THRESHOLD,
+                    lowStockCount: lowStock.length,
+                    lowStock,
+                    productsCount: allProducts.length,
+                    productsWithoutRecipe
+                },
+                inventory: {
+                    pending: Boolean(pending),
+                    pendingDate: pending?.date || null,
+                    pendingBy: pending?.username || null,
+                    highVarianceLines: pendingVariances
+                },
+                lossesTopReasons: Object.entries(lossReasons)
+                    .map(([reason, data]) => ({ reason, count: data.count, value: roundAi(data.value) }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 8),
+                hr: {
+                    employeesActive: allEmployees.filter(e => e.active !== false).length,
+                    employeesTotal: allEmployees.length
+                },
+                googleReviews: {
+                    rating: googleReviewsState.rating,
+                    total: googleReviewsState.reviewCount,
+                    recent: recentReviews
+                },
+                catalogCounts: {
+                    ordersInPeriod: filteredOrders.length,
+                    ordersTotalLoaded: orderHistory.length,
+                    chargesInPeriod: filteredCharges.length,
+                    dailyPaymentsInPeriod: filteredDailyPayments.length
+                }
+            };
+        };
+
+        const renderAiAnalysisResults = (data) => {
+            const results = document.getElementById('ai-analysis-results');
+            const summaryEl = document.getElementById('ai-analysis-summary');
+            const listEl = document.getElementById('ai-analysis-recommendations');
+            const metaEl = document.getElementById('ai-analysis-meta');
+            if (!results || !summaryEl || !listEl) return;
+
+            const priorityClass = {
+                CRITIQUE: 'bg-red-100 text-red-800 border-red-200',
+                IMPORTANT: 'bg-amber-100 text-amber-900 border-amber-200',
+                OPPORTUNITE: 'bg-emerald-100 text-emerald-800 border-emerald-200'
+            };
+
+            summaryEl.textContent = data.summary || 'Synthèse indisponible.';
+            listEl.innerHTML = (data.recommendations || []).map((rec, idx) => {
+                const priority = rec.priority || 'IMPORTANT';
+                const badge = priorityClass[priority] || priorityClass.IMPORTANT;
+                return `
+                    <div class="border border-gray-100 rounded-xl p-4">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-900 text-white text-sm font-bold">${rec.rank || idx + 1}</span>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full border ${badge}">${priority}</span>
+                            <h4 class="font-semibold text-gray-900">${rec.preconisation || ''}</h4>
+                        </div>
+                        <p class="text-sm text-gray-800"><span class="font-semibold text-gray-600">Action :</span> ${rec.action || ''}</p>
+                        <p class="text-sm text-gray-600 mt-2"><span class="font-semibold">Justification :</span> ${rec.justification || ''}</p>
+                    </div>
+                `;
+            }).join('');
+
+            const when = data.generatedAt ? new Date(data.generatedAt) : new Date();
+            metaEl.textContent = `Généré le ${when.toLocaleString('fr-FR')}${data.model ? ` · modèle ${data.model}` : ''}`;
+            results.classList.remove('hidden');
+        };
+
+        const runDashboardAiAnalysis = async () => {
+            if (!canRead('dashboard')) {
+                return showToast('Permission refusée.');
+            }
+            if (!PROXY_URL) return showToast('Proxy non configuré.');
+
+            const btn = document.getElementById('ai-analysis-run-btn');
+            const loading = document.getElementById('ai-analysis-loading');
+            const errorEl = document.getElementById('ai-analysis-error');
+            const results = document.getElementById('ai-analysis-results');
+
+            errorEl.classList.add('hidden');
+            errorEl.textContent = '';
+            results.classList.add('hidden');
+            loading.classList.remove('hidden');
+            btn.disabled = true;
+
+            try {
+                const snapshot = buildAiAnalysisSnapshot();
+                if (!snapshot.kpis.totalOrders && !snapshot.kpis.totalSales && snapshot.catalogCounts.chargesInPeriod === 0) {
+                    throw new Error('Données insuffisantes sur cette période pour lancer une analyse.');
+                }
+
+                const response = await fetch(`${PROXY_URL}/api/ai-analysis`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        snapshot,
+                        requestedBy: currentUserProfile?.username || ''
+                    })
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload.message || `Erreur serveur (${response.status})`);
+                }
+                renderAiAnalysisResults(payload.data || {});
+                showToast('Analyse IA terminée.');
+            } catch (error) {
+                console.error('AI analysis error:', error);
+                errorEl.textContent = error.message || 'Échec de l\'analyse IA.';
+                errorEl.classList.remove('hidden');
+                showToast(error.message || 'Échec de l\'analyse IA.');
+            } finally {
+                loading.classList.add('hidden');
+                btn.disabled = false;
+            }
         };
 
         // --- CONSOMMATION INGRÉDIENTS (basée sur les ventes) ---
@@ -5135,6 +5497,8 @@ const renderOrderHistory = (history) => {
 };
 // ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
         // --- KPI FILTERS ---
+        document.getElementById('ai-analysis-run-btn')?.addEventListener('click', runDashboardAiAnalysis);
+
         document.getElementById('toggle-kpi-filters-btn').addEventListener('click', () => {
             document.getElementById('kpi-filter-container').classList.toggle('hidden');
         });

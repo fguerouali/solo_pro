@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const LaCaissePOSProvider = require('./providers/lacaisseProvider');
 const { getGoogleReviewsSummary } = require('./services/googleReviews');
+const { isConfigured: isAiConfigured, runAiAnalysis } = require('./services/aiAnalysis');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,6 +13,29 @@ const POS_PROVIDER = (process.env.POS_PROVIDER || 'lacaisse').toLowerCase();
 const lacaisseProvider = new LaCaissePOSProvider();
 let googleReviewsCache = null;
 const GOOGLE_REVIEWS_CACHE_TTL_MS = 30 * 60 * 1000;
+const aiRateLimitByIp = new Map();
+const AI_RATE_LIMIT_MAX = Number(process.env.AI_ANALYSIS_RATE_LIMIT || 8);
+const AI_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+
+function getClientIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.length) {
+        return forwarded.split(',')[0].trim();
+    }
+    return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function checkAiRateLimit(ip) {
+    const now = Date.now();
+    const entry = aiRateLimitByIp.get(ip) || { count: 0, resetAt: now + AI_RATE_LIMIT_WINDOW_MS };
+    if (now > entry.resetAt) {
+        entry.count = 0;
+        entry.resetAt = now + AI_RATE_LIMIT_WINDOW_MS;
+    }
+    entry.count += 1;
+    aiRateLimitByIp.set(ip, entry);
+    return entry.count <= AI_RATE_LIMIT_MAX;
+}
 
 if (!lacaisseProvider.isConfigured()) {
     console.warn('ATTENTION: LACAISSE_LOGIN/LACAISSE_PASSWORD ou LACAISSE_SAMPLE_FILE requis pour l\'import des ventes.');
@@ -29,8 +53,9 @@ app.get('/health', (req, res) => {
         provider: POS_PROVIDER,
         lacaisseConfigured: lacaisseProvider.isConfigured(),
         googlePlacesConfigured: Boolean(process.env.GOOGLE_PLACES_API_KEY),
-        routes: ['/api/login', '/api/sales', '/api/journal', '/api/google-reviews'],
-        version: 'google-reviews-v1'
+        openaiConfigured: isAiConfigured(),
+        routes: ['/api/login', '/api/sales', '/api/journal', '/api/google-reviews', '/api/ai-analysis'],
+        version: 'ai-analysis-v1'
     });
 });
 
@@ -102,6 +127,53 @@ app.get('/api/journal', async (req, res) => {
         console.error('Error in /api/journal (LaCaisse):', error);
         res.status(500).json({
             message: `Erreur journal LaCaisse: ${error.message}`
+        });
+    }
+});
+
+// Analyse IA dashboard : snapshot agrégé côté front → LLM cloud → 5 préconisations.
+app.post('/api/ai-analysis', async (req, res) => {
+    console.log('Proxy received AI analysis request');
+    try {
+        if (!isAiConfigured()) {
+            return res.status(503).json({
+                message: 'OPENAI_API_KEY non configurée sur le proxy Render.',
+                code: 'MISSING_OPENAI_KEY'
+            });
+        }
+
+        const ip = getClientIp(req);
+        if (!checkAiRateLimit(ip)) {
+            return res.status(429).json({
+                message: 'Trop d\'analyses IA. Réessayez dans une heure.',
+                code: 'RATE_LIMIT'
+            });
+        }
+
+        const snapshot = req.body?.snapshot;
+        if (!snapshot || typeof snapshot !== 'object') {
+            return res.status(400).json({
+                message: 'Snapshot métier manquant.',
+                code: 'MISSING_SNAPSHOT'
+            });
+        }
+
+        const result = await runAiAnalysis(snapshot);
+        res.json({
+            code: 200,
+            data: {
+                summary: result.summary,
+                recommendations: result.recommendations,
+                model: result.model,
+                generatedAt: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error('Error in /api/ai-analysis:', error);
+        const status = error.code === 'MISSING_OPENAI_KEY' ? 503 : (error.status && error.status < 500 ? 502 : 500);
+        res.status(status).json({
+            message: error.message || 'Erreur analyse IA',
+            code: error.code || 'AI_ANALYSIS_ERROR'
         });
     }
 });
