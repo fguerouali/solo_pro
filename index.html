@@ -928,10 +928,10 @@
                         <div>
                             <h3 class="text-xl font-semibold text-gray-800 flex items-center">
                                 <i class="fas fa-brain text-indigo-600 mr-2"></i>
-                                Analyse IA
+                                Analyse IA approfondie
                             </h3>
                             <p class="text-sm text-gray-500 mt-1">
-                                Analyse complète de l’activité (période dashboard actuelle) → 5 préconisations avec actions et justifications.
+                                Tickets, horaires, produits, food cost, achats et charges vs best practices — puis 5 préconisations actionnables.
                             </p>
                             <p id="ai-analysis-period-hint" class="text-xs text-gray-400 mt-1"></p>
                         </div>
@@ -941,13 +941,19 @@
                     </div>
                     <div id="ai-analysis-loading" class="hidden text-center py-8 text-gray-600">
                         <i class="fas fa-spinner fa-spin text-2xl text-indigo-500 mb-3"></i>
-                        <p class="font-medium">Analyse de votre activité en cours…</p>
-                        <p class="text-sm text-gray-400 mt-1">Ventes, stock, charges, pertes, avis Google…</p>
+                        <p class="font-medium">Analyse approfondie en cours…</p>
+                        <p class="text-sm text-gray-400 mt-1">Tickets, créneaux horaires, mix, food cost, achats, charges…</p>
                     </div>
                     <div id="ai-analysis-error" class="hidden mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm"></div>
-                    <div id="ai-analysis-results" class="hidden space-y-4">
+                    <div id="ai-analysis-results" class="hidden space-y-5">
                         <div id="ai-analysis-summary" class="p-4 rounded-xl bg-indigo-50 border border-indigo-100 text-gray-800 text-sm leading-relaxed"></div>
-                        <div id="ai-analysis-recommendations" class="space-y-3"></div>
+                        <div id="ai-analysis-diagnosis" class="hidden p-4 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 text-sm leading-relaxed"></div>
+                        <div id="ai-analysis-scorecard" class="hidden overflow-x-auto"></div>
+                        <div id="ai-analysis-sections" class="space-y-3"></div>
+                        <div>
+                            <h4 class="text-base font-semibold text-gray-800 mb-3">5 préconisations prioritaires</h4>
+                            <div id="ai-analysis-recommendations" class="space-y-3"></div>
+                        </div>
                         <p id="ai-analysis-meta" class="text-xs text-gray-400"></p>
                     </div>
                 </div>
@@ -4178,6 +4184,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const { startDate: filterStartDate, endDate: filterEndDate, label: filterLabel } = kpiFilterState;
             const productById = getProductByIdMap();
             const ingredientById = getIngredientByIdMap();
+            const dayNames = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 
             const filteredOrders = !filterStartDate ? orderHistory : orderHistory.filter(order =>
                 isWithinDateRange(order.saleDate || order.createdAt, filterStartDate, filterEndDate)
@@ -4192,17 +4199,41 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 isWithinDateRange(payment.date, filterStartDate, filterEndDate)
             );
 
+            const supplierById = new Map(allSuppliers.map(s => [s.id, s]));
             let totalPurchases = 0;
             let totalUnpaidPurchases = 0;
             let unpaidPurchaseCount = 0;
+            const purchasesBySupplier = {};
+            const purchasedItems = {};
+            const purchaseOrdersDetail = [];
+
             for (const purchaseOrder of allPurchaseOrders) {
                 if (purchaseOrder.status !== 'received') continue;
                 if (filterStartDate && !isWithinDateRange(purchaseOrder.receivedAt, filterStartDate, filterEndDate)) continue;
                 const cost = purchaseOrder.totalCost || 0;
                 totalPurchases += cost;
+                const supplierName = supplierById.get(purchaseOrder.supplierId)?.name || 'Fournisseur inconnu';
+                if (!purchasesBySupplier[supplierName]) purchasesBySupplier[supplierName] = { amount: 0, orders: 0 };
+                purchasesBySupplier[supplierName].amount += cost;
+                purchasesBySupplier[supplierName].orders += 1;
                 if (purchaseOrder.paymentStatus !== 'paid') {
                     totalUnpaidPurchases += cost;
                     unpaidPurchaseCount += 1;
+                }
+                (purchaseOrder.items || []).forEach(item => {
+                    const key = item.name || 'Article';
+                    if (!purchasedItems[key]) purchasedItems[key] = { quantity: 0, amount: 0, unit: item.unit || '' };
+                    purchasedItems[key].quantity += item.quantity || 0;
+                    purchasedItems[key].amount += (item.quantity || 0) * (item.price || 0);
+                });
+                if (purchaseOrdersDetail.length < 25) {
+                    purchaseOrdersDetail.push({
+                        supplier: supplierName,
+                        totalCost: roundAi(cost),
+                        paid: purchaseOrder.paymentStatus === 'paid',
+                        receivedAt: toDate(purchaseOrder.receivedAt)?.toISOString().slice(0, 10) || null,
+                        itemsCount: (purchaseOrder.items || []).length
+                    });
                 }
             }
 
@@ -4212,42 +4243,120 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             let tpe = 0;
             let glovoOnline = 0;
             let cash = 0;
+            let annulAvant = 0;
+            let annulApres = 0;
             filteredDailyPayments.forEach(payment => {
                 salesSurPlace += payment.notesSurPlace || 0;
                 salesEmporter += payment.notesEmporter || 0;
                 salesLivraison += payment.notesLivraison || 0;
                 tpe += payment.tpeAmount || 0;
                 glovoOnline += payment.glovoAmount || 0;
-                cash += (payment.cashAmount || 0) + (payment.glovoCashAmount || 0);
+                cash += Math.max(0, (payment.totalSales || 0) - (payment.tpeAmount || 0) - (payment.glovoAmount || 0));
+                annulAvant += payment.articlesAnnulesAvantNote || 0;
+                annulApres += payment.articlesAnnulesApresNote || 0;
             });
 
             let totalSales = 0;
             let totalCogs = 0;
             let totalPizzasSold = 0;
             let totalPanuozzoSold = 0;
-            const topBuckets = { Pizza: {}, Boisson: {}, Panuozzo: {}, Dessert: {} };
+            let totalBoissonsSold = 0;
+            let totalDessertsSold = 0;
+            let ticketsWithBoisson = 0;
+            let ticketsWithDessert = 0;
+            let ticketsWithPizza = 0;
+            let discountedTickets = 0;
+            const ticketValues = [];
+            const hourly = Array.from({ length: 24 }, (_, hour) => ({ hour, tickets: 0, sales: 0 }));
+            const byWeekday = dayNames.map(name => ({ day: name, tickets: 0, sales: 0 }));
+            const byChannel = {};
+            const productStats = {};
+            const familyStats = {};
+
             filteredOrders.forEach(order => {
-                totalSales += order.totalPrice || 0;
+                const orderTotal = order.totalPrice || 0;
+                totalSales += orderTotal;
+                ticketValues.push(orderTotal);
+                if (order.hadDiscount) discountedTickets += 1;
+
+                const d = toDate(order.saleDate || order.createdAt);
+                if (d) {
+                    hourly[d.getHours()].tickets += 1;
+                    hourly[d.getHours()].sales += orderTotal;
+                    byWeekday[d.getDay()].tickets += 1;
+                    byWeekday[d.getDay()].sales += orderTotal;
+                }
+
+                const channel = (order.salesChannel || 'Non renseigné').toString();
+                if (!byChannel[channel]) byChannel[channel] = { tickets: 0, sales: 0 };
+                byChannel[channel].tickets += 1;
+                byChannel[channel].sales += orderTotal;
+
+                let hasPizza = false;
+                let hasBoisson = false;
+                let hasDessert = false;
+
                 (order.items || []).forEach(item => {
                     const product = productById.get(item.id);
-                    if (!product) return;
-                    totalCogs += getCachedProductCost(product, ingredientById) * item.quantity;
-                    if (product.type === 'Pizza') totalPizzasSold += item.quantity;
-                    if (product.type === 'Panuozzo') totalPanuozzoSold += item.quantity;
-                    if (topBuckets[product.type]) {
-                        if (!topBuckets[product.type][item.id]) {
-                            topBuckets[product.type][item.id] = { name: item.name, count: 0, revenue: 0 };
-                        }
-                        topBuckets[product.type][item.id].count += item.quantity;
-                        topBuckets[product.type][item.id].revenue += item.quantity * (item.price || 0);
+                    const qty = item.quantity || 0;
+                    const lineRevenue = qty * (item.price || 0);
+                    const unitCost = product ? getCachedProductCost(product, ingredientById) : 0;
+                    const lineCost = unitCost * qty;
+                    totalCogs += lineCost;
+
+                    const type = product?.type || (item.isUnknown ? 'Non lié' : 'Autre');
+                    if (type === 'Pizza') { totalPizzasSold += qty; hasPizza = true; }
+                    if (type === 'Panuozzo') totalPanuozzoSold += qty;
+                    if (type === 'Boisson') { totalBoissonsSold += qty; hasBoisson = true; }
+                    if (type === 'Dessert') { totalDessertsSold += qty; hasDessert = true; }
+
+                    if (!familyStats[type]) familyStats[type] = { quantity: 0, revenue: 0, cost: 0 };
+                    familyStats[type].quantity += qty;
+                    familyStats[type].revenue += lineRevenue;
+                    familyStats[type].cost += lineCost;
+
+                    const name = item.name || product?.name || 'Produit';
+                    if (!productStats[name]) {
+                        productStats[name] = { name, type, quantity: 0, revenue: 0, cost: 0 };
                     }
+                    productStats[name].quantity += qty;
+                    productStats[name].revenue += lineRevenue;
+                    productStats[name].cost += lineCost;
                 });
+
+                if (hasPizza) ticketsWithPizza += 1;
+                if (hasBoisson) ticketsWithBoisson += 1;
+                if (hasDessert) ticketsWithDessert += 1;
             });
 
             const totalOrders = filteredOrders.length;
+            const sortedTickets = [...ticketValues].sort((a, b) => a - b);
+            const medianTicket = sortedTickets.length
+                ? (sortedTickets.length % 2
+                    ? sortedTickets[(sortedTickets.length - 1) / 2]
+                    : (sortedTickets[sortedTickets.length / 2 - 1] + sortedTickets[sortedTickets.length / 2]) / 2)
+                : 0;
+            const ticketBuckets = [
+                { label: '< 50', count: 0 },
+                { label: '50-99', count: 0 },
+                { label: '100-149', count: 0 },
+                { label: '150-199', count: 0 },
+                { label: '200-299', count: 0 },
+                { label: '>= 300', count: 0 }
+            ];
+            ticketValues.forEach(v => {
+                if (v < 50) ticketBuckets[0].count += 1;
+                else if (v < 100) ticketBuckets[1].count += 1;
+                else if (v < 150) ticketBuckets[2].count += 1;
+                else if (v < 200) ticketBuckets[3].count += 1;
+                else if (v < 300) ticketBuckets[4].count += 1;
+                else ticketBuckets[5].count += 1;
+            });
+
             const grossMargin = totalSales - totalCogs;
             const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
             const foodCostRate = totalSales > 0 ? (totalCogs / totalSales) * 100 : 0;
+            const purchasesRate = totalSales > 0 ? (totalPurchases / totalSales) * 100 : 0;
             const grossMarginRate = totalSales > 0 ? (grossMargin / totalSales) * 100 : 0;
             const totalPayroll = filteredCharges
                 .filter(charge => charge.type === 'salary')
@@ -4255,6 +4364,59 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const operatingCharges = filteredCharges.reduce((sum, charge) => sum + (charge.amount || 0), 0);
             const ebitda = grossMargin - operatingCharges;
             const netProfit = totalSales - (operatingCharges + totalPurchases);
+
+            const bestPractices = {
+                note: 'Référentiel restauration / pizzeria (ordres de grandeur). À adapter au contexte Solo Casablanca.',
+                foodCostPct: { min: 28, max: 32, ideal: 30 },
+                purchasesVsSalesPct: { min: 25, max: 35, ideal: 30 },
+                payrollPct: { min: 25, max: 35, ideal: 30 },
+                rentPct: { min: 6, max: 10, ideal: 8 },
+                marketingPct: { min: 2, max: 5, ideal: 3 },
+                utilitiesPct: { min: 2, max: 5, ideal: 3.5 },
+                operatingChargesExFoodPct: { min: 20, max: 35, ideal: 28 },
+                grossMarginPct: { min: 65, max: 75, ideal: 70 },
+                ebitdaPct: { min: 10, max: 20, ideal: 15 },
+                beverageAttachmentPct: { min: 40, max: 60, ideal: 50 },
+                dessertAttachmentPct: { min: 15, max: 25, ideal: 20 },
+                lossesPct: { min: 0, max: 2, ideal: 1 }
+            };
+
+            const chargeLabelToBenchmark = {
+                'Salaires': bestPractices.payrollPct,
+                'Loyer': bestPractices.rentPct,
+                'Marketing': bestPractices.marketingPct,
+                'Eau et électricité': bestPractices.utilitiesPct,
+                'Gaz': { min: 1, max: 3, ideal: 2 },
+                'Internet': { min: 0.3, max: 1.5, ideal: 0.8 },
+                'Commission Glovo': { min: 3, max: 12, ideal: 7 },
+                'Commission TPE': { min: 0.5, max: 2.5, ideal: 1.5 },
+                'Packaging cost': { min: 1, max: 4, ideal: 2.5 },
+                'Assurances': { min: 0.5, max: 2, ideal: 1 },
+                'Comptable': { min: 0.5, max: 2, ideal: 1 },
+                'CNSS/IMPOT/TAXES': { min: 3, max: 10, ideal: 6 },
+                'Entretien et maintenance': { min: 1, max: 3, ideal: 2 },
+                'Nettoyage et dératisation': { min: 0.5, max: 2, ideal: 1 }
+            };
+
+            const chargesBreakdown = buildOperatingChargesBreakdown(filteredCharges).map(c => {
+                const pctOfSales = totalSales > 0 ? (c.amount / totalSales) * 100 : 0;
+                const bench = chargeLabelToBenchmark[c.name] || null;
+                let vsBestPractice = 'Pas de benchmark spécifique — juger au poids relatif';
+                let status = 'INCONNU';
+                if (bench) {
+                    if (pctOfSales < bench.min) { status = 'SOUS'; vsBestPractice = `Sous la fourchette ${bench.min}-${bench.max}%`; }
+                    else if (pctOfSales > bench.max) { status = 'CRITIQUE'; vsBestPractice = `Au-dessus de ${bench.max}% (cible ~${bench.ideal}%)`; }
+                    else { status = 'OK'; vsBestPractice = `Dans la fourchette ${bench.min}-${bench.max}%`; }
+                }
+                return {
+                    name: c.name,
+                    amount: roundAi(c.amount),
+                    pctOfSales: roundAi(pctOfSales, 1),
+                    bestPracticeRange: bench ? `${bench.min}-${bench.max}%` : null,
+                    status,
+                    vsBestPractice
+                };
+            });
 
             const totalLossesValue = filteredLosses.reduce((sum, loss) => {
                 let lossCost = 0;
@@ -4268,26 +4430,122 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 return sum + lossCost;
             }, 0);
 
-            const lossReasons = {};
-            filteredLosses.forEach(loss => {
-                const key = (loss.reason || loss.note || 'Non précisé').toString().slice(0, 80);
-                if (!lossReasons[key]) lossReasons[key] = { count: 0, value: 0 };
-                lossReasons[key].count += 1;
-                let lossCost = 0;
-                if (loss.type === 'product') {
-                    const product = productById.get(loss.itemId);
-                    if (product) lossCost = getCachedProductCost(product, ingredientById) * loss.quantity;
-                } else {
-                    const ingredient = ingredientById.get(loss.itemId);
-                    if (ingredient) lossCost = (ingredient.cost || 0) * loss.quantity;
-                }
-                lossReasons[key].value += lossCost;
+            const enrichProduct = (p) => ({
+                name: p.name,
+                type: p.type,
+                quantity: roundAi(p.quantity, 1),
+                revenue: roundAi(p.revenue),
+                cost: roundAi(p.cost),
+                margin: roundAi(p.revenue - p.cost),
+                marginPct: p.revenue > 0 ? roundAi(((p.revenue - p.cost) / p.revenue) * 100, 1) : 0,
+                shareOfSalesPct: totalSales > 0 ? roundAi((p.revenue / totalSales) * 100, 1) : 0
             });
+
+            const allProductsRanked = Object.values(productStats).map(enrichProduct).sort((a, b) => b.revenue - a.revenue);
+            const topProducts = allProductsRanked.slice(0, 15);
+            const flopProducts = [...allProductsRanked].filter(p => p.quantity > 0).sort((a, b) => a.quantity - b.quantity).slice(0, 10);
+            const worstMarginProducts = [...allProductsRanked]
+                .filter(p => p.revenue > 0 && p.cost > 0)
+                .sort((a, b) => a.marginPct - b.marginPct)
+                .slice(0, 10);
+
+            const familyMix = Object.entries(familyStats).map(([type, s]) => ({
+                type,
+                quantity: roundAi(s.quantity, 1),
+                revenue: roundAi(s.revenue),
+                cost: roundAi(s.cost),
+                marginPct: s.revenue > 0 ? roundAi(((s.revenue - s.cost) / s.revenue) * 100, 1) : 0,
+                shareOfSalesPct: totalSales > 0 ? roundAi((s.revenue / totalSales) * 100, 1) : 0
+            })).sort((a, b) => b.revenue - a.revenue);
+
+            const activeHours = hourly.filter(h => h.tickets > 0).map(h => ({
+                hour: `${String(h.hour).padStart(2, '0')}h`,
+                tickets: h.tickets,
+                sales: roundAi(h.sales),
+                avgTicket: h.tickets > 0 ? roundAi(h.sales / h.tickets) : 0,
+                shareOfSalesPct: totalSales > 0 ? roundAi((h.sales / totalSales) * 100, 1) : 0
+            }));
+            const peakHours = [...activeHours].sort((a, b) => b.sales - a.sales).slice(0, 5);
+            const weakHours = [...activeHours].sort((a, b) => a.sales - b.sales).slice(0, 5);
+
+            const weekdayStats = byWeekday.map(d => ({
+                day: d.day,
+                tickets: d.tickets,
+                sales: roundAi(d.sales),
+                avgTicket: d.tickets > 0 ? roundAi(d.sales / d.tickets) : 0,
+                shareOfSalesPct: totalSales > 0 ? roundAi((d.sales / totalSales) * 100, 1) : 0
+            }));
+
+            const channelStats = Object.entries(byChannel).map(([channel, s]) => ({
+                channel,
+                tickets: s.tickets,
+                sales: roundAi(s.sales),
+                avgTicket: s.tickets > 0 ? roundAi(s.sales / s.tickets) : 0,
+                shareOfSalesPct: totalSales > 0 ? roundAi((s.sales / totalSales) * 100, 1) : 0
+            })).sort((a, b) => b.sales - a.sales);
+
+            const beverageAttachmentPct = ticketsWithPizza > 0
+                ? (ticketsWithBoisson / Math.max(ticketsWithPizza, 1)) * 100
+                : (totalOrders > 0 ? (ticketsWithBoisson / totalOrders) * 100 : 0);
+            const dessertAttachmentPct = ticketsWithPizza > 0
+                ? (ticketsWithDessert / Math.max(ticketsWithPizza, 1)) * 100
+                : (totalOrders > 0 ? (ticketsWithDessert / totalOrders) * 100 : 0);
+
+            const precomputedScorecard = [
+                {
+                    metric: 'Food cost théorique % CA',
+                    actualPct: roundAi(foodCostRate, 1),
+                    bestPractice: `${bestPractices.foodCostPct.min}-${bestPractices.foodCostPct.max}%`,
+                    status: foodCostRate === 0 ? 'INCONNU' : (foodCostRate > bestPractices.foodCostPct.max ? 'CRITIQUE' : (foodCostRate < bestPractices.foodCostPct.min ? 'SOUS' : 'OK'))
+                },
+                {
+                    metric: 'Achats reçus % CA',
+                    actualPct: roundAi(purchasesRate, 1),
+                    bestPractice: `${bestPractices.purchasesVsSalesPct.min}-${bestPractices.purchasesVsSalesPct.max}%`,
+                    status: totalSales === 0 ? 'INCONNU' : (purchasesRate > bestPractices.purchasesVsSalesPct.max ? 'ALERTE' : 'OK')
+                },
+                {
+                    metric: 'Marge brute %',
+                    actualPct: roundAi(grossMarginRate, 1),
+                    bestPractice: `${bestPractices.grossMarginPct.min}-${bestPractices.grossMarginPct.max}%`,
+                    status: totalSales === 0 ? 'INCONNU' : (grossMarginRate < bestPractices.grossMarginPct.min ? 'ALERTE' : 'OK')
+                },
+                {
+                    metric: 'Masse salariale % CA',
+                    actualPct: totalSales > 0 ? roundAi((totalPayroll / totalSales) * 100, 1) : 0,
+                    bestPractice: `${bestPractices.payrollPct.min}-${bestPractices.payrollPct.max}%`,
+                    status: totalSales === 0 ? 'INCONNU' : ((totalPayroll / totalSales) * 100 > bestPractices.payrollPct.max ? 'CRITIQUE' : 'OK')
+                },
+                {
+                    metric: 'Charges exploitation % CA',
+                    actualPct: totalSales > 0 ? roundAi((operatingCharges / totalSales) * 100, 1) : 0,
+                    bestPractice: `${bestPractices.operatingChargesExFoodPct.min}-${bestPractices.operatingChargesExFoodPct.max}%`,
+                    status: totalSales === 0 ? 'INCONNU' : ((operatingCharges / totalSales) * 100 > bestPractices.operatingChargesExFoodPct.max ? 'ALERTE' : 'OK')
+                },
+                {
+                    metric: 'Taux accompagnement boisson',
+                    actualPct: roundAi(beverageAttachmentPct, 1),
+                    bestPractice: `${bestPractices.beverageAttachmentPct.min}-${bestPractices.beverageAttachmentPct.max}%`,
+                    status: totalOrders === 0 ? 'INCONNU' : (beverageAttachmentPct < bestPractices.beverageAttachmentPct.min ? 'ALERTE' : 'OK')
+                },
+                {
+                    metric: 'Taux accompagnement dessert',
+                    actualPct: roundAi(dessertAttachmentPct, 1),
+                    bestPractice: `${bestPractices.dessertAttachmentPct.min}-${bestPractices.dessertAttachmentPct.max}%`,
+                    status: totalOrders === 0 ? 'INCONNU' : (dessertAttachmentPct < bestPractices.dessertAttachmentPct.min ? 'OPPORTUNITE' : 'OK')
+                },
+                {
+                    metric: 'EBITDA % CA',
+                    actualPct: totalSales > 0 ? roundAi((ebitda / totalSales) * 100, 1) : 0,
+                    bestPractice: `${bestPractices.ebitdaPct.min}-${bestPractices.ebitdaPct.max}%`,
+                    status: totalSales === 0 ? 'INCONNU' : ((ebitda / totalSales) * 100 < bestPractices.ebitdaPct.min ? 'ALERTE' : 'OK')
+                }
+            ];
 
             const lowStock = allIngredients
                 .filter(ing => (ing.quantity || 0) < LOW_STOCK_THRESHOLD)
                 .sort((a, b) => (a.quantity || 0) - (b.quantity || 0))
-                .slice(0, 20)
+                .slice(0, 15)
                 .map(ing => ({
                     name: ing.name,
                     quantity: roundAi(ing.quantity),
@@ -4311,80 +4569,118 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     })
                     .filter(i => Math.abs(i.variancePercent) >= INVENTORY_TOLERANCE_PERCENT)
                     .sort((a, b) => Math.abs(b.variancePercent) - Math.abs(a.variancePercent))
-                    .slice(0, 15)
+                    .slice(0, 12)
                 : [];
-
-            const productsWithoutRecipe = allProducts.filter(p =>
-                !(p.recipe && p.recipe.length) && !p.linkedIngredientId
-            ).length;
-
-            const recentReviews = (googleReviewsState.recentReviews || []).slice(0, 5).map(r => ({
-                rating: r.rating,
-                text: String(r.text || r.comment || '').slice(0, 180),
-                relativeTime: r.relativeTime || r.time || null
-            }));
-
-            const mapTop = (bucket, limit) => getTopFromBucket(bucket, limit).map(p => ({
-                name: p.name,
-                count: p.count,
-                revenue: roundAi(p.revenue)
-            }));
 
             return {
                 business: 'Solo Pizzeria Napoletana — Casablanca',
                 currency: 'MAD',
+                analysisMode: 'deep-v2',
                 period: {
                     label: filterLabel,
                     start: filterStartDate ? filterStartDate.toISOString().slice(0, 10) : null,
                     end: filterEndDate ? filterEndDate.toISOString().slice(0, 10) : null
                 },
+                bestPractices,
+                precomputedScorecard,
                 kpis: {
                     totalSales: roundAi(totalSales),
                     totalOrders,
                     avgOrderValue: roundAi(avgOrderValue),
+                    medianTicket: roundAi(medianTicket),
+                    minTicket: sortedTickets.length ? roundAi(sortedTickets[0]) : 0,
+                    maxTicket: sortedTickets.length ? roundAi(sortedTickets[sortedTickets.length - 1]) : 0,
+                    discountedTickets,
                     totalPizzasSold,
                     totalPanuozzoSold,
-                    foodCost: roundAi(totalCogs),
+                    totalBoissonsSold,
+                    totalDessertsSold,
+                    foodCostTheoretical: roundAi(totalCogs),
                     foodCostRatePct: roundAi(foodCostRate, 1),
+                    purchasesReceived: roundAi(totalPurchases),
+                    purchasesRatePct: roundAi(purchasesRate, 1),
+                    unpaidPurchases: roundAi(totalUnpaidPurchases),
+                    unpaidPurchaseCount,
                     grossMargin: roundAi(grossMargin),
                     grossMarginRatePct: roundAi(grossMarginRate, 1),
                     operatingCharges: roundAi(operatingCharges),
+                    operatingChargesRatePct: totalSales > 0 ? roundAi((operatingCharges / totalSales) * 100, 1) : 0,
                     payroll: roundAi(totalPayroll),
                     payrollRatePct: totalSales > 0 ? roundAi((totalPayroll / totalSales) * 100, 1) : 0,
                     ebitda: roundAi(ebitda),
                     ebitdaRatePct: totalSales > 0 ? roundAi((ebitda / totalSales) * 100, 1) : 0,
                     netProfit: roundAi(netProfit),
-                    purchasesReceived: roundAi(totalPurchases),
-                    unpaidPurchases: roundAi(totalUnpaidPurchases),
-                    unpaidPurchaseCount,
                     lossesValue: roundAi(totalLossesValue),
                     lossesRatePct: totalSales > 0 ? roundAi((totalLossesValue / totalSales) * 100, 1) : 0,
                     lossesCount: filteredLosses.length
                 },
+                tickets: {
+                    distributionBuckets: ticketBuckets,
+                    attachment: {
+                        ticketsWithPizza,
+                        ticketsWithBoisson,
+                        ticketsWithDessert,
+                        beverageAttachmentPct: roundAi(beverageAttachmentPct, 1),
+                        dessertAttachmentPct: roundAi(dessertAttachmentPct, 1)
+                    }
+                },
+                hours: {
+                    byHour: activeHours,
+                    peakHours,
+                    weakHours,
+                    byWeekday: weekdayStats
+                },
                 channels: {
-                    surPlace: roundAi(salesSurPlace),
-                    emporter: roundAi(salesEmporter),
-                    livraison: roundAi(salesLivraison),
-                    tpe: roundAi(tpe),
-                    glovoOnline: roundAi(glovoOnline),
-                    cash: roundAi(cash)
+                    fromDailyPayments: {
+                        surPlace: roundAi(salesSurPlace),
+                        emporter: roundAi(salesEmporter),
+                        livraison: roundAi(salesLivraison),
+                        tpe: roundAi(tpe),
+                        glovoOnline: roundAi(glovoOnline),
+                        cashEstimated: roundAi(cash),
+                        cancellationsBefore: roundAi(annulAvant),
+                        cancellationsAfter: roundAi(annulApres)
+                    },
+                    fromTickets: channelStats
                 },
-                chargesBreakdown: buildOperatingChargesBreakdown(filteredCharges)
-                    .slice(0, 12)
-                    .map(c => ({ name: c.name, amount: roundAi(c.amount) })),
-                topProducts: {
-                    pizzas: mapTop(topBuckets.Pizza, 10),
-                    boissons: mapTop(topBuckets.Boisson, 8),
-                    panuozzo: mapTop(topBuckets.Panuozzo, 8),
-                    desserts: mapTop(topBuckets.Dessert, 8)
+                products: {
+                    familyMix,
+                    topByRevenue: topProducts,
+                    flopByQuantity: flopProducts,
+                    worstMargin: worstMarginProducts,
+                    productsWithoutRecipe: allProducts.filter(p => !(p.recipe && p.recipe.length) && !p.linkedIngredientId).length
                 },
+                purchases: {
+                    total: roundAi(totalPurchases),
+                    pctOfSales: roundAi(purchasesRate, 1),
+                    unpaid: roundAi(totalUnpaidPurchases),
+                    unpaidCount: unpaidPurchaseCount,
+                    bySupplier: Object.entries(purchasesBySupplier)
+                        .map(([name, s]) => ({
+                            supplier: name,
+                            amount: roundAi(s.amount),
+                            orders: s.orders,
+                            sharePct: totalPurchases > 0 ? roundAi((s.amount / totalPurchases) * 100, 1) : 0
+                        }))
+                        .sort((a, b) => b.amount - a.amount)
+                        .slice(0, 12),
+                    topItems: Object.entries(purchasedItems)
+                        .map(([name, s]) => ({
+                            name,
+                            quantity: roundAi(s.quantity, 1),
+                            amount: roundAi(s.amount),
+                            unit: s.unit
+                        }))
+                        .sort((a, b) => b.amount - a.amount)
+                        .slice(0, 15),
+                    recentOrders: purchaseOrdersDetail
+                },
+                chargesBreakdown,
                 stock: {
                     ingredientsCount: allIngredients.length,
                     lowStockThreshold: LOW_STOCK_THRESHOLD,
                     lowStockCount: lowStock.length,
-                    lowStock,
-                    productsCount: allProducts.length,
-                    productsWithoutRecipe
+                    lowStock
                 },
                 inventory: {
                     pending: Boolean(pending),
@@ -4392,10 +4688,6 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     pendingBy: pending?.username || null,
                     highVarianceLines: pendingVariances
                 },
-                lossesTopReasons: Object.entries(lossReasons)
-                    .map(([reason, data]) => ({ reason, count: data.count, value: roundAi(data.value) }))
-                    .sort((a, b) => b.value - a.value)
-                    .slice(0, 8),
                 hr: {
                     employeesActive: allEmployees.filter(e => e.active !== false).length,
                     employeesTotal: allEmployees.length
@@ -4403,20 +4695,34 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 googleReviews: {
                     rating: googleReviewsState.rating,
                     total: googleReviewsState.reviewCount,
-                    recent: recentReviews
+                    recent: (googleReviewsState.recentReviews || []).slice(0, 5).map(r => ({
+                        rating: r.rating,
+                        text: String(r.text || r.comment || '').slice(0, 160),
+                        relativeTime: r.relativeTime || r.time || null
+                    }))
                 },
                 catalogCounts: {
                     ordersInPeriod: filteredOrders.length,
                     ordersTotalLoaded: orderHistory.length,
                     chargesInPeriod: filteredCharges.length,
-                    dailyPaymentsInPeriod: filteredDailyPayments.length
+                    dailyPaymentsInPeriod: filteredDailyPayments.length,
+                    purchaseOrdersInPeriod: purchaseOrdersDetail.length
                 }
             };
         };
 
+        const escapeAiHtml = (value) => String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+
         const renderAiAnalysisResults = (data) => {
             const results = document.getElementById('ai-analysis-results');
             const summaryEl = document.getElementById('ai-analysis-summary');
+            const diagnosisEl = document.getElementById('ai-analysis-diagnosis');
+            const scorecardEl = document.getElementById('ai-analysis-scorecard');
+            const sectionsEl = document.getElementById('ai-analysis-sections');
             const listEl = document.getElementById('ai-analysis-recommendations');
             const metaEl = document.getElementById('ai-analysis-meta');
             if (!results || !summaryEl || !listEl) return;
@@ -4426,8 +4732,78 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 IMPORTANT: 'bg-amber-100 text-amber-900 border-amber-200',
                 OPPORTUNITE: 'bg-emerald-100 text-emerald-800 border-emerald-200'
             };
+            const statusClass = {
+                OK: 'bg-emerald-100 text-emerald-800',
+                SOUS: 'bg-blue-100 text-blue-800',
+                ALERTE: 'bg-amber-100 text-amber-900',
+                CRITIQUE: 'bg-red-100 text-red-800',
+                OPPORTUNITE: 'bg-indigo-100 text-indigo-800',
+                INCONNU: 'bg-gray-100 text-gray-600'
+            };
 
-            summaryEl.textContent = data.summary || 'Synthèse indisponible.';
+            summaryEl.innerHTML = `<p class="font-semibold text-indigo-900 mb-1">Synthèse</p><p>${escapeAiHtml(data.summary || 'Synthèse indisponible.')}</p>`;
+
+            if (diagnosisEl) {
+                if (data.executiveDiagnosis) {
+                    diagnosisEl.classList.remove('hidden');
+                    diagnosisEl.innerHTML = `<p class="font-semibold text-gray-800 mb-1">Diagnostic</p><p>${escapeAiHtml(data.executiveDiagnosis)}</p>`;
+                } else {
+                    diagnosisEl.classList.add('hidden');
+                    diagnosisEl.innerHTML = '';
+                }
+            }
+
+            if (scorecardEl) {
+                const scorecard = data.benchmarkScorecard || [];
+                if (scorecard.length) {
+                    scorecardEl.classList.remove('hidden');
+                    scorecardEl.innerHTML = `
+                        <h4 class="text-base font-semibold text-gray-800 mb-2">Scorecard vs best practices</h4>
+                        <table class="min-w-full text-sm border border-gray-100 rounded-xl overflow-hidden">
+                            <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Indicateur</th>
+                                    <th class="px-3 py-2 text-left">Solo</th>
+                                    <th class="px-3 py-2 text-left">Best practice</th>
+                                    <th class="px-3 py-2 text-left">Statut</th>
+                                    <th class="px-3 py-2 text-left">Commentaire</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                ${scorecard.map(row => `
+                                    <tr>
+                                        <td class="px-3 py-2 font-medium text-gray-800">${escapeAiHtml(row.metric)}</td>
+                                        <td class="px-3 py-2">${escapeAiHtml(row.actual)}</td>
+                                        <td class="px-3 py-2 text-gray-600">${escapeAiHtml(row.bestPractice)}</td>
+                                        <td class="px-3 py-2"><span class="text-xs font-semibold px-2 py-0.5 rounded-full ${statusClass[row.status] || statusClass.INCONNU}">${escapeAiHtml(row.status)}</span></td>
+                                        <td class="px-3 py-2 text-gray-600">${escapeAiHtml(row.comment)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>`;
+                } else {
+                    scorecardEl.classList.add('hidden');
+                    scorecardEl.innerHTML = '';
+                }
+            }
+
+            if (sectionsEl) {
+                const sections = data.sections || {};
+                const order = ['ticketsAndHours', 'products', 'foodCost', 'purchases', 'operatingCharges'];
+                sectionsEl.innerHTML = order.map(key => {
+                    const section = sections[key];
+                    if (!section || (!section.findings && !(section.keySignals || []).length)) return '';
+                    const signals = (section.keySignals || []).map(s => `<li>${escapeAiHtml(s)}</li>`).join('');
+                    return `
+                        <details class="border border-gray-100 rounded-xl p-4" open>
+                            <summary class="font-semibold text-gray-900 cursor-pointer">${escapeAiHtml(section.title || key)}</summary>
+                            <p class="text-sm text-gray-700 mt-3 leading-relaxed whitespace-pre-line">${escapeAiHtml(section.findings)}</p>
+                            ${signals ? `<ul class="mt-3 text-sm text-gray-700 list-disc list-inside space-y-1">${signals}</ul>` : ''}
+                            ${section.vsBestPractice ? `<p class="mt-3 text-sm text-indigo-800 bg-indigo-50 rounded-lg p-3"><span class="font-semibold">Vs best practice :</span> ${escapeAiHtml(section.vsBestPractice)}</p>` : ''}
+                        </details>`;
+                }).join('');
+            }
+
             listEl.innerHTML = (data.recommendations || []).map((rec, idx) => {
                 const priority = rec.priority || 'IMPORTANT';
                 const badge = priorityClass[priority] || priorityClass.IMPORTANT;
@@ -4436,10 +4812,11 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         <div class="flex flex-wrap items-center gap-2 mb-2">
                             <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-900 text-white text-sm font-bold">${rec.rank || idx + 1}</span>
                             <span class="text-xs font-semibold px-2 py-0.5 rounded-full border ${badge}">${priority}</span>
-                            <h4 class="font-semibold text-gray-900">${rec.preconisation || ''}</h4>
+                            <h4 class="font-semibold text-gray-900">${escapeAiHtml(rec.preconisation || '')}</h4>
                         </div>
-                        <p class="text-sm text-gray-800"><span class="font-semibold text-gray-600">Action :</span> ${rec.action || ''}</p>
-                        <p class="text-sm text-gray-600 mt-2"><span class="font-semibold">Justification :</span> ${rec.justification || ''}</p>
+                        <p class="text-sm text-gray-800"><span class="font-semibold text-gray-600">Action :</span> ${escapeAiHtml(rec.action || '')}</p>
+                        <p class="text-sm text-gray-600 mt-2"><span class="font-semibold">Justification :</span> ${escapeAiHtml(rec.justification || '')}</p>
+                        ${rec.expectedImpact ? `<p class="text-sm text-emerald-700 mt-2"><span class="font-semibold">Impact attendu :</span> ${escapeAiHtml(rec.expectedImpact)}</p>` : ''}
                     </div>
                 `;
             }).join('');
@@ -4485,7 +4862,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     throw new Error(payload.message || `Erreur serveur (${response.status})`);
                 }
                 renderAiAnalysisResults(payload.data || {});
-                showToast('Analyse IA terminée.');
+                showToast('Analyse IA approfondie terminée.');
             } catch (error) {
                 console.error('AI analysis error:', error);
                 errorEl.textContent = error.message || 'Échec de l\'analyse IA.';

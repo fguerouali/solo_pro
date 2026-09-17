@@ -2,34 +2,108 @@ const fetch = require('node-fetch');
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 
-const SYSTEM_PROMPT = `Tu es l'analyste de pilotage de Solo Pizzeria Napoletana (Casablanca).
-Tu reçois un JSON compact de données métier réelles (ventes, canaux, stock, inventaire, pertes, charges, RH, avis Google, tops produits).
+const SYSTEM_PROMPT = `Tu es un contrôleur de gestion senior spécialisé restauration / pizzeria (marché Maroc / Casablanca).
+Tu analyses les données Solo Pizzeria Napoletana de façon TRÈS APPROFONDIE.
 
-Règles strictes:
-- Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de texte hors JSON).
-- Exactement 5 préconisations, classées par impact décroissant (rank 1 = priorité max).
-- Chaque préconisation doit être actionnable, concrète, adaptée à une pizzeria.
-- Justification basée UNIQUEMENT sur les chiffres fournis. Ne jamais inventer de montants ni de faits absents.
-- Si une donnée manque, ne pas spéculer : base-toi sur ce qui est présent.
+Tu reçois un JSON riche : tickets, horaires, mix produits, marges, achats, food cost, charges d'exploitation, et un référentiel best practice.
+
+MISSION
+Produire un diagnostic de pilotage exhaustif, chiffré, actionnable — pas un résumé générique.
+
+RÈGLES
+- Réponds UNIQUEMENT en JSON valide (aucun markdown hors JSON).
 - Langue : français.
-- Priorités possibles : CRITIQUE, IMPORTANT, OPPORTUNITE.
+- Ne jamais inventer de chiffres absents des données. Si une donnée manque, indique-le explicitement.
+- Compare systématiquement les ratios au bloc bestPractices fourni (ou au scorecard pré-calculé si présent).
+- Relie tickets ↔ horaires ↔ mix ↔ food cost ↔ achats ↔ charges (lecture croisée obligatoire).
+- Distingue fait démontré vs hypothèse à vérifier.
+- Exactement 5 préconisations, classées par impact économique décroissant.
+
+CONTENU ATTENDU (profond)
+1) Tickets & horaires : panier moyen, distribution des tickets, pics horaires, jours faibles/forts, densités, opportunités staffing / promo créneau.
+2) Produits : stars / flops, mix familles, taux d'accompagnement boisson/dessert, marges produit, cannibalisation éventuelle.
+3) Food cost : théorique vs cible, écarts, produits/ingrédients qui tirent le coût, lien inventaire/pertes.
+4) Achats : poids vs CA, concentration fournisseurs, impayés, dérive prix/volumes.
+5) Charges d'exploitation : chaque poste en % du CA vs best practice, postes hors normes, leviers.
 
 Format JSON obligatoire:
 {
-  "summary": "synthèse business en 2-4 phrases",
+  "summary": "synthèse dirigeant 4-7 phrases, ton direct, chiffrée",
+  "executiveDiagnosis": "diagnostic global en 1 paragraphe dense",
+  "sections": {
+    "ticketsAndHours": {
+      "title": "Tickets & horaires",
+      "findings": "analyse détaillée",
+      "keySignals": ["signal 1", "signal 2"],
+      "vsBestPractice": "comparaison"
+    },
+    "products": {
+      "title": "Produits & mix",
+      "findings": "analyse détaillée",
+      "keySignals": ["signal 1", "signal 2"],
+      "vsBestPractice": "comparaison"
+    },
+    "foodCost": {
+      "title": "Food cost",
+      "findings": "analyse détaillée",
+      "keySignals": ["signal 1", "signal 2"],
+      "vsBestPractice": "comparaison"
+    },
+    "purchases": {
+      "title": "Achats",
+      "findings": "analyse détaillée",
+      "keySignals": ["signal 1", "signal 2"],
+      "vsBestPractice": "comparaison"
+    },
+    "operatingCharges": {
+      "title": "Charges d'exploitation",
+      "findings": "analyse détaillée",
+      "keySignals": ["signal 1", "signal 2"],
+      "vsBestPractice": "comparaison poste par poste"
+    }
+  },
+  "benchmarkScorecard": [
+    {
+      "metric": "Food cost %",
+      "actual": "xx%",
+      "bestPractice": "28-32%",
+      "status": "OK|ALERTE|CRITIQUE|INCONNU",
+      "comment": "commentaire court"
+    }
+  ],
   "recommendations": [
     {
       "rank": 1,
       "priority": "CRITIQUE",
-      "preconisation": "titre court de la recommandation",
-      "action": "action concrète à entreprendre (qui/quoi/quand si possible)",
-      "justification": "justification chiffrée tirée des données"
+      "preconisation": "titre court",
+      "action": "plan d'action concret (qui/quoi/quand/comment mesurer)",
+      "justification": "preuve chiffrée + écart vs best practice",
+      "expectedImpact": "impact estimé si possible"
     }
   ]
 }`;
 
 function isConfigured() {
     return Boolean(process.env.OPENAI_API_KEY);
+}
+
+function normalizeSection(section, fallbackTitle) {
+    if (!section || typeof section !== 'object') {
+        return {
+            title: fallbackTitle,
+            findings: '',
+            keySignals: [],
+            vsBestPractice: ''
+        };
+    }
+    return {
+        title: String(section.title || fallbackTitle).trim(),
+        findings: String(section.findings || section.analysis || '').trim(),
+        keySignals: Array.isArray(section.keySignals)
+            ? section.keySignals.map(s => String(s).trim()).filter(Boolean).slice(0, 8)
+            : [],
+        vsBestPractice: String(section.vsBestPractice || '').trim()
+    };
 }
 
 function normalizeRecommendations(parsed) {
@@ -41,8 +115,20 @@ function normalizeRecommendations(parsed) {
             : 'IMPORTANT',
         preconisation: String(item.preconisation || item.title || '').trim(),
         action: String(item.action || '').trim(),
-        justification: String(item.justification || '').trim()
+        justification: String(item.justification || '').trim(),
+        expectedImpact: String(item.expectedImpact || '').trim()
     })).filter(r => r.preconisation && r.action);
+}
+
+function normalizeScorecard(parsed) {
+    const list = Array.isArray(parsed?.benchmarkScorecard) ? parsed.benchmarkScorecard : [];
+    return list.slice(0, 12).map(item => ({
+        metric: String(item.metric || '').trim(),
+        actual: String(item.actual ?? item.actualPct ?? '').trim(),
+        bestPractice: String(item.bestPractice || item.bestPracticeRange || '').trim(),
+        status: ['OK', 'ALERTE', 'CRITIQUE', 'INCONNU'].includes(item.status) ? item.status : 'INCONNU',
+        comment: String(item.comment || '').trim()
+    })).filter(i => i.metric);
 }
 
 async function runAiAnalysis(snapshot) {
@@ -52,16 +138,17 @@ async function runAiAnalysis(snapshot) {
         throw err;
     }
 
-    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    const model = process.env.OPENAI_MODEL || 'gpt-4o';
     const payload = {
         model,
-        temperature: 0.3,
+        temperature: 0.25,
+        max_tokens: 4500,
         response_format: { type: 'json_object' },
         messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             {
                 role: 'user',
-                content: `Analyse ces données Solo et fournis exactement 5 préconisations avec actions et justifications.\n\n${JSON.stringify(snapshot)}`
+                content: `Analyse APPROFONDIE de Solo. Couvre tickets, horaires, produits, food cost, achats, charges vs best practices. Fournis le JSON complet demandé.\n\n${JSON.stringify(snapshot)}`
             }
         ]
     };
@@ -115,8 +202,18 @@ async function runAiAnalysis(snapshot) {
         throw err;
     }
 
+    const sectionsRaw = parsed.sections || {};
     return {
         summary: String(parsed.summary || '').trim(),
+        executiveDiagnosis: String(parsed.executiveDiagnosis || '').trim(),
+        sections: {
+            ticketsAndHours: normalizeSection(sectionsRaw.ticketsAndHours, 'Tickets & horaires'),
+            products: normalizeSection(sectionsRaw.products, 'Produits & mix'),
+            foodCost: normalizeSection(sectionsRaw.foodCost, 'Food cost'),
+            purchases: normalizeSection(sectionsRaw.purchases, 'Achats'),
+            operatingCharges: normalizeSection(sectionsRaw.operatingCharges, 'Charges d\'exploitation')
+        },
+        benchmarkScorecard: normalizeScorecard(parsed),
         recommendations,
         model,
         usage: body.usage || null

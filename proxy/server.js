@@ -45,7 +45,7 @@ if (!FRONTEND_URL) {
 }
 
 app.use(cors({ origin: FRONTEND_URL }));
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 app.get('/health', (req, res) => {
     res.json({
@@ -163,6 +163,9 @@ app.post('/api/ai-analysis', async (req, res) => {
             code: 200,
             data: {
                 summary: result.summary,
+                executiveDiagnosis: result.executiveDiagnosis,
+                sections: result.sections,
+                benchmarkScorecard: result.benchmarkScorecard,
                 recommendations: result.recommendations,
                 model: result.model,
                 generatedAt: new Date().toISOString()
