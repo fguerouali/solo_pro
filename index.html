@@ -2070,6 +2070,44 @@ let allDailyPayments = [];
         // --- SEUILS ---
         const LOW_STOCK_THRESHOLD = 10;
 
+        /** Contexte métier fixe Solo (horaires + lancement produits) pour l'analyse IA. */
+        const SOLO_BUSINESS_CONTEXT = {
+            openingHoursLabel: 'Printemps / Été',
+            closedDays: ['lundi'],
+            openingHours: {
+                mardi: [{ open: '12:30', close: '16:30' }, { open: '19:30', close: '23:30' }],
+                mercredi: [{ open: '12:30', close: '16:30' }, { open: '19:30', close: '23:30' }],
+                jeudi: [{ open: '12:30', close: '16:30' }, { open: '19:30', close: '23:30' }],
+                vendredi: [{ open: '12:30', close: '16:30' }, { open: '19:30', close: '23:30' }],
+                samedi: [{ open: '13:30', close: '23:30' }],
+                dimanche: [{ open: '13:30', close: '22:30' }]
+            },
+            panuozzoMarketingLaunch: {
+                date: '2026-06-01',
+                note: 'Début commercialisation + marketing Panuozzo depuis juin 2026'
+            }
+        };
+
+        const parseHmToMinutes = (hm) => {
+            const [h, m] = String(hm).split(':').map(Number);
+            return (h * 60) + (m || 0);
+        };
+
+        const isWithinSoloOpeningHours = (dateObj) => {
+            if (!dateObj) return null;
+            const dayNamesFr = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+            const day = dayNamesFr[dateObj.getDay()];
+            if (SOLO_BUSINESS_CONTEXT.closedDays.includes(day)) return false;
+            const slots = SOLO_BUSINESS_CONTEXT.openingHours[day] || [];
+            if (!slots.length) return false;
+            const minutes = dateObj.getHours() * 60 + dateObj.getMinutes();
+            return slots.some(slot => {
+                const open = parseHmToMinutes(slot.open);
+                const close = parseHmToMinutes(slot.close);
+                return minutes >= open && minutes <= close;
+            });
+        };
+
         const usernameToEmail = (username) => `${username.trim().toLowerCase()}${AUTH_EMAIL_DOMAIN}`;
 
         const getDefaultPermissions = () => {
@@ -4266,6 +4304,13 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             let ticketsWithDessert = 0;
             let ticketsWithPizza = 0;
             let discountedTickets = 0;
+            let ticketsOutsideOpeningHours = 0;
+            let ticketsOnClosedDay = 0;
+            let panuozzoQtyBeforeLaunch = 0;
+            let panuozzoQtySinceLaunch = 0;
+            let panuozzoRevenueBeforeLaunch = 0;
+            let panuozzoRevenueSinceLaunch = 0;
+            const panuozzoLaunchDate = new Date(2026, 5, 1); // 1er juin 2026
             const ticketValues = [];
             const hourly = Array.from({ length: 24 }, (_, hour) => ({ hour, tickets: 0, sales: 0 }));
             const byWeekday = dayNames.map(name => ({ day: name, tickets: 0, sales: 0 }));
@@ -4285,6 +4330,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     hourly[d.getHours()].sales += orderTotal;
                     byWeekday[d.getDay()].tickets += 1;
                     byWeekday[d.getDay()].sales += orderTotal;
+                    if (d.getDay() === 1) ticketsOnClosedDay += 1;
+                    else if (isWithinSoloOpeningHours(d) === false) ticketsOutsideOpeningHours += 1;
                 }
 
                 const channel = (order.salesChannel || 'Non renseigné').toString();
@@ -4295,6 +4342,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 let hasPizza = false;
                 let hasBoisson = false;
                 let hasDessert = false;
+                const isSincePanuozzoLaunch = d ? d.getTime() >= panuozzoLaunchDate.getTime() : null;
 
                 (order.items || []).forEach(item => {
                     const product = productById.get(item.id);
@@ -4306,7 +4354,16 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
                     const type = product?.type || (item.isUnknown ? 'Non lié' : 'Autre');
                     if (type === 'Pizza') { totalPizzasSold += qty; hasPizza = true; }
-                    if (type === 'Panuozzo') totalPanuozzoSold += qty;
+                    if (type === 'Panuozzo') {
+                        totalPanuozzoSold += qty;
+                        if (isSincePanuozzoLaunch === true) {
+                            panuozzoQtySinceLaunch += qty;
+                            panuozzoRevenueSinceLaunch += lineRevenue;
+                        } else if (isSincePanuozzoLaunch === false) {
+                            panuozzoQtyBeforeLaunch += qty;
+                            panuozzoRevenueBeforeLaunch += lineRevenue;
+                        }
+                    }
                     if (type === 'Boisson') { totalBoissonsSold += qty; hasBoisson = true; }
                     if (type === 'Dessert') { totalDessertsSold += qty; hasDessert = true; }
 
@@ -4575,7 +4632,16 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             return {
                 business: 'Solo Pizzeria Napoletana — Casablanca',
                 currency: 'MAD',
-                analysisMode: 'deep-v2',
+                analysisMode: 'deep-v3',
+                businessContext: {
+                    ...SOLO_BUSINESS_CONTEXT,
+                    interpretationHints: [
+                        'Fermé le lundi : toute vente lundi = hors horaires officiels (à expliquer : erreur date, livraison exceptionnelle, etc.).',
+                        'Comparer les pics de tickets aux créneaux d\'ouverture officiels (service midi / soir en semaine ; continu week-end).',
+                        'Évaluer le trou 16:30–19:30 mardi–vendredi (fermeture entre services).',
+                        'Panuozzo : mesurer l\'effet du marketing depuis juin 2026 (avant vs depuis).'
+                    ]
+                },
                 period: {
                     label: filterLabel,
                     start: filterStartDate ? filterStartDate.toISOString().slice(0, 10) : null,
@@ -4625,10 +4691,29 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     }
                 },
                 hours: {
+                    officialOpeningHours: SOLO_BUSINESS_CONTEXT.openingHours,
+                    closedDays: SOLO_BUSINESS_CONTEXT.closedDays,
+                    ticketsOutsideOpeningHours,
+                    ticketsOnClosedDay,
                     byHour: activeHours,
                     peakHours,
                     weakHours,
                     byWeekday: weekdayStats
+                },
+                panuozzoMarketing: {
+                    launchDate: SOLO_BUSINESS_CONTEXT.panuozzoMarketingLaunch.date,
+                    note: SOLO_BUSINESS_CONTEXT.panuozzoMarketingLaunch.note,
+                    beforeLaunch: {
+                        quantity: roundAi(panuozzoQtyBeforeLaunch, 1),
+                        revenue: roundAi(panuozzoRevenueBeforeLaunch)
+                    },
+                    sinceLaunch: {
+                        quantity: roundAi(panuozzoQtySinceLaunch, 1),
+                        revenue: roundAi(panuozzoRevenueSinceLaunch)
+                    },
+                    growthQtyPct: panuozzoQtyBeforeLaunch > 0
+                        ? roundAi(((panuozzoQtySinceLaunch - panuozzoQtyBeforeLaunch) / panuozzoQtyBeforeLaunch) * 100, 1)
+                        : null
                 },
                 channels: {
                     fromDailyPayments: {
