@@ -2106,26 +2106,6 @@ let allDailyPayments = [];
             }
         };
 
-        const parseHmToMinutes = (hm) => {
-            const [h, m] = String(hm).split(':').map(Number);
-            return (h * 60) + (m || 0);
-        };
-
-        const isWithinSoloOpeningHours = (dateObj) => {
-            if (!dateObj) return null;
-            const dayNamesFr = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-            const day = dayNamesFr[dateObj.getDay()];
-            if (SOLO_BUSINESS_CONTEXT.closedDays.includes(day)) return false;
-            const slots = SOLO_BUSINESS_CONTEXT.openingHours[day] || [];
-            if (!slots.length) return false;
-            const minutes = dateObj.getHours() * 60 + dateObj.getMinutes();
-            return slots.some(slot => {
-                const open = parseHmToMinutes(slot.open);
-                const close = parseHmToMinutes(slot.close);
-                return minutes >= open && minutes <= close;
-            });
-        };
-
         const usernameToEmail = (username) => `${username.trim().toLowerCase()}${AUTH_EMAIL_DOMAIN}`;
 
         const getDefaultPermissions = () => {
@@ -4330,8 +4310,6 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             let ticketsWithDessert = 0;
             let ticketsWithPizza = 0;
             let discountedTickets = 0;
-            let ticketsOutsideOpeningHours = 0;
-            let ticketsOnClosedDay = 0;
             let panuozzoQtyBeforeLaunch = 0;
             let panuozzoQtySinceLaunch = 0;
             let panuozzoRevenueBeforeLaunch = 0;
@@ -4356,8 +4334,6 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     hourly[d.getHours()].sales += orderTotal;
                     byWeekday[d.getDay()].tickets += 1;
                     byWeekday[d.getDay()].sales += orderTotal;
-                    if (d.getDay() === 1) ticketsOnClosedDay += 1;
-                    else if (isWithinSoloOpeningHours(d) === false) ticketsOutsideOpeningHours += 1;
                 }
 
                 const channel = (order.salesChannel || 'Non renseigné').toString();
@@ -4662,10 +4638,10 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 businessContext: {
                     ...SOLO_BUSINESS_CONTEXT,
                     interpretationHints: [
-                        'Fermé le lundi : toute vente lundi = hors horaires officiels (à expliquer : erreur date, livraison exceptionnelle, etc.).',
-                        'Comparer les pics de tickets aux créneaux d\'ouverture officiels (service midi / soir en semaine ; continu week-end).',
-                        'Évaluer le trou 16:30–19:30 mardi–vendredi (fermeture entre services).',
-                        'Panuozzo : mesurer l\'effet du marketing depuis juin 2026 (avant vs depuis).'
+                        'Horaires = cadre pour staffing et promo (midi / soir / week-end), pas pour signaler des ventes hors plage.',
+                        'Concentre-toi sur écarts vs best practices (food cost, charges, mix, panier, accompagnements).',
+                        'Chaque conclusion doit aboutir à une action concrète justifiée.',
+                        'Panuozzo : mesurer l\'effet marketing depuis juin 2026 (avant vs depuis) et décider accélérer / ajuster / couper.'
                     ]
                 },
                 period: {
@@ -4719,8 +4695,6 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 hours: {
                     officialOpeningHours: SOLO_BUSINESS_CONTEXT.openingHours,
                     closedDays: SOLO_BUSINESS_CONTEXT.closedDays,
-                    ticketsOutsideOpeningHours,
-                    ticketsOnClosedDay,
                     byHour: activeHours,
                     peakHours,
                     weakHours,
@@ -4951,9 +4925,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     closedDays: snapshot.hours.closedDays,
                     peakHours: snapshot.hours.peakHours,
                     weakHours: snapshot.hours.weakHours,
-                    byWeekday: snapshot.hours.byWeekday,
-                    ticketsOutsideOpeningHours: snapshot.hours.ticketsOutsideOpeningHours,
-                    ticketsOnClosedDay: snapshot.hours.ticketsOnClosedDay
+                    byWeekday: snapshot.hours.byWeekday
                 } : null,
                 products: snapshot.products ? {
                     familyMix: snapshot.products.familyMix,
