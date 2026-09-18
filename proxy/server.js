@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const LaCaissePOSProvider = require('./providers/lacaisseProvider');
 const { getGoogleReviewsSummary } = require('./services/googleReviews');
-const { isConfigured: isAiConfigured, runAiAnalysis } = require('./services/aiAnalysis');
+const { isConfigured: isAiConfigured, runAiAnalysis, runAiChat } = require('./services/aiAnalysis');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,7 +14,7 @@ const lacaisseProvider = new LaCaissePOSProvider();
 let googleReviewsCache = null;
 const GOOGLE_REVIEWS_CACHE_TTL_MS = 30 * 60 * 1000;
 const aiRateLimitByIp = new Map();
-const AI_RATE_LIMIT_MAX = Number(process.env.AI_ANALYSIS_RATE_LIMIT || 8);
+const AI_RATE_LIMIT_MAX = Number(process.env.AI_ANALYSIS_RATE_LIMIT || 30);
 const AI_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 
 function getClientIp(req) {
@@ -54,8 +54,8 @@ app.get('/health', (req, res) => {
         lacaisseConfigured: lacaisseProvider.isConfigured(),
         googlePlacesConfigured: Boolean(process.env.GOOGLE_PLACES_API_KEY),
         openaiConfigured: isAiConfigured(),
-        routes: ['/api/login', '/api/sales', '/api/journal', '/api/google-reviews', '/api/ai-analysis'],
-        version: 'ai-analysis-v1'
+        routes: ['/api/login', '/api/sales', '/api/journal', '/api/google-reviews', '/api/ai-analysis', '/api/ai-chat'],
+        version: 'ai-analysis-v2'
     });
 });
 
@@ -177,6 +177,64 @@ app.post('/api/ai-analysis', async (req, res) => {
         res.status(status).json({
             message: error.message || 'Erreur analyse IA',
             code: error.code || 'AI_ANALYSIS_ERROR'
+        });
+    }
+});
+
+// Chat IA live sur la dernière analyse + snapshot métier.
+app.post('/api/ai-chat', async (req, res) => {
+    console.log('Proxy received AI chat request');
+    try {
+        if (!isAiConfigured()) {
+            return res.status(503).json({
+                message: 'OPENAI_API_KEY non configurée sur le proxy Render.',
+                code: 'MISSING_OPENAI_KEY'
+            });
+        }
+
+        const ip = getClientIp(req);
+        if (!checkAiRateLimit(ip)) {
+            return res.status(429).json({
+                message: 'Trop de requêtes IA. Réessayez dans une heure.',
+                code: 'RATE_LIMIT'
+            });
+        }
+
+        const message = String(req.body?.message || '').trim();
+        if (!message) {
+            return res.status(400).json({
+                message: 'Message manquant.',
+                code: 'MISSING_MESSAGE'
+            });
+        }
+        if (message.length > 800) {
+            return res.status(400).json({
+                message: 'Message trop long (max 800 caractères).',
+                code: 'MESSAGE_TOO_LONG'
+            });
+        }
+
+        const result = await runAiChat({
+            message,
+            analysis: req.body?.analysis || null,
+            snapshot: req.body?.snapshot || null,
+            history: req.body?.history || []
+        });
+
+        res.json({
+            code: 200,
+            data: {
+                reply: result.reply,
+                model: result.model,
+                generatedAt: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error('Error in /api/ai-chat:', error);
+        const status = error.code === 'MISSING_OPENAI_KEY' ? 503 : (error.status && error.status < 500 ? 502 : 500);
+        res.status(status).json({
+            message: error.message || 'Erreur chat IA',
+            code: error.code || 'AI_CHAT_ERROR'
         });
     }
 });

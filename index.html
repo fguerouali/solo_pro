@@ -955,6 +955,22 @@
                             <div id="ai-analysis-recommendations" class="space-y-3"></div>
                         </div>
                         <p id="ai-analysis-meta" class="text-xs text-gray-400"></p>
+
+                        <div id="ai-analysis-chat" class="border-t border-gray-100 pt-5">
+                            <h4 class="text-base font-semibold text-gray-800 mb-1 flex items-center">
+                                <i class="fas fa-comments text-indigo-500 mr-2"></i>
+                                Discuter avec l’analyse
+                            </h4>
+                            <p class="text-xs text-gray-500 mb-3">Pose une question en live (ex. « pourquoi le mardi est faible ? », « comment baisser le food cost ? »).</p>
+                            <div id="ai-chat-messages" class="space-y-3 max-h-80 overflow-y-auto mb-3 p-3 bg-gray-50 rounded-xl border border-gray-100"></div>
+                            <form id="ai-chat-form" class="flex flex-col sm:flex-row gap-2">
+                                <input type="text" id="ai-chat-input" class="input-style flex-1" placeholder="Écris ta question…" autocomplete="off" maxlength="800">
+                                <button type="submit" id="ai-chat-send-btn" class="btn-primary whitespace-nowrap">
+                                    <i class="fas fa-paper-plane mr-2"></i>Envoyer
+                                </button>
+                            </form>
+                            <p id="ai-chat-status" class="hidden text-xs text-indigo-600 mt-2"></p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2008,8 +2024,10 @@
         // --- COLLECTIONS REFS ---
         let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol, chargesCol;
 		let employeesCol, absencesCol, salaryPaymentsCol;
-		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol, googleReviewsRef;
+		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol, googleReviewsRef, aiAnalysisLatestRef;
         let googleReviewsState = { rating: null, reviewCount: null, snapshots: [], recentReviews: [], url: 'https://share.google/GX15aEMbOqaVjxGMs', status: 'idle' };
+        let latestAiAnalysis = null;
+        let aiChatHistory = [];
         // --- ETAT GLOBAL ---
         let allIngredients = [];
         let allProducts = [];
@@ -2211,6 +2229,7 @@ let allDailyPayments = [];
             checklistSubmissionsCol = collection(db, `artifacts/${appId}/public/data/checklistSubmissions`);
             checklistConfigRef = doc(db, `artifacts/${appId}/public/data/settings/checklistConfig`);
             googleReviewsRef = doc(db, `artifacts/${appId}/public/data/settings/googleReviews`);
+            aiAnalysisLatestRef = doc(db, `artifacts/${appId}/public/data/settings/aiAnalysisLatest`);
             inventorySubmissionsCol = collection(db, `artifacts/${appId}/public/data/inventorySubmissions`);
             collectionsInitialized = true;
         };
@@ -2245,6 +2264,7 @@ let allDailyPayments = [];
             document.getElementById('export-start-date').value = `${firstDayOfMonth.getFullYear()}-${String(firstDayOfMonth.getMonth() + 1).padStart(2, '0')}-${String(firstDayOfMonth.getDate()).padStart(2, '0')}`;
             document.getElementById('export-end-date').value = `${lastDayOfMonth.getFullYear()}-${String(lastDayOfMonth.getMonth() + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`;
             refreshGoogleReviews();
+            loadLatestAiAnalysis();
         };
 
         const createUserAccount = async (username, password, role, usePrimaryAuth = false) => {
@@ -2575,6 +2595,12 @@ let allDailyPayments = [];
                 if (Array.isArray(data.recentReviews)) googleReviewsState.recentReviews = data.recentReviews;
                 renderGoogleReviewsKpi();
             });
+            if (aiAnalysisLatestRef) {
+                onSnapshot(aiAnalysisLatestRef, snapshot => {
+                    if (!snapshot.exists()) return;
+                    applyStoredAiAnalysis(snapshot.data());
+                });
+            }
         }
 
         const debounce = (fn, delayMs) => {
@@ -4907,8 +4933,194 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             }).join('');
 
             const when = data.generatedAt ? new Date(data.generatedAt) : new Date();
-            metaEl.textContent = `Généré le ${when.toLocaleString('fr-FR')}${data.model ? ` · modèle ${data.model}` : ''}`;
+            const periodBit = data.periodLabel ? ` · ${data.periodLabel}` : '';
+            metaEl.textContent = `Dernière analyse : ${when.toLocaleString('fr-FR')}${periodBit}${data.model ? ` · modèle ${data.model}` : ''}`;
             results.classList.remove('hidden');
+            renderAiChatMessages(data.chat || aiChatHistory);
+        };
+
+        const compactSnapshotForStorage = (snapshot) => {
+            if (!snapshot) return null;
+            return {
+                period: snapshot.period || null,
+                kpis: snapshot.kpis || null,
+                precomputedScorecard: snapshot.precomputedScorecard || null,
+                businessContext: snapshot.businessContext || null,
+                panuozzoMarketing: snapshot.panuozzoMarketing || null,
+                hours: snapshot.hours ? {
+                    closedDays: snapshot.hours.closedDays,
+                    peakHours: snapshot.hours.peakHours,
+                    weakHours: snapshot.hours.weakHours,
+                    byWeekday: snapshot.hours.byWeekday,
+                    ticketsOutsideOpeningHours: snapshot.hours.ticketsOutsideOpeningHours,
+                    ticketsOnClosedDay: snapshot.hours.ticketsOnClosedDay
+                } : null,
+                products: snapshot.products ? {
+                    familyMix: snapshot.products.familyMix,
+                    topByRevenue: (snapshot.products.topByRevenue || []).slice(0, 8)
+                } : null,
+                chargesBreakdown: (snapshot.chargesBreakdown || []).slice(0, 10)
+            };
+        };
+
+        const applyStoredAiAnalysis = (stored) => {
+            if (!stored || !stored.summary) return;
+            latestAiAnalysis = {
+                summary: stored.summary,
+                executiveDiagnosis: stored.executiveDiagnosis || '',
+                sections: stored.sections || {},
+                benchmarkScorecard: stored.benchmarkScorecard || [],
+                recommendations: stored.recommendations || [],
+                model: stored.model || '',
+                generatedAt: stored.generatedAt || null,
+                periodLabel: stored.periodLabel || stored.period?.label || '',
+                period: stored.period || null,
+                snapshotCompact: stored.snapshotCompact || null,
+                chat: Array.isArray(stored.chat) ? stored.chat : []
+            };
+            aiChatHistory = latestAiAnalysis.chat.map(m => ({
+                role: m.role,
+                content: m.content,
+                at: m.at || null
+            }));
+            renderAiAnalysisResults(latestAiAnalysis);
+            const hint = document.getElementById('ai-analysis-period-hint');
+            if (hint && latestAiAnalysis.periodLabel) {
+                hint.textContent = `Dernière analyse enregistrée — ${latestAiAnalysis.periodLabel.replace(/^Période\s*:\s*/i, '')}`;
+            }
+        };
+
+        const loadLatestAiAnalysis = async () => {
+            if (!aiAnalysisLatestRef) return;
+            try {
+                const snap = await getDoc(aiAnalysisLatestRef);
+                if (snap.exists()) applyStoredAiAnalysis(snap.data());
+            } catch (error) {
+                console.error('Erreur chargement analyse IA:', error);
+            }
+        };
+
+        const persistLatestAiAnalysis = async (analysisData, snapshot, { resetChat = false } = {}) => {
+            if (!aiAnalysisLatestRef) return;
+            const chat = resetChat ? [] : (aiChatHistory || []);
+            const payload = {
+                summary: analysisData.summary || '',
+                executiveDiagnosis: analysisData.executiveDiagnosis || '',
+                sections: analysisData.sections || {},
+                benchmarkScorecard: analysisData.benchmarkScorecard || [],
+                recommendations: analysisData.recommendations || [],
+                model: analysisData.model || '',
+                generatedAt: analysisData.generatedAt || new Date().toISOString(),
+                periodLabel: snapshot?.period?.label || analysisData.periodLabel || '',
+                period: snapshot?.period || analysisData.period || null,
+                snapshotCompact: compactSnapshotForStorage(snapshot) || analysisData.snapshotCompact || null,
+                chat,
+                updatedAt: serverTimestamp(),
+                updatedBy: currentUserProfile?.username || '',
+                updatedById: currentUserProfile?.id || ''
+            };
+            latestAiAnalysis = { ...payload, chat };
+            aiChatHistory = chat;
+            await setDoc(aiAnalysisLatestRef, payload, { merge: true });
+        };
+
+        const renderAiChatMessages = (messages = aiChatHistory) => {
+            const box = document.getElementById('ai-chat-messages');
+            if (!box) return;
+            if (!messages.length) {
+                box.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Aucune question pour l’instant. Pose ta première question ci-dessous.</p>';
+                return;
+            }
+            box.innerHTML = messages.map(msg => {
+                const isUser = msg.role === 'user';
+                return `
+                    <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
+                        <div class="max-w-[90%] rounded-xl px-3 py-2 text-sm leading-relaxed ${isUser ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-800'}">
+                            <p class="text-[10px] uppercase tracking-wide mb-1 ${isUser ? 'text-indigo-100' : 'text-gray-400'}">${isUser ? 'Toi' : 'IA Solo'}</p>
+                            <p class="whitespace-pre-line">${escapeAiHtml(msg.content)}</p>
+                        </div>
+                    </div>`;
+            }).join('');
+            box.scrollTop = box.scrollHeight;
+        };
+
+        const setAiChatBusy = (busy, statusText = '') => {
+            const input = document.getElementById('ai-chat-input');
+            const btn = document.getElementById('ai-chat-send-btn');
+            const status = document.getElementById('ai-chat-status');
+            if (input) input.disabled = busy;
+            if (btn) btn.disabled = busy;
+            if (status) {
+                status.textContent = statusText;
+                status.classList.toggle('hidden', !statusText);
+            }
+        };
+
+        const persistAiChatHistory = async () => {
+            if (!aiAnalysisLatestRef || !latestAiAnalysis) return;
+            const trimmed = aiChatHistory.slice(-40);
+            aiChatHistory = trimmed;
+            latestAiAnalysis.chat = trimmed;
+            await setDoc(aiAnalysisLatestRef, {
+                chat: trimmed,
+                chatUpdatedAt: serverTimestamp(),
+                chatUpdatedBy: currentUserProfile?.username || ''
+            }, { merge: true });
+        };
+
+        const sendAiChatMessage = async (rawMessage) => {
+            if (!canRead('dashboard')) return showToast('Permission refusée.');
+            if (!PROXY_URL) return showToast('Proxy non configuré.');
+            if (!latestAiAnalysis) return showToast('Lance d\'abord une analyse approfondie.');
+
+            const message = String(rawMessage || '').trim();
+            if (!message) return;
+
+            aiChatHistory = [...aiChatHistory, { role: 'user', content: message, at: new Date().toISOString() }];
+            renderAiChatMessages();
+            setAiChatBusy(true, 'L\'IA réfléchit…');
+
+            try {
+                const liveSnapshot = buildAiAnalysisSnapshot();
+                const response = await fetch(`${PROXY_URL}/api/ai-chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message,
+                        analysis: {
+                            summary: latestAiAnalysis.summary,
+                            executiveDiagnosis: latestAiAnalysis.executiveDiagnosis,
+                            recommendations: latestAiAnalysis.recommendations,
+                            sections: latestAiAnalysis.sections,
+                            benchmarkScorecard: latestAiAnalysis.benchmarkScorecard,
+                            periodLabel: latestAiAnalysis.periodLabel,
+                            generatedAt: latestAiAnalysis.generatedAt
+                        },
+                        snapshot: compactSnapshotForStorage(liveSnapshot) || latestAiAnalysis.snapshotCompact,
+                        history: aiChatHistory.slice(0, -1).slice(-12),
+                        requestedBy: currentUserProfile?.username || ''
+                    })
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload.message || `Erreur serveur (${response.status})`);
+                }
+                const reply = payload.data?.reply || 'Réponse vide.';
+                aiChatHistory = [...aiChatHistory, {
+                    role: 'assistant',
+                    content: reply,
+                    at: new Date().toISOString()
+                }];
+                renderAiChatMessages();
+                await persistAiChatHistory();
+            } catch (error) {
+                console.error('AI chat error:', error);
+                aiChatHistory = aiChatHistory.slice(0, -1);
+                renderAiChatMessages();
+                showToast(error.message || 'Échec de la discussion IA.');
+            } finally {
+                setAiChatBusy(false);
+            }
         };
 
         const runDashboardAiAnalysis = async () => {
@@ -4946,12 +5158,22 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 if (!response.ok) {
                     throw new Error(payload.message || `Erreur serveur (${response.status})`);
                 }
-                renderAiAnalysisResults(payload.data || {});
-                showToast('Analyse IA approfondie terminée.');
+                const analysisData = {
+                    ...(payload.data || {}),
+                    periodLabel: snapshot.period?.label || '',
+                    period: snapshot.period || null,
+                    chat: []
+                };
+                aiChatHistory = [];
+                latestAiAnalysis = analysisData;
+                renderAiAnalysisResults(analysisData);
+                await persistLatestAiAnalysis(analysisData, snapshot, { resetChat: true });
+                showToast('Analyse IA approfondie terminée et enregistrée.');
             } catch (error) {
                 console.error('AI analysis error:', error);
                 errorEl.textContent = error.message || 'Échec de l\'analyse IA.';
                 errorEl.classList.remove('hidden');
+                if (latestAiAnalysis) renderAiAnalysisResults(latestAiAnalysis);
                 showToast(error.message || 'Échec de l\'analyse IA.');
             } finally {
                 loading.classList.add('hidden');
@@ -5960,6 +6182,14 @@ const renderOrderHistory = (history) => {
 // ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
         // --- KPI FILTERS ---
         document.getElementById('ai-analysis-run-btn')?.addEventListener('click', runDashboardAiAnalysis);
+        document.getElementById('ai-chat-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('ai-chat-input');
+            const message = input?.value || '';
+            if (!message.trim()) return;
+            input.value = '';
+            await sendAiChatMessage(message);
+        });
 
         document.getElementById('toggle-kpi-filters-btn').addEventListener('click', () => {
             document.getElementById('kpi-filter-container').classList.toggle('hidden');

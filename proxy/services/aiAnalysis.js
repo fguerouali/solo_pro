@@ -133,27 +133,17 @@ function normalizeScorecard(parsed) {
     })).filter(i => i.metric);
 }
 
-async function runAiAnalysis(snapshot) {
-    if (!isConfigured()) {
-        const err = new Error('OPENAI_API_KEY non configurée sur le proxy.');
-        err.code = 'MISSING_OPENAI_KEY';
-        throw err;
-    }
-
+async function callOpenAiChat({ messages, temperature = 0.3, max_tokens = 1200, jsonMode = false }) {
     const model = process.env.OPENAI_MODEL || 'gpt-4o';
     const payload = {
         model,
-        temperature: 0.25,
-        max_tokens: 4500,
-        response_format: { type: 'json_object' },
-        messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            {
-                role: 'user',
-                content: `Analyse APPROFONDIE de Solo. Couvre tickets, horaires, produits, food cost, achats, charges vs best practices. Fournis le JSON complet demandé.\n\n${JSON.stringify(snapshot)}`
-            }
-        ]
+        temperature,
+        max_tokens,
+        messages
     };
+    if (jsonMode) {
+        payload.response_format = { type: 'json_object' };
+    }
 
     const response = await fetch(OPENAI_URL, {
         method: 'POST',
@@ -188,6 +178,29 @@ async function runAiAnalysis(snapshot) {
         throw err;
     }
 
+    return { content, model, usage: body.usage || null };
+}
+
+async function runAiAnalysis(snapshot) {
+    if (!isConfigured()) {
+        const err = new Error('OPENAI_API_KEY non configurée sur le proxy.');
+        err.code = 'MISSING_OPENAI_KEY';
+        throw err;
+    }
+
+    const { content, model, usage } = await callOpenAiChat({
+        temperature: 0.25,
+        max_tokens: 4500,
+        jsonMode: true,
+        messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            {
+                role: 'user',
+                content: `Analyse APPROFONDIE de Solo. Couvre tickets, horaires, produits, food cost, achats, charges vs best practices. Fournis le JSON complet demandé.\n\n${JSON.stringify(snapshot)}`
+            }
+        ]
+    });
+
     let parsed;
     try {
         parsed = JSON.parse(content);
@@ -218,11 +231,63 @@ async function runAiAnalysis(snapshot) {
         benchmarkScorecard: normalizeScorecard(parsed),
         recommendations,
         model,
-        usage: body.usage || null
+        usage
+    };
+}
+
+const CHAT_SYSTEM_PROMPT = `Tu es l'analyste Solo Pizzeria Napoletana (Casablanca).
+Tu réponds en français, de façon concrète et chiffrée, en t'appuyant UNIQUEMENT sur :
+1) la dernière analyse approfondie fournie,
+2) le snapshot métier compact fourni,
+3) l'historique de conversation.
+
+Règles:
+- Pas d'invention de chiffres absents.
+- Si la data manque, dis-le et propose quoi vérifier dans Solo.
+- Réponses courtes à moyennes (8-15 lignes max), actionnables.
+- Tu peux challenger une préconisation ou la préciser si l'utilisateur le demande.
+- Pas de JSON : texte clair.`;
+
+async function runAiChat({ message, analysis, snapshot, history = [] }) {
+    if (!isConfigured()) {
+        const err = new Error('OPENAI_API_KEY non configurée sur le proxy.');
+        err.code = 'MISSING_OPENAI_KEY';
+        throw err;
+    }
+
+    const cleanHistory = (Array.isArray(history) ? history : [])
+        .filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content)
+        .slice(-12)
+        .map(m => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
+
+    const contextBlock = {
+        analysis: analysis || null,
+        snapshot: snapshot || null
+    };
+
+    const { content, model, usage } = await callOpenAiChat({
+        temperature: 0.35,
+        max_tokens: 1200,
+        messages: [
+            { role: 'system', content: CHAT_SYSTEM_PROMPT },
+            {
+                role: 'user',
+                content: `Contexte analyse + données Solo (JSON):\n${JSON.stringify(contextBlock).slice(0, 28000)}`
+            },
+            ...cleanHistory,
+            { role: 'user', content: String(message || '').slice(0, 800) }
+        ]
+    });
+
+    return {
+        reply: String(content).trim(),
+        model,
+        usage
     };
 }
 
 module.exports = {
     isConfigured,
-    runAiAnalysis
+    runAiAnalysis,
+    runAiChat
 };
