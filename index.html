@@ -1811,8 +1811,8 @@
                 <input type="hidden" id="po-id">
                 <div><label for="po-supplier-select" class="block text-sm font-medium">Fournisseur</label><select id="po-supplier-select" required class="mt-1 w-full input-style"></select></div>
                 <div class="mt-4">
-                    <label for="po-order-number" class="block text-sm font-medium text-gray-700">N° de commande <span class="text-gray-400 font-normal">(facultatif)</span></label>
-                    <input type="text" id="po-order-number" class="mt-1 w-full input-style" placeholder="Ex: BC-2026-001" autocomplete="off">
+                    <label for="po-order-number" class="block text-sm font-medium text-gray-700">N° de facture <span class="text-gray-400 font-normal">(facultatif)</span></label>
+                    <input type="text" id="po-order-number" class="mt-1 w-full input-style" placeholder="Ex: FAC-2026-001" autocomplete="off">
                 </div>
                 <!-- Statut de Paiement -->
                 <div class="mt-4">
@@ -6070,7 +6070,7 @@ const renderOrderHistory = (history) => {
                         <div class="flex justify-between items-start">
                             <div>
                                 <p class="font-semibold text-gray-800">${supplier ? supplier.name : 'Fournisseur inconnu'}</p>
-                                ${po.orderNumber ? `<p class="text-xs text-gray-700 font-mono mt-0.5">N° ${po.orderNumber}</p>` : ''}
+                                ${po.orderNumber ? `<p class="text-xs text-gray-700 font-mono mt-0.5">Facture N° ${po.orderNumber}</p>` : ''}
                                 <p class="text-xs text-gray-500">${formatDateToDDMMYYYY(po.createdAt)}</p>
                                 <ul class="text-sm mt-2 list-disc list-inside">${itemsHtml}</ul>
                             </div>
@@ -8151,13 +8151,14 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
     const isReceived = purchaseOrder.status === 'received';
     
     document.getElementById('po-modal-title').textContent = isReceived 
-        ? 'Modifier le Montant (Commande Réceptionnée)' 
+        ? 'Modifier montant / N° facture (Commande réceptionnée)' 
         : 'Modifier la Commande Fournisseur'; 
         
     document.getElementById('po-id').value = poId; 
     document.getElementById('po-supplier-select').value = purchaseOrder.supplierId;
     document.getElementById('po-order-number').value = purchaseOrder.orderNumber || '';
-    document.getElementById('po-order-number').disabled = isReceived;
+    // N° de facture toujours modifiable, même après réception
+    document.getElementById('po-order-number').disabled = false;
     
     // Désactiver les champs si réceptionné
     document.getElementById('po-supplier-select').disabled = isReceived;
