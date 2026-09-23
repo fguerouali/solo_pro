@@ -1252,6 +1252,44 @@
                     <i class="fas fa-download mr-2"></i>Exporter CSV
                 </button>
             </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm mb-4 space-y-3">
+                <div>
+                    <label for="charges-filter-type" class="block text-sm font-medium text-gray-700">Type de charge</label>
+                    <select id="charges-filter-type" class="mt-1 w-full input-style">
+                        <option value="">Tous les types</option>
+                        <option value="Loyer">Loyer</option>
+                        <option value="Eau et électricité">Eau et électricité</option>
+                        <option value="Gaz">Gaz</option>
+                        <option value="Internet">Internet</option>
+                        <option value="Abonnement caisse">Abonnement caisse</option>
+                        <option value="Entretien et maintenance">Entretien et maintenance</option>
+                        <option value="Nettoyage et dératisation">Nettoyage et dératisation</option>
+                        <option value="Packaging cost">Packaging cost</option>
+                        <option value="Commission Glovo">Commission Glovo</option>
+                        <option value="Commission TPE">Commission TPE</option>
+                        <option value="Assurances">Assurances</option>
+                        <option value="Comptable">Comptable</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="CNSS/IMPOT/TAXES">CNSS/IMPOT/TAXES</option>
+                        <option value="Salaires">Salaires</option>
+                        <option value="Autre charge">Autre charge</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label for="charges-filter-start" class="block text-sm font-medium text-gray-700">Du</label>
+                        <input type="date" id="charges-filter-start" class="mt-1 w-full input-style">
+                    </div>
+                    <div>
+                        <label for="charges-filter-end" class="block text-sm font-medium text-gray-700">Au</label>
+                        <input type="date" id="charges-filter-end" class="mt-1 w-full input-style">
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <p id="charges-filter-summary" class="text-sm text-gray-500">0 charge — 0.00 Mad</p>
+                    <button type="button" id="charges-filter-reset" class="btn-secondary text-sm">Réinitialiser</button>
+                </div>
+            </div>
             <div id="charges-list" class="space-y-3">
                 <div id="charges-placeholder" class="text-center py-10 text-gray-500 bg-white rounded-2xl shadow-lg">
                     <i class="fas fa-file-invoice-dollar fa-2x text-gray-400 mb-2"></i>
@@ -2753,7 +2791,7 @@ let allDailyPayments = [];
                 renderPending.losses = false;
             }
             if (renderPending.charges) {
-                renderCharges(allCharges);
+                refreshChargesList();
                 renderPending.charges = false;
             }
             if (renderPending.employees) {
@@ -6181,6 +6219,45 @@ const renderOrderHistory = (history) => {
                 mountPaginationBar('loss-history-list', 'losses', page, renderLossHistory);
             }
         };
+        const getFilteredCharges = () => {
+            const type = document.getElementById('charges-filter-type')?.value || '';
+            const startValue = document.getElementById('charges-filter-start')?.value || '';
+            const endValue = document.getElementById('charges-filter-end')?.value || '';
+            let startDate = null;
+            let endDate = null;
+            if (startValue) {
+                startDate = new Date(startValue);
+                startDate.setHours(0, 0, 0, 0);
+            }
+            if (endValue) {
+                endDate = new Date(endValue);
+                endDate.setHours(23, 59, 59, 999);
+            } else if (startDate) {
+                endDate = new Date();
+                endDate.setHours(23, 59, 59, 999);
+            }
+            if (endDate && !startDate) startDate = new Date(0);
+
+            return (allCharges || []).filter(charge => {
+                if (type && getChargeDisplayCategory(charge) !== type) return false;
+                if (startDate && endDate && !isWithinDateRange(charge.date || charge.createdAt, startDate, endDate)) {
+                    return false;
+                }
+                return true;
+            });
+        };
+
+        const refreshChargesList = (resetPage = false) => {
+            if (resetPage && listPagination.charges) listPagination.charges.page = 1;
+            const filtered = getFilteredCharges();
+            const summary = document.getElementById('charges-filter-summary');
+            if (summary) {
+                const total = filtered.reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0);
+                summary.textContent = `${filtered.length} charge${filtered.length > 1 ? 's' : ''} — ${total.toFixed(2)} Mad`;
+            }
+            renderCharges(filtered);
+        };
+
         const renderCharges = (charges) => {
     const container = document.getElementById('charges-list');
     const placeholder = document.getElementById('charges-placeholder');
@@ -6189,6 +6266,16 @@ const renderOrderHistory = (history) => {
     const page = getPaginatedSlice('charges', lastRenderedCharges);
 
     if (page.total === 0) {
+        const hasFilter = Boolean(
+            document.getElementById('charges-filter-type')?.value
+            || document.getElementById('charges-filter-start')?.value
+            || document.getElementById('charges-filter-end')?.value
+        );
+        if (placeholder) {
+            placeholder.querySelector('p').textContent = hasFilter
+                ? 'Aucune charge pour ces filtres.'
+                : 'Aucune charge enregistrée.';
+        }
         container.appendChild(placeholder);
         mountPaginationBar('charges-list', 'charges', page, () => renderCharges(lastRenderedCharges));
     } else {
@@ -6222,6 +6309,19 @@ const renderOrderHistory = (history) => {
         mountPaginationBar('charges-list', 'charges', page, () => renderCharges(lastRenderedCharges));
     }
 };
+
+        ['charges-filter-type', 'charges-filter-start', 'charges-filter-end'].forEach((id) => {
+            document.getElementById(id)?.addEventListener('change', () => refreshChargesList(true));
+        });
+        document.getElementById('charges-filter-reset')?.addEventListener('click', () => {
+            const typeEl = document.getElementById('charges-filter-type');
+            const startEl = document.getElementById('charges-filter-start');
+            const endEl = document.getElementById('charges-filter-end');
+            if (typeEl) typeEl.value = '';
+            if (startEl) startEl.value = '';
+            if (endEl) endEl.value = '';
+            refreshChargesList(true);
+        });
 // ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
         // --- KPI FILTERS ---
         document.getElementById('ai-analysis-run-btn')?.addEventListener('click', runDashboardAiAnalysis);
@@ -8925,11 +9025,12 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
         });
         document.getElementById('export-charges-btn').addEventListener('click', () => {
             let csv = "date,nom,montant,type\n";
-            allCharges.forEach(charge => {
+            const chargesToExport = Array.isArray(lastRenderedCharges) ? lastRenderedCharges : allCharges;
+            chargesToExport.forEach(charge => {
                 const date = formatDateToDDMMYYYY(charge.date || charge.createdAt);
                 const name = (charge.name || '').replace(/"/g, '""');
                 const amount = Number(charge.amount || 0).toFixed(2);
-                const type = (charge.type || 'charge').replace(/"/g, '""');
+                const type = (getChargeDisplayCategory(charge) || 'Autre charge').replace(/"/g, '""');
                 csv += `"${date}","${name}",${amount},"${type}"\n`;
             });
             downloadCSV(csv, `historique_charges_${new Date().toISOString().split('T')[0]}.csv`);
