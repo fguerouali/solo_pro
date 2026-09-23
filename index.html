@@ -2835,6 +2835,28 @@ let allDailyPayments = [];
         const hasLivraisonSplit = (payment) =>
             payment?.notesLivraisonGlovo != null || payment?.notesLivraisonFoodwebsite != null;
 
+        const classifyLivraisonChannel = (salesChannel) => {
+            const ch = String(salesChannel || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/\s+/g, '');
+            if (!ch) return '';
+            if (ch.includes('glovo')) return 'glovo';
+            if (ch.includes('foodweb') || ch.includes('website') || ch.includes('foodsite')) return 'foodwebsite';
+            return '';
+        };
+
+        const sumLivraisonChannelsFromOrders = (orders) => {
+            const totals = { glovo: 0, foodwebsite: 0 };
+            (orders || []).forEach(order => {
+                const kind = classifyLivraisonChannel(order.salesChannel);
+                if (!kind) return;
+                totals[kind] += Number(order.totalPrice) || 0;
+            });
+            return totals;
+        };
+
         const getLivraisonNotesSplit = (payment) => {
             if (!payment) return { glovo: 0, foodwebsite: 0 };
             if (hasLivraisonSplit(payment)) {
@@ -4137,14 +4159,12 @@ let allDailyPayments = [];
             });
             let salesSurPlace = 0;
             let salesEmporter = 0;
-            let salesLivraisonGlovo = 0;
-            let salesLivraisonFoodwebsite = 0;
+            const livraisonFromTickets = sumLivraisonChannelsFromOrders(filteredOrders);
+            const salesLivraisonGlovo = livraisonFromTickets.glovo;
+            const salesLivraisonFoodwebsite = livraisonFromTickets.foodwebsite;
             filteredDailyPayments.forEach(payment => {
                 salesSurPlace += payment.notesSurPlace || 0;
                 salesEmporter += payment.notesEmporter || 0;
-                const livraison = getLivraisonNotesSplit(payment);
-                salesLivraisonGlovo += livraison.glovo;
-                salesLivraisonFoodwebsite += livraison.foodwebsite;
             });
 
             let totalSales = 0;
@@ -4314,8 +4334,6 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
             let salesSurPlace = 0;
             let salesEmporter = 0;
-            let salesLivraisonGlovo = 0;
-            let salesLivraisonFoodwebsite = 0;
             let tpe = 0;
             let glovoOnline = 0;
             let cash = 0;
@@ -4324,15 +4342,15 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             filteredDailyPayments.forEach(payment => {
                 salesSurPlace += payment.notesSurPlace || 0;
                 salesEmporter += payment.notesEmporter || 0;
-                const livraison = getLivraisonNotesSplit(payment);
-                salesLivraisonGlovo += livraison.glovo;
-                salesLivraisonFoodwebsite += livraison.foodwebsite;
                 tpe += payment.tpeAmount || 0;
                 glovoOnline += payment.glovoAmount || 0;
                 cash += Math.max(0, (payment.totalSales || 0) - (payment.tpeAmount || 0) - (payment.glovoAmount || 0));
                 annulAvant += payment.articlesAnnulesAvantNote || 0;
                 annulApres += payment.articlesAnnulesApresNote || 0;
             });
+            const livraisonFromTickets = sumLivraisonChannelsFromOrders(filteredOrders);
+            const salesLivraisonGlovo = livraisonFromTickets.glovo;
+            const salesLivraisonFoodwebsite = livraisonFromTickets.foodwebsite;
 
             let totalSales = 0;
             let totalCogs = 0;
@@ -6895,18 +6913,31 @@ const setJournalAutofillStatus = (message, isError = false) => {
         : 'text-xs text-gray-500 mt-1';
 };
 
-const applyJournalSummaryToForm = (summary) => {
+const applyJournalSummaryToForm = (summary, dateValue) => {
     setFinanceFieldValue('total-sales-amount', summary.totalNotesPayee);
     setFinanceFieldValue('tpe-amount', summary.tpeAmount);
     setFinanceFieldValue('glovo-amount', summary.glovoTpeAmount);
     setFinanceFieldValue('glovo-cash-amount', summary.glovoCashAmount);
     setFinanceFieldValue('notes-sur-place', summary.notesSurPlace);
     setFinanceFieldValue('notes-emporter', summary.notesEmporter);
+
+    const ticketSplit = sumLivraisonChannelsFromOrders(
+        (orderHistory || []).filter(order => {
+            if (!dateValue) return false;
+            const selectedDate = new Date(dateValue);
+            selectedDate.setHours(0, 0, 0, 0);
+            const orderDate = toDate(order.saleDate || order.createdAt);
+            if (!orderDate) return false;
+            orderDate.setHours(0, 0, 0, 0);
+            return orderDate.getTime() === selectedDate.getTime();
+        })
+    );
     const glovoNotes = Number(summary.notesLivraisonGlovo) || 0;
     const foodwebsiteNotes = Number(summary.notesLivraisonFoodwebsite) || 0;
     const genericLivraison = Number(summary.notesLivraison) || 0;
-    setFinanceFieldValue('notes-livraison-glovo', glovoNotes || (foodwebsiteNotes ? 0 : genericLivraison));
-    setFinanceFieldValue('notes-livraison-foodwebsite', foodwebsiteNotes);
+    setFinanceFieldValue('notes-livraison-glovo', ticketSplit.glovo || glovoNotes || (foodwebsiteNotes || ticketSplit.foodwebsite ? 0 : genericLivraison));
+    setFinanceFieldValue('notes-livraison-foodwebsite', ticketSplit.foodwebsite || foodwebsiteNotes);
+
     setFinanceFieldValue('articles-annules-avant-note', summary.articlesAnnulesAvantNote);
     setFinanceFieldValue('articles-annules-apres-note', summary.articlesAnnulesApresNote);
 };
@@ -6947,7 +6978,7 @@ const autofillFinanceFromJournal = async () => {
             setJournalAutofillStatus('Aucune donnée journal pour cette date.', true);
             return;
         }
-        applyJournalSummaryToForm(summary);
+        applyJournalSummaryToForm(summary, dateValue);
         setJournalAutofillStatus('Prérempli depuis LaCaisse (modifiable).');
         updateDailyPaymentCalculations();
     } catch (error) {

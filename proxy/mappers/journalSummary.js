@@ -42,11 +42,17 @@ function mapJournalToFinanceSummary(payload = {}) {
 
     const notesLivraisonGlovo = findStatAmount(
         stats,
-        (label) => label.includes('total notes') && label.includes('glovo')
+        (label) => label.includes('glovo') && (label.includes('note') || label.includes('livraison') || label.includes('canal'))
+    ) || findPaymentAmount(
+        payments,
+        (label) => label.includes('glovo') && !label.includes('card') && !label.includes('espece')
     );
     const notesLivraisonFoodwebsite = findStatAmount(
         stats,
-        (label) => label.includes('total notes') && isFoodwebsiteLabel(label)
+        (label) => isFoodwebsiteLabel(label)
+    ) || findPaymentAmount(
+        payments,
+        (label) => isFoodwebsiteLabel(label)
     );
     const notesLivraisonGeneric = findStatAmount(
         stats,
