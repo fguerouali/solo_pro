@@ -1339,21 +1339,27 @@
                             <label for="total-sales-amount" class="block text-sm font-medium text-gray-700">Total ventes (Mad)</label>
                             <input type="number" id="total-sales-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
                         </div>
-                        <div>
-                            <label for="tpe-amount" class="block text-sm font-medium text-gray-700">Montant TPE (Mad)</label>
-                            <input type="number" id="tpe-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
-                        </div>
-                        <div>
-                            <label for="glovo-amount" class="block text-sm font-medium text-gray-700">Montant Glovo Card (Mad)</label>
-                            <input type="number" id="glovo-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
-                        </div>
-                        <div>
-                            <label for="glovo-cash-amount" class="block text-sm font-medium text-gray-700">Montant Glovo Espèces (Mad)</label>
-                            <input type="number" id="glovo-cash-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
-                        </div>
-                        <div>
-                            <label for="lacaisse-pay-amount" class="block text-sm font-medium text-gray-700">Montant Lacaisse Pay (Mad)</label>
-                            <input type="number" id="lacaisse-pay-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label for="tpe-amount" class="block text-sm font-medium text-gray-700">TPE (Mad)</label>
+                                <input type="number" id="tpe-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                            </div>
+                            <div>
+                                <label for="glovo-amount" class="block text-sm font-medium text-gray-700">Glovo Card (Mad)</label>
+                                <input type="number" id="glovo-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                            </div>
+                            <div>
+                                <label for="glovo-cash-amount" class="block text-sm font-medium text-gray-700">Glovo Espèces (Mad)</label>
+                                <input type="number" id="glovo-cash-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                            </div>
+                            <div>
+                                <label for="lacaisse-pay-amount" class="block text-sm font-medium text-gray-700">Lacaisse Pay (Mad)</label>
+                                <input type="number" id="lacaisse-pay-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label for="espece-amount" class="block text-sm font-medium text-gray-700">Espèces (Mad)</label>
+                                <input type="number" id="espece-amount" min="0" step="0.01" value="0" readonly class="mt-1 w-full input-style bg-gray-50">
+                            </div>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
                             <div>
@@ -1387,18 +1393,26 @@
                     
                     <!-- Calcul Automatique -->
                     <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-                        <div class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Total ventes du jour :</span>
-                                <span id="day-total-sales" class="font-semibold text-gray-900">0.00 Mad</span>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div class="bg-white p-2 rounded">
+                                <p class="text-xs text-blue-600">TPE</p>
+                                <p id="day-tpe-amount" class="font-semibold text-gray-900">0.00 Mad</p>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">TPE + Glovo Card + Glovo Espèces + Lacaisse Pay :</span>
-                                <span id="day-digital-payments" class="font-semibold text-blue-600">0.00 Mad</span>
+                            <div class="bg-white p-2 rounded">
+                                <p class="text-xs text-purple-600">Glovo Card</p>
+                                <p id="day-glovo-card" class="font-semibold text-gray-900">0.00 Mad</p>
                             </div>
-                            <div class="flex justify-between border-t pt-2 mt-2">
-                                <span class="text-gray-800 font-semibold">Espèces attendues en caisse :</span>
-                                <span id="day-expected-cash" class="font-bold text-green-600 text-lg">0.00 Mad</span>
+                            <div class="bg-white p-2 rounded">
+                                <p class="text-xs text-orange-600">Glovo Espèces</p>
+                                <p id="day-glovo-cash" class="font-semibold text-gray-900">0.00 Mad</p>
+                            </div>
+                            <div class="bg-white p-2 rounded">
+                                <p class="text-xs text-indigo-600">Lacaisse Pay</p>
+                                <p id="day-lacaisse-pay" class="font-semibold text-gray-900">0.00 Mad</p>
+                            </div>
+                            <div class="bg-white p-2 rounded col-span-2">
+                                <p class="text-xs text-green-600">Espèces (dont Glovo Espèces)</p>
+                                <p id="day-expected-cash" class="font-bold text-green-600 text-lg">0.00 Mad</p>
                             </div>
                         </div>
                     </div>
@@ -6911,7 +6925,6 @@ const setFinanceFieldValue = (id, value) => {
 const getFinanceAllocatedPayments = (payment = {}) =>
     (Number(payment.tpeAmount) || 0)
     + (Number(payment.glovoAmount) || 0)
-    + (Number(payment.glovoCashAmount) || 0)
     + (Number(payment.lacaissePayAmount) || 0);
 
 const getFinanceCashRemainder = (payment = {}) =>
@@ -7035,17 +7048,22 @@ const updateDailyPaymentCalculations = () => {
         totalSalesInput.value = resolvedTotalSales.toFixed(2);
     }
 
-    const digitalPayments = tpeAmount + glovoAmount + glovoCashAmount + lacaissePayAmount;
     const expectedCash = getFinanceCashRemainder({
         totalSales: resolvedTotalSales,
         tpeAmount,
         glovoAmount,
-        glovoCashAmount,
         lacaissePayAmount
     });
-    
-    document.getElementById('day-total-sales').textContent = formatKpiMoney(resolvedTotalSales);
-    document.getElementById('day-digital-payments').textContent = formatKpiMoney(digitalPayments);
+    setFinanceFieldValue('espece-amount', expectedCash);
+
+    const dayTpe = document.getElementById('day-tpe-amount');
+    const dayGlovoCard = document.getElementById('day-glovo-card');
+    const dayGlovoCash = document.getElementById('day-glovo-cash');
+    const dayLacaissePay = document.getElementById('day-lacaisse-pay');
+    if (dayTpe) dayTpe.textContent = formatKpiMoney(tpeAmount);
+    if (dayGlovoCard) dayGlovoCard.textContent = formatKpiMoney(glovoAmount);
+    if (dayGlovoCash) dayGlovoCash.textContent = formatKpiMoney(glovoCashAmount);
+    if (dayLacaissePay) dayLacaissePay.textContent = formatKpiMoney(lacaissePayAmount);
     document.getElementById('day-expected-cash').textContent = formatKpiMoney(expectedCash);
     document.getElementById('day-expected-cash').className = 
         expectedCash < 0 ? 'font-bold text-red-600 text-lg' : 'font-bold text-green-600 text-lg';
@@ -7083,14 +7101,12 @@ const renderDailyPayments = () => {
                     <div>
                         <h3 class="font-semibold text-gray-900">${formattedDate}</h3>
                         <p class="text-sm text-gray-600">Total ventes : ${formatKpiMoney(payment.totalSales)}</p>
-                        <p class="text-xs text-orange-600">Glovo Espèces : ${formatKpiMoney(glovoCash)}</p>
-                        <p class="text-xs text-indigo-600">Lacaisse Pay : ${formatKpiMoney(lacaissePay)}</p>
                     </div>
                     <button data-id="${payment.id}" class="delete-daily-payment-btn text-gray-400 hover:text-red-600 transition-colors">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
-                <div class="grid grid-cols-3 gap-2 text-sm">
+                <div class="grid grid-cols-2 gap-2 text-sm">
                     <div class="bg-blue-50 p-2 rounded">
                         <p class="text-xs text-blue-600">TPE</p>
                         <p class="font-semibold">${formatKpiMoney(payment.tpeAmount)}</p>
@@ -7099,8 +7115,16 @@ const renderDailyPayments = () => {
                         <p class="text-xs text-purple-600">Glovo Card</p>
                         <p class="font-semibold">${formatKpiMoney(payment.glovoAmount)}</p>
                     </div>
-                    <div class="bg-green-50 p-2 rounded">
-                        <p class="text-xs text-green-600">Espèces</p>
+                    <div class="bg-orange-50 p-2 rounded">
+                        <p class="text-xs text-orange-600">Glovo Espèces</p>
+                        <p class="font-semibold">${formatKpiMoney(glovoCash)}</p>
+                    </div>
+                    <div class="bg-indigo-50 p-2 rounded">
+                        <p class="text-xs text-indigo-600">Lacaisse Pay</p>
+                        <p class="font-semibold">${formatKpiMoney(lacaissePay)}</p>
+                    </div>
+                    <div class="bg-green-50 p-2 rounded col-span-2">
+                        <p class="text-xs text-green-600">Espèces (dont Glovo Espèces)</p>
                         <p class="font-semibold">${formatKpiMoney(expectedCash)}</p>
                     </div>
                 </div>
@@ -7348,6 +7372,7 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
         document.getElementById('glovo-amount').value = '0';
         document.getElementById('glovo-cash-amount').value = '0';
         document.getElementById('lacaisse-pay-amount').value = '0';
+        document.getElementById('espece-amount').value = '0';
         document.getElementById('notes-sur-place').value = '0';
         document.getElementById('notes-emporter').value = '0';
         document.getElementById('notes-livraison-glovo').value = '0';

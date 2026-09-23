@@ -85,7 +85,7 @@ function mapJournalToFinanceSummary(payload = {}) {
     ) || findPaymentAmount(payments, (label) => label === 'total ttc');
     const especeAmount = Math.max(
         0,
-        Number((totalNotesPayee - tpeAmount - glovoTpeAmount - glovoCashAmount - lacaissePayAmount).toFixed(2))
+        Number((totalNotesPayee - tpeAmount - glovoTpeAmount - lacaissePayAmount).toFixed(2))
     );
 
     return {
