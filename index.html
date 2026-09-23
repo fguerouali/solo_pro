@@ -797,9 +797,14 @@
                         <p id="kpi-sales-emporter-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Vente Livraison</h3>
-                        <p id="kpi-sales-livraison" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
-                        <p id="kpi-sales-livraison-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Livraison Glovo</h3>
+                        <p id="kpi-sales-livraison-glovo" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
+                        <p id="kpi-sales-livraison-glovo-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Livraison Foodwebsite</h3>
+                        <p id="kpi-sales-livraison-foodwebsite" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
+                        <p id="kpi-sales-livraison-foodwebsite-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center" title="Avis Google Solo Pizzeria Napoletana">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Avis Google</h3>
@@ -1346,7 +1351,7 @@
                             <label for="glovo-cash-amount" class="block text-sm font-medium text-gray-700">Montant Glovo Espèces (Mad)</label>
                             <input type="number" id="glovo-cash-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
                             <div>
                                 <label for="notes-sur-place" class="block text-sm font-medium text-gray-700">Notes sur place</label>
                                 <input type="number" id="notes-sur-place" min="0" step="0.01" value="0" class="mt-1 w-full input-style">
@@ -1356,8 +1361,12 @@
                                 <input type="number" id="notes-emporter" min="0" step="0.01" value="0" class="mt-1 w-full input-style">
                             </div>
                             <div>
-                                <label for="notes-livraison" class="block text-sm font-medium text-gray-700">Notes livraison</label>
-                                <input type="number" id="notes-livraison" min="0" step="0.01" value="0" class="mt-1 w-full input-style">
+                                <label for="notes-livraison-glovo" class="block text-sm font-medium text-gray-700">Notes livraison Glovo</label>
+                                <input type="number" id="notes-livraison-glovo" min="0" step="0.01" value="0" class="mt-1 w-full input-style">
+                            </div>
+                            <div>
+                                <label for="notes-livraison-foodwebsite" class="block text-sm font-medium text-gray-700">Notes livraison Foodwebsite</label>
+                                <input type="number" id="notes-livraison-foodwebsite" min="0" step="0.01" value="0" class="mt-1 w-full input-style">
                             </div>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2822,6 +2831,23 @@ let allDailyPayments = [];
             if (!Number.isFinite(n)) return '0';
             return Math.round(n).toLocaleString('fr-FR');
         };
+
+        const hasLivraisonSplit = (payment) =>
+            payment?.notesLivraisonGlovo != null || payment?.notesLivraisonFoodwebsite != null;
+
+        const getLivraisonNotesSplit = (payment) => {
+            if (!payment) return { glovo: 0, foodwebsite: 0 };
+            if (hasLivraisonSplit(payment)) {
+                return {
+                    glovo: Number(payment.notesLivraisonGlovo) || 0,
+                    foodwebsite: Number(payment.notesLivraisonFoodwebsite) || 0
+                };
+            }
+            return {
+                glovo: Number(payment.notesLivraison) || 0,
+                foodwebsite: 0
+            };
+        };
         const openModal = (id) => document.getElementById(id).classList.add('flex');
         const closeModal = (id) => document.getElementById(id).classList.remove('flex');
         
@@ -4111,11 +4137,14 @@ let allDailyPayments = [];
             });
             let salesSurPlace = 0;
             let salesEmporter = 0;
-            let salesLivraison = 0;
+            let salesLivraisonGlovo = 0;
+            let salesLivraisonFoodwebsite = 0;
             filteredDailyPayments.forEach(payment => {
                 salesSurPlace += payment.notesSurPlace || 0;
                 salesEmporter += payment.notesEmporter || 0;
-                salesLivraison += payment.notesLivraison || 0;
+                const livraison = getLivraisonNotesSplit(payment);
+                salesLivraisonGlovo += livraison.glovo;
+                salesLivraisonFoodwebsite += livraison.foodwebsite;
             });
 
             let totalSales = 0;
@@ -4185,8 +4214,10 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             document.getElementById('kpi-sales-sur-place-rate').textContent = pctOfSales(salesSurPlace);
             document.getElementById('kpi-sales-emporter').textContent = formatKpiMoney(salesEmporter);
             document.getElementById('kpi-sales-emporter-rate').textContent = pctOfSales(salesEmporter);
-            document.getElementById('kpi-sales-livraison').textContent = formatKpiMoney(salesLivraison);
-            document.getElementById('kpi-sales-livraison-rate').textContent = pctOfSales(salesLivraison);
+            document.getElementById('kpi-sales-livraison-glovo').textContent = formatKpiMoney(salesLivraisonGlovo);
+            document.getElementById('kpi-sales-livraison-glovo-rate').textContent = pctOfSales(salesLivraisonGlovo);
+            document.getElementById('kpi-sales-livraison-foodwebsite').textContent = formatKpiMoney(salesLivraisonFoodwebsite);
+            document.getElementById('kpi-sales-livraison-foodwebsite-rate').textContent = pctOfSales(salesLivraisonFoodwebsite);
             renderGoogleReviewsKpi();
             document.getElementById('kpi-avg-order-value').textContent = formatKpiMoney(avgOrderValue);
             document.getElementById('kpi-gross-margin').textContent = formatKpiMoney(grossMargin);
@@ -4283,7 +4314,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
             let salesSurPlace = 0;
             let salesEmporter = 0;
-            let salesLivraison = 0;
+            let salesLivraisonGlovo = 0;
+            let salesLivraisonFoodwebsite = 0;
             let tpe = 0;
             let glovoOnline = 0;
             let cash = 0;
@@ -4292,7 +4324,9 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             filteredDailyPayments.forEach(payment => {
                 salesSurPlace += payment.notesSurPlace || 0;
                 salesEmporter += payment.notesEmporter || 0;
-                salesLivraison += payment.notesLivraison || 0;
+                const livraison = getLivraisonNotesSplit(payment);
+                salesLivraisonGlovo += livraison.glovo;
+                salesLivraisonFoodwebsite += livraison.foodwebsite;
                 tpe += payment.tpeAmount || 0;
                 glovoOnline += payment.glovoAmount || 0;
                 cash += Math.max(0, (payment.totalSales || 0) - (payment.tpeAmount || 0) - (payment.glovoAmount || 0));
@@ -4719,7 +4753,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     fromDailyPayments: {
                         surPlace: roundAi(salesSurPlace),
                         emporter: roundAi(salesEmporter),
-                        livraison: roundAi(salesLivraison),
+                        livraisonGlovo: roundAi(salesLivraisonGlovo),
+                        livraisonFoodwebsite: roundAi(salesLivraisonFoodwebsite),
                         tpe: roundAi(tpe),
                         glovoOnline: roundAi(glovoOnline),
                         cashEstimated: roundAi(cash),
@@ -6867,7 +6902,11 @@ const applyJournalSummaryToForm = (summary) => {
     setFinanceFieldValue('glovo-cash-amount', summary.glovoCashAmount);
     setFinanceFieldValue('notes-sur-place', summary.notesSurPlace);
     setFinanceFieldValue('notes-emporter', summary.notesEmporter);
-    setFinanceFieldValue('notes-livraison', summary.notesLivraison);
+    const glovoNotes = Number(summary.notesLivraisonGlovo) || 0;
+    const foodwebsiteNotes = Number(summary.notesLivraisonFoodwebsite) || 0;
+    const genericLivraison = Number(summary.notesLivraison) || 0;
+    setFinanceFieldValue('notes-livraison-glovo', glovoNotes || (foodwebsiteNotes ? 0 : genericLivraison));
+    setFinanceFieldValue('notes-livraison-foodwebsite', foodwebsiteNotes);
     setFinanceFieldValue('articles-annules-avant-note', summary.articlesAnnulesAvantNote);
     setFinanceFieldValue('articles-annules-apres-note', summary.articlesAnnulesApresNote);
 };
@@ -6982,7 +7021,7 @@ const renderDailyPayments = () => {
             const expectedCash = payment.totalSales - totalDigital;
             const notesSurPlace = payment.notesSurPlace || 0;
             const notesEmporter = payment.notesEmporter || 0;
-            const notesLivraison = payment.notesLivraison || 0;
+            const livraisonSplit = getLivraisonNotesSplit(payment);
             const annulAvant = payment.articlesAnnulesAvantNote || 0;
             const annulApres = payment.articlesAnnulesApresNote || 0;
             
@@ -7011,7 +7050,7 @@ const renderDailyPayments = () => {
                         <p class="font-semibold">${formatKpiMoney(expectedCash)}</p>
                     </div>
                 </div>
-                <div class="grid grid-cols-3 gap-2 text-xs mt-2">
+                <div class="grid grid-cols-2 gap-2 text-xs mt-2">
                     <div class="bg-gray-50 p-2 rounded">
                         <p class="text-gray-500">Sur place</p>
                         <p class="font-medium">${formatKpiDecimal(notesSurPlace)}</p>
@@ -7020,9 +7059,13 @@ const renderDailyPayments = () => {
                         <p class="text-gray-500">Emporter</p>
                         <p class="font-medium">${formatKpiDecimal(notesEmporter)}</p>
                     </div>
-                    <div class="bg-gray-50 p-2 rounded">
-                        <p class="text-gray-500">Livraison</p>
-                        <p class="font-medium">${formatKpiDecimal(notesLivraison)}</p>
+                    <div class="bg-orange-50 p-2 rounded">
+                        <p class="text-orange-600">Livraison Glovo</p>
+                        <p class="font-medium">${formatKpiDecimal(livraisonSplit.glovo)}</p>
+                    </div>
+                    <div class="bg-teal-50 p-2 rounded">
+                        <p class="text-teal-700">Livraison Foodwebsite</p>
+                        <p class="font-medium">${formatKpiDecimal(livraisonSplit.foodwebsite)}</p>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-xs mt-2">
@@ -7205,7 +7248,9 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
         const glovoCashAmount = parseFloat(document.getElementById('glovo-cash-amount').value) || 0;
         const notesSurPlace = parseFloat(document.getElementById('notes-sur-place').value) || 0;
         const notesEmporter = parseFloat(document.getElementById('notes-emporter').value) || 0;
-        const notesLivraison = parseFloat(document.getElementById('notes-livraison').value) || 0;
+        const notesLivraisonGlovo = parseFloat(document.getElementById('notes-livraison-glovo').value) || 0;
+        const notesLivraisonFoodwebsite = parseFloat(document.getElementById('notes-livraison-foodwebsite').value) || 0;
+        const notesLivraison = notesLivraisonGlovo + notesLivraisonFoodwebsite;
         const articlesAnnulesAvantNote = parseFloat(document.getElementById('articles-annules-avant-note').value) || 0;
         const articlesAnnulesApresNote = parseFloat(document.getElementById('articles-annules-apres-note').value) || 0;
         
@@ -7217,6 +7262,8 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
             notesSurPlace,
             notesEmporter,
             notesLivraison,
+            notesLivraisonGlovo,
+            notesLivraisonFoodwebsite,
             articlesAnnulesAvantNote,
             articlesAnnulesApresNote,
             totalSales,
@@ -7239,7 +7286,8 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
         document.getElementById('glovo-cash-amount').value = '0';
         document.getElementById('notes-sur-place').value = '0';
         document.getElementById('notes-emporter').value = '0';
-        document.getElementById('notes-livraison').value = '0';
+        document.getElementById('notes-livraison-glovo').value = '0';
+        document.getElementById('notes-livraison-foodwebsite').value = '0';
         document.getElementById('articles-annules-avant-note').value = '0';
         document.getElementById('articles-annules-apres-note').value = '0';
         setJournalAutofillStatus('');
@@ -7305,7 +7353,7 @@ document.getElementById('export-declarations-form').addEventListener('submit', (
     });
     
     // Générer le CSV avec séparateur point-virgule
-    let csv = "Date;Total Vente;TPE;Espèce;Glovo Online;Glovo Cash\n";
+    let csv = "Date;Total Vente;TPE;Espèce;Glovo Online;Glovo Cash;Livraison Glovo;Livraison Foodwebsite\n";
     
     filteredPayments.forEach(payment => {
         const date = toDate(payment.date);
@@ -7318,8 +7366,9 @@ document.getElementById('export-declarations-form').addEventListener('submit', (
         const glovoOnline = payment.glovoAmount || 0;
         const glovoCash = payment.glovoCashAmount || 0;
         const espece = totalSales - tpe - glovoOnline - glovoCash;
+        const livraisonSplit = getLivraisonNotesSplit(payment);
         
-        csv += `${formattedDate};${formatKpiDecimal(totalSales)};${formatKpiDecimal(tpe)};${formatKpiDecimal(espece)};${formatKpiDecimal(glovoOnline)};${formatKpiDecimal(glovoCash)}\n`;
+        csv += `${formattedDate};${formatKpiDecimal(totalSales)};${formatKpiDecimal(tpe)};${formatKpiDecimal(espece)};${formatKpiDecimal(glovoOnline)};${formatKpiDecimal(glovoCash)};${formatKpiDecimal(livraisonSplit.glovo)};${formatKpiDecimal(livraisonSplit.foodwebsite)}\n`;
     });
     
     // Générer le nom de fichier avec la période

@@ -17,6 +17,10 @@ function normalizeLabel(value) {
         .trim();
 }
 
+function isFoodwebsiteLabel(label) {
+    return /food\s*web|foodwebsite|foodweb|site\s*web|website/.test(label);
+}
+
 function findPaymentAmount(payments, matcher) {
     const list = Array.isArray(payments) ? payments : [];
     const match = list.find((entry) => matcher(normalizeLabel(entry.type_paiement)));
@@ -36,6 +40,23 @@ function mapJournalToFinanceSummary(payload = {}) {
     const payments = payload.moyennes_paiement || [];
     const stats = payload.statistique || [];
 
+    const notesLivraisonGlovo = findStatAmount(
+        stats,
+        (label) => label.includes('total notes') && label.includes('glovo')
+    );
+    const notesLivraisonFoodwebsite = findStatAmount(
+        stats,
+        (label) => label.includes('total notes') && isFoodwebsiteLabel(label)
+    );
+    const notesLivraisonGeneric = findStatAmount(
+        stats,
+        (label) =>
+            label.includes('total notes')
+            && label.includes('livraison')
+            && !label.includes('glovo')
+            && !isFoodwebsiteLabel(label)
+    );
+
     return {
         tpeAmount: findPaymentAmount(
             payments,
@@ -54,10 +75,9 @@ function mapJournalToFinanceSummary(payload = {}) {
             stats,
             (label) => label.includes('total notes') && label.includes('emporter')
         ),
-        notesLivraison: findStatAmount(
-            stats,
-            (label) => label.includes('total notes') && label.includes('livraison')
-        ),
+        notesLivraisonGlovo,
+        notesLivraisonFoodwebsite,
+        notesLivraison: (notesLivraisonGlovo + notesLivraisonFoodwebsite) || notesLivraisonGeneric,
         articlesAnnulesAvantNote: findStatAmount(
             stats,
             (label) => label.includes('articles annules avant note')
