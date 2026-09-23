@@ -8507,11 +8507,15 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
                       const d = new Date(item.operDate.replace(' ', 'T')); 
                       if (!isNaN(d.getTime())) saleDate = d; 
                   }
-                  acc[billNo] = { billNo, ticketNo: item.ticketNo || null, salesChannel: item.salesChannel || null, items: [], totalPrice: 0, saleDate, hadDiscount: false };
+                  acc[billNo] = { billNo, ticketNo: item.ticketNo || null, salesChannel: item.salesChannel || null, items: [], totalPrice: 0, ticketTotal: 0, saleDate, hadDiscount: false };
               }
 
               if (!acc[billNo].ticketNo && item.ticketNo) acc[billNo].ticketNo = item.ticketNo;
               if (!acc[billNo].salesChannel && item.salesChannel) acc[billNo].salesChannel = item.salesChannel;
+              const billedTotal = parseFloat(item.ticketTotal);
+              if (Number.isFinite(billedTotal) && billedTotal > (acc[billNo].ticketTotal || 0)) {
+                  acc[billNo].ticketTotal = billedTotal;
+              }
 
               const productNameLower = (item.goodsName || '').trim().toLowerCase(); 
               const matchedProduct = allProducts.find(p => p.name.trim().toLowerCase() === productNameLower);
@@ -8534,6 +8538,16 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
 
                   if (panuozzoComboItems) {
                       acc[billNo].items.push(...panuozzoComboItems);
+                  } else if (item.isDeliveryFee || /frais\s*de\s*livraison/i.test(item.goodsName || '')) {
+                      acc[billNo].items.push({
+                          uuid: crypto.randomUUID(),
+                          id: 'FEE_' + globalIndex,
+                          name: item.goodsName || 'Frais de livraison',
+                          quantity: quantity,
+                          price: price,
+                          returned: numBack,
+                          isUnknown: true
+                      });
                   } else if (matchedProduct) {
                       acc[billNo].items.push({
                           uuid: crypto.randomUUID(),
@@ -8557,6 +8571,10 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
               }
               return acc;
         }, {});
+
+        Object.values(groupedSales).forEach(sale => {
+            if (sale.ticketTotal > sale.totalPrice) sale.totalPrice = sale.ticketTotal;
+        });
 
         const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
 

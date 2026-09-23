@@ -84,6 +84,85 @@ function resolveGoodsNameAndMemo(row) {
     };
 }
 
+function parsePaidTotal(moyens) {
+    const raw = String(moyens || '').trim();
+    if (!raw) return 0;
+    const amounts = [];
+    const re = /(?:^|,)\s*[^0-9,]+?(\d+(?:\.\d+)?)/g;
+    let match;
+    while ((match = re.exec(raw))) {
+        const amount = parseFloat(match[1]);
+        if (Number.isFinite(amount)) amounts.push(amount);
+    }
+    return amounts.reduce((sum, amount) => sum + amount, 0);
+}
+
+function lineAmount(line) {
+    const qty = parseFloat(line.numNum) || 0;
+    const price = parseFloat(line.numPrice) || 0;
+    const priceAdd = parseFloat(line.numPriceAdd) || 0;
+    let discount = parseFloat(line.discount);
+    if (!Number.isFinite(discount)) discount = 100;
+    return ((price * qty) + priceAdd) * (discount / 100);
+}
+
+function appendInvoiceExtras(rows, iamLines) {
+    const paidByBill = new Map();
+    const metaByBill = new Map();
+
+    for (const row of rows) {
+        if (isCancelledSaleType(row['Type de vente'])) continue;
+        const billNo = buildBillNo(row);
+        const paid = parsePaidTotal(row['Moyens de paiements']);
+        if (paid > (paidByBill.get(billNo) || 0)) paidByBill.set(billNo, paid);
+        if (!metaByBill.has(billNo)) {
+            const ticketNo = row['Num ticket'];
+            metaByBill.set(billNo, {
+                operDate: `${row.Date || ''} ${normalizeHeure(row.Heure)}`.trim(),
+                ticketNo: ticketNo === '' || ticketNo == null ? null : String(ticketNo),
+                salesChannel: cleanLabel(row['Canal de vente']) || null
+            });
+        }
+    }
+
+    const lineSumByBill = new Map();
+    for (const line of iamLines) {
+        lineSumByBill.set(line.billNo, (lineSumByBill.get(line.billNo) || 0) + lineAmount(line));
+    }
+
+    const extraLines = [];
+    for (const [billNo, paid] of paidByBill.entries()) {
+        const lineSum = Number((lineSumByBill.get(billNo) || 0).toFixed(2));
+        const ticketTotal = Number(Math.max(paid, lineSum).toFixed(2));
+        if (ticketTotal <= 0) continue;
+
+        for (const line of iamLines) {
+            if (line.billNo === billNo) line.ticketTotal = ticketTotal;
+        }
+
+        const extra = Number((ticketTotal - lineSum).toFixed(2));
+        if (extra <= 0.009) continue;
+
+        const meta = metaByBill.get(billNo) || {};
+        extraLines.push({
+            billNo,
+            goodsName: 'Frais de livraison',
+            numNum: 1,
+            numPrice: extra,
+            numPriceAdd: 0,
+            numBack: 0,
+            discount: 100,
+            operDate: meta.operDate || '',
+            ticketNo: meta.ticketNo,
+            salesChannel: meta.salesChannel,
+            ticketTotal,
+            isDeliveryFee: true
+        });
+    }
+
+    return iamLines.concat(extraLines);
+}
+
 function mapLaCaisseRowToIam(row) {
     const qty = parseFloat(row['Quantité']) || 0;
     const catalogue = parseFloat(row['Prix catalogue']) || 0;
@@ -129,9 +208,10 @@ function mapLaCaisseRowToIam(row) {
 
 function mapLaCaisseRowsToIam(rows) {
     const ticketTotals = buildTicketVenteTotals(rows);
-    return rows
+    const iamLines = rows
         .filter(row => isActiveSaleRow(row, ticketTotals))
         .map(mapLaCaisseRowToIam);
+    return appendInvoiceExtras(rows, iamLines);
 }
 
 module.exports = {
@@ -140,6 +220,7 @@ module.exports = {
     getTicketKey,
     isCancelledSaleType,
     isActiveSaleRow,
+    parsePaidTotal,
     mapLaCaisseRowToIam,
     mapLaCaisseRowsToIam
 };
