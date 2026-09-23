@@ -63,19 +63,37 @@ function mapJournalToFinanceSummary(payload = {}) {
             && !isFoodwebsiteLabel(label)
     );
 
+    const tpeAmount = findPaymentAmount(
+        payments,
+        (label) => label.includes('carte bancaire') && !label.includes('dont')
+    );
+    const glovoTpeAmount = findPaymentAmount(
+        payments,
+        (label) => label.includes('glovo') && label.includes('card')
+    );
+    const glovoCashAmount = findPaymentAmount(
+        payments,
+        (label) => label.includes('glovo') && label.includes('espece')
+    );
+    const lacaissePayAmount = findPaymentAmount(
+        payments,
+        (label) => label.includes('lacaisse') && label.includes('pay')
+    );
+    const totalNotesPayee = findStatAmount(
+        stats,
+        (label) => label.includes('total notes payee') || label.includes('total notes payees')
+    ) || findPaymentAmount(payments, (label) => label === 'total ttc');
+    const especeAmount = Math.max(
+        0,
+        Number((totalNotesPayee - tpeAmount - glovoTpeAmount - glovoCashAmount - lacaissePayAmount).toFixed(2))
+    );
+
     return {
-        tpeAmount: findPaymentAmount(
-            payments,
-            (label) => label.includes('carte bancaire') && !label.includes('dont')
-        ),
-        glovoTpeAmount: findPaymentAmount(
-            payments,
-            (label) => label.includes('glovo') && label.includes('card')
-        ),
-        glovoCashAmount: findPaymentAmount(
-            payments,
-            (label) => label.includes('glovo') && label.includes('espece')
-        ),
+        tpeAmount,
+        glovoTpeAmount,
+        glovoCashAmount,
+        lacaissePayAmount,
+        especeAmount,
         notesSurPlace: findStatAmount(stats, (label) => label.includes('total notes sur place')),
         notesEmporter: findStatAmount(
             stats,
@@ -92,10 +110,7 @@ function mapJournalToFinanceSummary(payload = {}) {
             stats,
             (label) => label.includes('articles annules apres note')
         ),
-        totalNotesPayee: findStatAmount(
-            stats,
-            (label) => label.includes('total notes payee') || label.includes('total notes payees')
-        ),
+        totalNotesPayee,
         totalTtc: findPaymentAmount(payments, (label) => label === 'total ttc'),
         dateDebut: payload.date_debut || null,
         dateFin: payload.date_fin || null

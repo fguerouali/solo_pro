@@ -8,7 +8,7 @@ const LaCaisseAuthService = require('../services/lacaisseAuth');
 
 const DEFAULT_BASE_URL = 'https://api-legacy.lacaisse.ma';
 const DEFAULT_CAISSE_ID = '4418';
-const DEFAULT_JOURNAL_ID = '3';
+const DEFAULT_JOURNAL_ID = '18';
 
 class LaCaissePOSProvider {
     constructor(options = {}) {

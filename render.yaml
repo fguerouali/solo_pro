@@ -24,7 +24,7 @@ services:
       - key: LACAISSE_ID_CAISSE_LIST
         value: "4418"
       - key: LACAISSE_JOURNAL_ID
-        value: "3"
+        value: "18"
       - key: GOOGLE_PLACES_API_KEY
         sync: false
       - key: GOOGLE_PLACE_ID
