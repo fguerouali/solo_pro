@@ -53,9 +53,8 @@ function buildTicketVenteTotals(rows) {
 function isActiveSaleRow(row, ticketTotals) {
     if (isCancelledSaleType(row['Type de vente'])) return false;
     if (!cleanLabel(row.Produit)) return false;
-
-    const ticketTotal = ticketTotals.get(getTicketKey(row)) || 0;
-    return ticketTotal > 0;
+    // Les tickets à 0 Mad (rabais 100%) restent des ventes à afficher et à déduire du stock.
+    return true;
 }
 
 function resolveGoodsNameAndMemo(row) {
@@ -134,11 +133,12 @@ function appendInvoiceExtras(rows, iamLines) {
     for (const [billNo, paid] of paidByBill.entries()) {
         const lineSum = Number((lineSumByBill.get(billNo) || 0).toFixed(2));
         const ticketTotal = Number(Math.max(paid, lineSum).toFixed(2));
-        if (ticketTotal <= 0) continue;
 
         for (const line of iamLines) {
             if (line.billNo === billNo) line.ticketTotal = ticketTotal;
         }
+
+        if (ticketTotal <= 0) continue;
 
         const extra = Number((ticketTotal - lineSum).toFixed(2));
         if (extra <= 0.009) continue;
@@ -167,11 +167,18 @@ function mapLaCaisseRowToIam(row) {
     const qty = parseFloat(row['Quantité']) || 0;
     const catalogue = parseFloat(row['Prix catalogue']) || 0;
     const vente = parseFloat(row['Prix de vente']) || 0;
-    const unitPrice = qty > 0 ? vente / qty : vente;
+    const pricedAmount = catalogue > 0 ? catalogue : vente;
+    const unitPrice = qty > 0 ? pricedAmount / qty : pricedAmount;
 
     let discount = 100;
-    if (catalogue > 0 && vente > 0 && vente !== catalogue) {
-        discount = Math.min(100, Math.max(0, (vente / catalogue) * 100));
+    if (catalogue > 0) {
+        if (vente <= 0) {
+            discount = 0;
+        } else if (vente !== catalogue) {
+            discount = Math.min(100, Math.max(0, (vente / catalogue) * 100));
+        }
+    } else if (vente <= 0 && pricedAmount <= 0) {
+        discount = 0;
     }
 
     const { goodsName, printMemo } = resolveGoodsNameAndMemo(row);

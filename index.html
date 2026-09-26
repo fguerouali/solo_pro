@@ -6067,7 +6067,7 @@ const renderOrderHistory = (history) => {
                     const billNoHtml = order.billNo ? `<p class="text-xs text-gray-500 font-mono">Facture API: ${order.billNo}</p>` : '';
                     const ticketHtml = order.ticketNo ? `<span class="inline-block bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded-full">Ticket #${order.ticketNo}</span>` : '';
                     const canalHtml = order.salesChannel ? `<span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">${order.salesChannel}</span>` : '';
-                    const discountTagHtml = order.hadDiscount ? `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-0.5 rounded-full">Rabais</span>` : '';
+                    const discountTagHtml = order.hadDiscount ? `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-0.5 rounded-full">${(order.totalPrice || 0) === 0 ? 'Rabais 100%' : 'Rabais'}</span>` : '';
                     
                     card.innerHTML = `
                     <div class="flex gap-4">
@@ -8733,6 +8733,7 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
 
         Object.values(groupedSales).forEach(sale => {
             if (sale.ticketTotal > sale.totalPrice) sale.totalPrice = sale.ticketTotal;
+            if ((sale.totalPrice || 0) === 0 && sale.items.length > 0) sale.hadDiscount = true;
         });
 
         const salesToSave = Object.values(groupedSales).filter(sale => sale.items.length > 0);
