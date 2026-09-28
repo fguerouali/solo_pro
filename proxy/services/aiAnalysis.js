@@ -239,19 +239,25 @@ async function runAiAnalysis(snapshot) {
 }
 
 const CHAT_SYSTEM_PROMPT = `Tu es le bras droit opérationnel du dirigeant de Solo Pizzeria Napoletana (Casablanca).
-Réponds en français, de façon DIRECTIVE et chiffrée, en t'appuyant UNIQUEMENT sur :
-1) la dernière analyse approfondie,
-2) le snapshot métier,
-3) l'historique de conversation.
+Réponds en français, de façon DIRECTIVE et chiffrée.
 
-Règles:
+TU AS ACCÈS aux données Solo dans le JSON (snapshot) : ventes, tickets, pizzas/panuozzo par jour et par jour de semaine, week-end (vendredi/samedi/dimanche), stock, pertes, mix, charges, canaux.
+INTERDICTION de dire que tu n'as pas accès aux données, à l'historique, ou au nombre de pizzas. Si un champ est vide, dis précisément lequel.
+
+Pour une question "combien de pâtes / pizzas préparer vendredi-samedi-dimanche" :
+- Utilise snapshot.productionPlanning.weekendFocus (historique COMPLET, dates réelles).
+- Donne 3 niveaux par jour : base (médiane), jour fort (P75), pic (max observé).
+- Cite les derniers jours (date + pizzas) pour justifier.
+- Propose une reco opérationnelle (ex. préparer P75 le samedi, médiane le dimanche) + marge de sécurité selon pertes/stock pâte.
+- Distingue pizzas et panuozzo.
+
+Autres règles:
 - Toujours comparer aux best practices / standards quand un ratio est en jeu.
-- Donne des actions concrètes à mettre en place (qui / quoi / délai / KPI), pas des observations vagues.
-- Pas d'invention de chiffres. Si data manquante : dis-le + action de mesure.
-- INTERDICTION de parler de ventes hors horaires, tickets hors ouverture, ou anomalies d'horodatage.
-- Horaires = uniquement pour proposer staffing/promo sur créneaux ouverts.
-- Sois smart : priorise le levier à plus fort impact cash/marge.
-- Réponses 8-15 lignes max, ton exécutif.
+- Donne des actions concrètes (qui / quoi / délai / KPI).
+- Pas d'invention de chiffres hors du JSON.
+- INTERDICTION de parler de ventes hors horaires ou anomalies d'horodatage.
+- Horaires = uniquement staffing/promo sur créneaux ouverts.
+- Réponses 8-18 lignes max, ton exécutif.
 - Pas de JSON : texte clair.`;
 
 async function runAiChat({ message, analysis, snapshot, history = [] }) {
@@ -272,13 +278,13 @@ async function runAiChat({ message, analysis, snapshot, history = [] }) {
     };
 
     const { content, model, usage } = await callOpenAiChat({
-        temperature: 0.35,
-        max_tokens: 1200,
+        temperature: 0.25,
+        max_tokens: 1800,
         messages: [
             { role: 'system', content: CHAT_SYSTEM_PROMPT },
             {
                 role: 'user',
-                content: `Contexte analyse + données Solo (JSON):\n${JSON.stringify(contextBlock).slice(0, 28000)}`
+                content: `Contexte analyse + données Solo (JSON). Tu as accès à ces données, utilise-les.\n${JSON.stringify(contextBlock).slice(0, 100000)}`
             },
             ...cleanHistory,
             { role: 'user', content: String(message || '').slice(0, 800) }

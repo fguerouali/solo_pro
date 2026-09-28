@@ -969,7 +969,7 @@
                             <p class="text-xs text-gray-500 mb-3">Pose une question en live (ex. « pourquoi le mardi est faible ? », « comment baisser le food cost ? »).</p>
                             <div id="ai-chat-messages" class="space-y-3 max-h-80 overflow-y-auto mb-3 p-3 bg-gray-50 rounded-xl border border-gray-100"></div>
                             <form id="ai-chat-form" class="flex flex-col sm:flex-row gap-2">
-                                <input type="text" id="ai-chat-input" class="input-style flex-1" placeholder="Écris ta question…" autocomplete="off" maxlength="800">
+                                <input type="text" id="ai-chat-input" class="input-style flex-1" placeholder="Ex. Combien de pâtes préparer vendredi, samedi et dimanche ?" autocomplete="off" maxlength="800">
                                 <button type="submit" id="ai-chat-send-btn" class="btn-primary whitespace-nowrap">
                                     <i class="fas fa-paper-plane mr-2"></i>Envoyer
                                 </button>
@@ -4331,6 +4331,125 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             return Math.round(n * f) / f;
         };
 
+        const aiLocalDateKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+        const aiSeriesStats = (values) => {
+            const nums = (values || []).map(Number).filter(Number.isFinite);
+            if (nums.length === 0) {
+                return { count: 0, total: 0, min: 0, max: 0, avg: 0, median: 0, p75: 0 };
+            }
+            const sorted = [...nums].sort((a, b) => a - b);
+            const total = sorted.reduce((sum, v) => sum + v, 0);
+            const mid = Math.floor(sorted.length / 2);
+            const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+            const p75 = sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * 0.75))];
+            return {
+                count: sorted.length,
+                total: roundAi(total, 1),
+                min: roundAi(sorted[0], 1),
+                max: roundAi(sorted[sorted.length - 1], 1),
+                avg: roundAi(total / sorted.length, 1),
+                median: roundAi(median, 1),
+                p75: roundAi(p75, 1)
+            };
+        };
+
+        const buildProductionPlanningSnapshot = () => {
+            const productById = getProductByIdMap();
+            const dayNames = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+            const days = new Map();
+
+            orderHistory.forEach(order => {
+                const d = toDate(order.saleDate || order.createdAt);
+                if (!d || isNaN(d.getTime())) return;
+                const key = aiLocalDateKey(d);
+                if (!days.has(key)) {
+                    days.set(key, {
+                        date: key,
+                        weekday: dayNames[d.getDay()],
+                        weekdayIndex: d.getDay(),
+                        tickets: 0,
+                        sales: 0,
+                        pizzas: 0,
+                        panuozzo: 0,
+                        desserts: 0,
+                        boissons: 0
+                    });
+                }
+                const bucket = days.get(key);
+                bucket.tickets += 1;
+                bucket.sales += order.totalPrice || 0;
+                (order.items || []).forEach(item => {
+                    const product = productById.get(item.id);
+                    const qty = item.quantity || 0;
+                    const type = product?.type;
+                    if (type === 'Pizza') bucket.pizzas += qty;
+                    else if (type === 'Panuozzo') bucket.panuozzo += qty;
+                    else if (type === 'Dessert') bucket.desserts += qty;
+                    else if (type === 'Boisson') bucket.boissons += qty;
+                });
+            });
+
+            const dayList = Array.from(days.values()).sort((a, b) => a.date.localeCompare(b.date));
+            const summarizeWeekday = (weekdayIndex) => {
+                const series = dayList.filter(d => d.weekdayIndex === weekdayIndex);
+                const pizzaStats = aiSeriesStats(series.map(d => d.pizzas));
+                return {
+                    weekday: dayNames[weekdayIndex],
+                    daysCount: series.length,
+                    pizzas: pizzaStats,
+                    panuozzo: aiSeriesStats(series.map(d => d.panuozzo)),
+                    tickets: aiSeriesStats(series.map(d => d.tickets)),
+                    sales: aiSeriesStats(series.map(d => d.sales)),
+                    recommendedPrepPizzas: {
+                        baseMedian: pizzaStats.median,
+                        busyP75: pizzaStats.p75,
+                        peakMax: pizzaStats.max,
+                        note: 'Base = médiane historique. Jour fort = P75. Pic = max observé. Ajouter une marge de sécurité selon stock/pertes.'
+                    },
+                    recentDays: series.slice(-10).map(d => ({
+                        date: d.date,
+                        pizzas: roundAi(d.pizzas, 1),
+                        panuozzo: roundAi(d.panuozzo, 1),
+                        tickets: d.tickets,
+                        sales: roundAi(d.sales)
+                    }))
+                };
+            };
+
+            const pizzaLosses = allLosses.filter(loss => {
+                if (loss.type !== 'product') return false;
+                const product = productById.get(loss.itemId);
+                return product?.type === 'Pizza' || product?.type === 'Panuozzo';
+            });
+            const doughStock = allIngredients
+                .filter(ing => /p[aâ]te|farine|levain|dough/i.test(ing.name || ''))
+                .map(ing => ({
+                    name: ing.name,
+                    quantity: roundAi(ing.quantity),
+                    unit: ing.unit || '',
+                    cost: roundAi(ing.cost || 0)
+                }));
+
+            return {
+                source: 'historique complet des ventes chargé dans l\'app (toutes dates), pas seulement le filtre dashboard',
+                daysCovered: dayList.length,
+                firstDate: dayList[0]?.date || null,
+                lastDate: dayList[dayList.length - 1]?.date || null,
+                byWeekday: dayNames.map((_, index) => summarizeWeekday(index)),
+                weekendFocus: {
+                    vendredi: summarizeWeekday(5),
+                    samedi: summarizeWeekday(6),
+                    dimanche: summarizeWeekday(0)
+                },
+                pizzaAndPanuozzoLosses: {
+                    count: pizzaLosses.length,
+                    quantity: roundAi(pizzaLosses.reduce((sum, loss) => sum + (loss.quantity || 0), 0), 1)
+                },
+                doughRelatedStock: doughStock
+            };
+        };
+
         const buildAiAnalysisSnapshot = () => {
             const { startDate: filterStartDate, endDate: filterEndDate, label: filterLabel } = kpiFilterState;
             const productById = getProductByIdMap();
@@ -4425,7 +4544,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const panuozzoLaunchDate = new Date(2026, 5, 1); // 1er juin 2026
             const ticketValues = [];
             const hourly = Array.from({ length: 24 }, (_, hour) => ({ hour, tickets: 0, sales: 0 }));
-            const byWeekday = dayNames.map(name => ({ day: name, tickets: 0, sales: 0 }));
+            const byWeekday = dayNames.map(name => ({ day: name, tickets: 0, sales: 0, pizzas: 0, panuozzo: 0 }));
             const byChannel = {};
             const productStats = {};
             const familyStats = {};
@@ -4463,9 +4582,14 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     totalCogs += lineCost;
 
                     const type = product?.type || (item.isUnknown ? 'Non lié' : 'Autre');
-                    if (type === 'Pizza') { totalPizzasSold += qty; hasPizza = true; }
+                    if (type === 'Pizza') {
+                        totalPizzasSold += qty;
+                        hasPizza = true;
+                        if (d) byWeekday[d.getDay()].pizzas += qty;
+                    }
                     if (type === 'Panuozzo') {
                         totalPanuozzoSold += qty;
+                        if (d) byWeekday[d.getDay()].panuozzo += qty;
                         if (isSincePanuozzoLaunch === true) {
                             panuozzoQtySinceLaunch += qty;
                             panuozzoRevenueSinceLaunch += lineRevenue;
@@ -4639,6 +4763,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 day: d.day,
                 tickets: d.tickets,
                 sales: roundAi(d.sales),
+                pizzas: roundAi(d.pizzas, 1),
+                panuozzo: roundAi(d.panuozzo, 1),
                 avgTicket: d.tickets > 0 ? roundAi(d.sales / d.tickets) : 0,
                 shareOfSalesPct: totalSales > 0 ? roundAi((d.sales / totalSales) * 100, 1) : 0
             }));
@@ -4749,7 +4875,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         'Horaires = cadre pour staffing et promo (midi / soir / week-end), pas pour signaler des ventes hors plage.',
                         'Concentre-toi sur écarts vs best practices (food cost, charges, mix, panier, accompagnements).',
                         'Chaque conclusion doit aboutir à une action concrète justifiée.',
-                        'Panuozzo : mesurer l\'effet marketing depuis juin 2026 (avant vs depuis) et décider accélérer / ajuster / couper.'
+                        'Panuozzo : mesurer l\'effet marketing depuis juin 2026 (avant vs depuis) et décider accélérer / ajuster / couper.',
+                        'Pour le nombre de pâtes / pizzas à préparer (vendredi-samedi-dimanche), utilise productionPlanning.weekendFocus : médiane, P75 et max par jour réel.'
                     ]
                 },
                 period: {
@@ -4901,7 +5028,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     chargesInPeriod: filteredCharges.length,
                     dailyPaymentsInPeriod: filteredDailyPayments.length,
                     purchaseOrdersInPeriod: purchaseOrdersDetail.length
-                }
+                },
+                productionPlanning: buildProductionPlanningSnapshot()
             };
         };
 
@@ -5040,7 +5168,37 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     familyMix: snapshot.products.familyMix,
                     topByRevenue: (snapshot.products.topByRevenue || []).slice(0, 8)
                 } : null,
-                chargesBreakdown: (snapshot.chargesBreakdown || []).slice(0, 10)
+                chargesBreakdown: (snapshot.chargesBreakdown || []).slice(0, 10),
+                productionPlanning: snapshot.productionPlanning ? {
+                    source: snapshot.productionPlanning.source,
+                    daysCovered: snapshot.productionPlanning.daysCovered,
+                    firstDate: snapshot.productionPlanning.firstDate,
+                    lastDate: snapshot.productionPlanning.lastDate,
+                    weekendFocus: snapshot.productionPlanning.weekendFocus,
+                    pizzaAndPanuozzoLosses: snapshot.productionPlanning.pizzaAndPanuozzoLosses,
+                    doughRelatedStock: snapshot.productionPlanning.doughRelatedStock
+                } : null
+            };
+        };
+
+        const buildAiChatSnapshot = () => {
+            const snapshot = buildAiAnalysisSnapshot();
+            return {
+                accessNote: 'Tu as accès aux données opérationnelles Solo ci-dessous (ventes, pizzas par jour, week-end, stock, pertes, mix, charges). Ne dis JAMAIS que tu n\'as pas accès aux données.',
+                periodDashboard: snapshot.period,
+                kpis: snapshot.kpis,
+                hours: snapshot.hours,
+                products: {
+                    familyMix: snapshot.products?.familyMix || [],
+                    topByRevenue: (snapshot.products?.topByRevenue || []).slice(0, 15)
+                },
+                channels: snapshot.channels,
+                stock: snapshot.stock,
+                chargesBreakdown: snapshot.chargesBreakdown,
+                hr: snapshot.hr,
+                catalogCounts: snapshot.catalogCounts,
+                productionPlanning: snapshot.productionPlanning,
+                googleReviews: snapshot.googleReviews
             };
         };
 
@@ -5109,7 +5267,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const box = document.getElementById('ai-chat-messages');
             if (!box) return;
             if (!messages.length) {
-                box.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Aucune question pour l’instant. Pose ta première question ci-dessous.</p>';
+                box.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Pose une question sur tes ventes, tes pizzas, tes pâtes week-end, tes stocks… l’IA a accès aux données du site.</p>';
                 return;
             }
             box.innerHTML = messages.map(msg => {
@@ -5138,10 +5296,10 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
         };
 
         const persistAiChatHistory = async () => {
-            if (!aiAnalysisLatestRef || !latestAiAnalysis) return;
+            if (!aiAnalysisLatestRef) return;
             const trimmed = aiChatHistory.slice(-40);
             aiChatHistory = trimmed;
-            latestAiAnalysis.chat = trimmed;
+            if (latestAiAnalysis) latestAiAnalysis.chat = trimmed;
             await setDoc(aiAnalysisLatestRef, {
                 chat: trimmed,
                 chatUpdatedAt: serverTimestamp(),
@@ -5152,7 +5310,6 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
         const sendAiChatMessage = async (rawMessage) => {
             if (!canRead('dashboard')) return showToast('Permission refusée.');
             if (!PROXY_URL) return showToast('Proxy non configuré.');
-            if (!latestAiAnalysis) return showToast('Lance d\'abord une analyse approfondie.');
 
             const message = String(rawMessage || '').trim();
             if (!message) return;
@@ -5162,13 +5319,13 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             setAiChatBusy(true, 'L\'IA réfléchit…');
 
             try {
-                const liveSnapshot = buildAiAnalysisSnapshot();
+                const liveSnapshot = buildAiChatSnapshot();
                 const response = await fetch(`${PROXY_URL}/api/ai-chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message,
-                        analysis: {
+                        analysis: latestAiAnalysis ? {
                             summary: latestAiAnalysis.summary,
                             executiveDiagnosis: latestAiAnalysis.executiveDiagnosis,
                             recommendations: latestAiAnalysis.recommendations,
@@ -5176,8 +5333,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                             benchmarkScorecard: latestAiAnalysis.benchmarkScorecard,
                             periodLabel: latestAiAnalysis.periodLabel,
                             generatedAt: latestAiAnalysis.generatedAt
-                        },
-                        snapshot: compactSnapshotForStorage(liveSnapshot) || latestAiAnalysis.snapshotCompact,
+                        } : null,
+                        snapshot: liveSnapshot,
                         history: aiChatHistory.slice(0, -1).slice(-12),
                         requestedBy: currentUserProfile?.username || ''
                     })
