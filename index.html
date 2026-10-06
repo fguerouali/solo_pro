@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>solo - Gestion Pizzeria</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -6288,6 +6290,36 @@ const renderOrderHistory = (history) => {
             resetListPaginationPage('purchases');
             renderPurchaseOrders(filtered);
         };
+
+        const formatPurchaseOrderQuantity = (value) => {
+            const qty = Number(value);
+            if (!Number.isFinite(qty)) return String(value ?? '');
+            return qty.toLocaleString('fr-FR', { maximumFractionDigits: 3 });
+        };
+
+        const buildPurchaseOrderWhatsAppUrl = (purchaseOrder) => {
+            const supplier = allSuppliers.find(s => s.id === purchaseOrder.supplierId);
+            const supplierName = supplier?.name || 'Fournisseur';
+            const lines = (purchaseOrder.items || []).map(item => {
+                const qty = formatPurchaseOrderQuantity(item.quantity);
+                const unit = item.unit ? ` ${item.unit}` : '';
+                return `• ${qty}${unit} — ${item.name}`;
+            });
+            const parts = [
+                `Bonjour ${supplierName},`,
+                '',
+                'Nous souhaitons commander les produits suivants :',
+                '',
+                ...(lines.length ? lines : ['• (aucun produit)'])
+            ];
+            parts.push(
+                '',
+                'Merci de nous confirmer la disponibilité et le délai de livraison.',
+                '',
+                'Cordialement'
+            );
+            return `https://wa.me/?text=${encodeURIComponent(parts.join('\n'))}`;
+        };
         
         const renderPurchaseOrders = (purchaseOrders) => { 
             const container = document.getElementById('purchase-orders-list'); 
@@ -6315,10 +6347,11 @@ const renderOrderHistory = (history) => {
                     
                     // *** NEW: Actions logic updated ***
                     const actionsHtml = `
-                    <div class="flex justify-between items-center mt-3 pt-3 border-t">
-                        <div>
-                            <button data-id="${po.id}" class="reorder-po-btn text-blue-500 hover:text-blue-800 text-sm font-medium mr-3"><i class="fas fa-redo mr-1"></i> Relancer</button>
-                            <button data-id="${po.id}" class="edit-po-btn text-gray-500 hover:text-gray-800 text-sm font-medium mr-3"><i class="fas fa-edit mr-1"></i> Modifier</button>
+                    <div class="flex justify-between items-center mt-3 pt-3 border-t gap-2">
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <button type="button" data-id="${po.id}" class="share-whatsapp-po-btn text-green-600 hover:text-green-800 text-sm font-medium" title="Ouvrir WhatsApp avec le message de commande, sans numéro"><i class="fa-brands fa-whatsapp mr-1"></i> WhatsApp</button>
+                            <button data-id="${po.id}" class="reorder-po-btn text-blue-500 hover:text-blue-800 text-sm font-medium"><i class="fas fa-redo mr-1"></i> Relancer</button>
+                            <button data-id="${po.id}" class="edit-po-btn text-gray-500 hover:text-gray-800 text-sm font-medium"><i class="fas fa-edit mr-1"></i> Modifier</button>
                             ${!isReceived ? `<button data-id="${po.id}" class="delete-po-btn text-red-500 hover:text-red-800 text-sm font-medium"><i class="fas fa-trash mr-1"></i> Supprimer</button>` : ''}
                         </div>
                         <div class="flex gap-2">
@@ -8499,7 +8532,14 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
         document.getElementById('purchase-orders-list').addEventListener('click', async e => { 
             const target = e.target.closest('button[data-id]'); 
             if (!target) return; 
-            const poId = target.dataset.id; 
+            const poId = target.dataset.id;
+
+            if (target.classList.contains('share-whatsapp-po-btn')) {
+                const purchaseOrder = allPurchaseOrders.find(po => po.id === poId);
+                if (!purchaseOrder) return;
+                window.open(buildPurchaseOrderWhatsAppUrl(purchaseOrder), '_blank', 'noopener,noreferrer');
+                return;
+            }
             
             if (target.classList.contains('receive-po-btn')) { 
                 const poDoc = await getDoc(doc(purchaseOrdersCol, poId)); 
