@@ -1,7 +1,7 @@
 const fs = require('fs');
 const fetch = require('node-fetch');
 const XLSX = require('xlsx');
-const { toLaCaisseDate, toJournalDateTime } = require('../utils/dateFormat');
+const { toJournalDateTime } = require('../utils/dateFormat');
 const { mapLaCaisseRowsToIam } = require('../mappers/lacaisseToIam');
 const { mapJournalToFinanceSummary } = require('../mappers/journalSummary');
 const LaCaisseAuthService = require('../services/lacaisseAuth');
@@ -9,6 +9,11 @@ const LaCaisseAuthService = require('../services/lacaisseAuth');
 const DEFAULT_BASE_URL = 'https://api-legacy.lacaisse.ma';
 const DEFAULT_CAISSE_ID = '4418';
 const DEFAULT_JOURNAL_ID = '18';
+const SALES_EXPORT_TYPE = '1';
+const EXPORT_POLL_MS = 2000;
+const EXPORT_TIMEOUT_MS = 4 * 60 * 1000;
+const EXPORT_DONE = new Set(['COMPLETED', 'DONE', 'SUCCESS', 'FINISHED', 'READY', 'OK']);
+const EXPORT_FAILED = new Set(['FAILED', 'ERROR', 'KO', 'EXPIRED', 'CANCELLED', 'CANCELED']);
 
 class LaCaissePOSProvider {
     constructor(options = {}) {
@@ -48,15 +53,71 @@ class LaCaissePOSProvider {
         this.cache.set(key, { createdAt: Date.now(), data });
     }
 
-    buildExportUrl(startDate, endDate, tokenApi) {
-        const params = new URLSearchParams({
+    toExportIsoDate(value) {
+        const text = String(value || '').trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+            throw new Error(`Date invalide: ${value}`);
+        }
+        return text;
+    }
+
+    async startSalesExport(startDate, endDate, tokenApi) {
+        const body = new URLSearchParams({
             caisse: this.caisseId,
-            startDate: toLaCaisseDate(startDate),
-            endDate: toLaCaisseDate(endDate),
-            token_api: tokenApi,
-            idcaisselist: this.idCaisseList
+            export_type: SALES_EXPORT_TYPE,
+            startDate: this.toExportIsoDate(startDate),
+            endDate: this.toExportIsoDate(endDate),
+            idcaisselist: this.idCaisseList,
+            token_api: tokenApi
         });
-        return `${this.baseUrl}/export_excel.php?${params.toString()}`;
+        const response = await fetch(`${this.baseUrl}/exports/export_start.php`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                Accept: 'application/json'
+            },
+            body: body.toString()
+        });
+        const text = await response.text();
+        let payload;
+        try {
+            payload = JSON.parse(text);
+        } catch {
+            if (text.includes('Nous avons modifié la clé')) {
+                this.auth.clearCache();
+                throw new Error(
+                    'Token LaCaisse invalide ou expiré. Vérifiez LACAISSE_LOGIN / LACAISSE_PASSWORD sur le proxy.'
+                );
+            }
+            throw new Error(`Export LaCaisse invalide (HTTP ${response.status}).`);
+        }
+        if (!payload.reference) {
+            throw new Error(payload.error || payload.message || `Export LaCaisse HTTP ${response.status}`);
+        }
+        return payload.reference;
+    }
+
+    async waitForSalesExport(reference) {
+        const started = Date.now();
+        while (Date.now() - started < EXPORT_TIMEOUT_MS) {
+            await new Promise((resolve) => setTimeout(resolve, EXPORT_POLL_MS));
+            const response = await fetch(
+                `${this.baseUrl}/exports/export_status.php?reference=${encodeURIComponent(reference)}&_=${Date.now()}`,
+                { headers: { Accept: 'application/json' } }
+            );
+            const payload = await response.json();
+            const status = String(payload.status || '').toUpperCase();
+            console.log(`[LaCaisse] Export ${reference.slice(0, 8)} ${status || 'inconnu'}`);
+            if (EXPORT_DONE.has(status)) {
+                const download = payload.download_url || `export_download.php?reference=${encodeURIComponent(reference)}`;
+                if (/^https?:\/\//i.test(download)) return download;
+                return `${this.baseUrl}/exports/${String(download).replace(/^\//, '')}`;
+            }
+            if (EXPORT_FAILED.has(status)) {
+                throw new Error(payload.error || payload.message || 'Export LaCaisse en échec.');
+            }
+        }
+        throw new Error('Export LaCaisse trop long. Réessayez dans un instant.');
     }
 
     maskToken(value) {
@@ -74,8 +135,10 @@ class LaCaissePOSProvider {
         }
 
         const tokenApi = await this.auth.getTokenApi();
-        const url = this.buildExportUrl(startDate, endDate, tokenApi);
-        console.log(`[LaCaisse] Téléchargement Excel: ${url.replace(tokenApi, this.maskToken(tokenApi))}`);
+        console.log(`[LaCaisse] Demande export ventes ${startDate} → ${endDate}`);
+        const reference = await this.startSalesExport(startDate, endDate, tokenApi);
+        const url = await this.waitForSalesExport(reference);
+        console.log(`[LaCaisse] Téléchargement Excel: ${url}`);
 
         const response = await fetch(url, {
             method: 'GET',

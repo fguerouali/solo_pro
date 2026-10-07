@@ -6297,7 +6297,7 @@ const renderOrderHistory = (history) => {
             return qty.toLocaleString('fr-FR', { maximumFractionDigits: 3 });
         };
 
-        const buildPurchaseOrderWhatsAppUrl = (purchaseOrder) => {
+        const buildPurchaseOrderWhatsAppMessage = (purchaseOrder) => {
             const supplier = allSuppliers.find(s => s.id === purchaseOrder.supplierId);
             const supplierName = supplier?.name || 'Fournisseur';
             const lines = (purchaseOrder.items || []).map(item => {
@@ -6318,7 +6318,22 @@ const renderOrderHistory = (history) => {
                 '',
                 'Cordialement'
             );
-            return `https://wa.me/?text=${encodeURIComponent(parts.join('\n'))}`;
+            return parts.join('\n');
+        };
+
+        const openPurchaseOrderOnWhatsApp = (purchaseOrder) => {
+            const text = encodeURIComponent(buildPurchaseOrderWhatsAppMessage(purchaseOrder));
+            const ua = navigator.userAgent || '';
+            if (/Android/i.test(ua)) {
+                // package=com.whatsapp = WhatsApp normal. Business est com.whatsapp.w4b.
+                window.location.href = `intent://send?text=${text}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
+                return;
+            }
+            if (/iPhone|iPad|iPod/i.test(ua)) {
+                window.location.href = `whatsapp://send?text=${text}`;
+                return;
+            }
+            window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
         };
         
         const renderPurchaseOrders = (purchaseOrders) => { 
@@ -8537,7 +8552,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
             if (target.classList.contains('share-whatsapp-po-btn')) {
                 const purchaseOrder = allPurchaseOrders.find(po => po.id === poId);
                 if (!purchaseOrder) return;
-                window.open(buildPurchaseOrderWhatsAppUrl(purchaseOrder), '_blank', 'noopener,noreferrer');
+                openPurchaseOrderOnWhatsApp(purchaseOrder);
                 return;
             }
             
@@ -8792,7 +8807,7 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
         const token = authData.token;
 
         // 3. Téléchargement
-        statusText.textContent = 'Téléchargement...';
+        statusText.textContent = 'Préparation du fichier LaCaisse, cela peut prendre une minute...';
         let currentPage = 1;
         const pageSize = 100; 
         const MAX_PAGES_SAFETY = 15; // Sécurité augmentée
@@ -8806,7 +8821,10 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
             const response = await fetch(url);
             const result = await response.json();
 
-            if (!response.ok || result.code !== 200 || !result.data || result.data.length === 0) {
+            if (!response.ok) {
+                throw new Error(result.message || 'Erreur import API');
+            }
+            if (result.code !== 200 || !result.data || result.data.length === 0) {
                 break; 
             }
             
