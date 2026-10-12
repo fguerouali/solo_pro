@@ -4354,9 +4354,10 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 if (!date || date < oldest) return;
                 const key = aiLocalDateKey(date);
                 if (!byDay.has(key)) {
-                    byDay.set(key, { date: key, surPlaceMidi: 0, surPlaceSoir: 0, livraisonMidi: 0, livraisonSoir: 0, pizzas: 0 });
+                    byDay.set(key, { date: key, surPlaceMidi: 0, surPlaceSoir: 0, livraisonMidi: 0, livraisonSoir: 0, pizzas: 0, labeled: false });
                 }
                 const row = byDay.get(key);
+                if (String(order.salesChannel || '').trim()) row.labeled = true;
                 const slot = date.getHours() < 17 ? 'Midi' : 'Soir';
                 const channel = classifyLivraisonChannel(order.salesChannel) ? 'livraison' : 'surPlace';
                 row[`${channel}${slot}`] += 1;
@@ -4378,8 +4379,9 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
         const forecastSignature = (days) => {
             const pizzas = days.reduce((sum, day) => sum + day.pizzas, 0);
             const tickets = days.reduce((sum, day) => sum + day.surPlaceMidi + day.surPlaceSoir + day.livraisonMidi + day.livraisonSoir, 0);
+            const labeled = days.filter((day) => day.labeled).length;
             const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
-            return `${today}|${days.length}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${tickets}`;
+            return `v2|${today}|${days.length}|${labeled}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${tickets}`;
         };
 
         const renderForecast = (data, errorMessage) => {
@@ -4436,6 +4438,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     </div>
                 </div>`;
             const limits = [];
+            if (data.backcastDays) limits.push(`${data.backcastDays} jours anciens répartis selon la part récente sur place / livraison`);
             if (!data.weatherOk) limits.push('météo indisponible');
             if (!data.footballOk) limits.push('calendrier des matchs indisponible');
             noteEl.textContent = `Calculé sur ${data.trainedDays} jours ouverts, hors lundis et hors Ramadan 2026.${limits.length ? ` ${limits.join(', ')}.` : ''}`;
@@ -4455,7 +4458,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             }
             const signature = forecastSignature(days);
             try {
-                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v1') || 'null');
+                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v2') || 'null');
                 if (cached && cached.signature === signature && cached.data) {
                     renderForecast(cached.data);
                     return;
@@ -4474,7 +4477,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok) throw new Error(payload.message || 'Erreur de prévision');
                 try {
-                    sessionStorage.setItem('solo-forecast-cache-v1', JSON.stringify({ signature, data: payload.data }));
+                    sessionStorage.setItem('solo-forecast-cache-v2', JSON.stringify({ signature, data: payload.data }));
                 } catch (error) {
                     console.warn('Cache prévision non enregistré', error);
                 }

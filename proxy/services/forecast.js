@@ -84,6 +84,59 @@ function median(values) {
     return quantile(values, 0.5);
 }
 
+function slotTotal(row, slot) {
+    return row[`surPlace${slot}`] + row[`livraison${slot}`];
+}
+
+function slotShare(rows, slot) {
+    let livraison = 0;
+    let total = 0;
+    for (const row of rows) {
+        livraison += row[`livraison${slot}`];
+        total += slotTotal(row, slot);
+    }
+    if (total <= 0) return null;
+    return livraison / total;
+}
+
+function applyChannelBackcast(days) {
+    const labeled = days.filter((day) => day.labeled);
+    const hasUnlabeled = days.some((day) => !day.labeled);
+    if (labeled.length < 7 || !hasUnlabeled) {
+        return { days, backcastDays: 0, labeledDays: labeled.length };
+    }
+
+    const shares = {};
+    for (const slot of ['Midi', 'Soir']) {
+        const globalShare = slotShare(labeled, slot) || 0;
+        shares[slot] = [];
+        for (let dow = 0; dow < 7; dow += 1) {
+            const sameDow = labeled.filter((day) => weekdayIndex(day.date) === dow && slotTotal(day, slot) > 0);
+            const localShare = slotShare(sameDow, slot);
+            const weight = Math.min(1, sameDow.length / 6);
+            shares[slot][dow] = localShare == null ? globalShare : (globalShare * (1 - weight)) + (localShare * weight);
+        }
+    }
+
+    let backcastDays = 0;
+    const adjusted = days.map((day) => {
+        if (day.labeled) return day;
+        const next = { ...day };
+        let moved = false;
+        for (const slot of ['Midi', 'Soir']) {
+            const total = slotTotal(day, slot);
+            if (total <= 0) continue;
+            const livraison = Math.round(total * (shares[slot][weekdayIndex(day.date)] || 0));
+            next[`livraison${slot}`] = livraison;
+            next[`surPlace${slot}`] = total - livraison;
+            if (livraison > 0) moved = true;
+        }
+        if (moved) backcastDays += 1;
+        return next;
+    });
+    return { days: adjusted, backcastDays, labeledDays: labeled.length };
+}
+
 function isRainCode(code) {
     const n = Number(code);
     return (n >= 51 && n <= 67) || (n >= 80 && n <= 82) || n >= 95;
@@ -99,7 +152,7 @@ function sanitizeDays(days) {
     for (const day of days.slice(-400)) {
         const date = String(day?.date || '');
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-        const row = { date };
+        const row = { date, labeled: Boolean(day?.labeled) };
         for (const key of TARGETS) row[key] = clampNumber(day[key]);
         cleaned.push(row);
     }
@@ -342,13 +395,17 @@ function buildForecast(days, context) {
         livraison: { midi: slots.livraisonMidi, soir: slots.livraisonSoir },
         production: slots.pizzas,
         trainedDays: training.length,
+        backcastDays: context.backcastDays || 0,
+        labeledDays: context.labeledDays || 0,
         footballOk: context.footballOk,
         weatherOk: context.weatherOk
     };
 }
 
 async function runForecast(rawDays) {
-    const days = sanitizeDays(rawDays);
+    const sanitized = sanitizeDays(rawDays);
+    const backcast = applyChannelBackcast(sanitized);
+    const days = backcast.days;
     const today = casablancaToday();
     const startDate = days[0].date < isoAddDays(today, -370) ? isoAddDays(today, -370) : days[0].date;
     let weatherOk = true;
@@ -377,12 +434,15 @@ async function runForecast(rawDays) {
         weatherByDate,
         fixturesByDate,
         footballOk,
-        weatherOk
+        weatherOk,
+        backcastDays: backcast.backcastDays,
+        labeledDays: backcast.labeledDays
     });
 }
 
 module.exports = {
     runForecast,
+    applyChannelBackcast,
     buildForecast,
     sanitizeDays,
     enrichDays,
