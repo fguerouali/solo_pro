@@ -354,7 +354,8 @@ function sanitizeCampaigns(raw) {
         const start = String(item?.start || '');
         const end = String(item?.end || start);
         if (!type || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start) continue;
-        campaigns.push({ type, start, end });
+        const role = item?.role === 'shoot' || item?.role === 'publish' ? item.role : '';
+        campaigns.push({ type, start, end, role });
     }
     return campaigns;
 }
@@ -495,7 +496,10 @@ function buildForecast(days, context) {
     for (const target of TARGETS) slots[target] = predictTarget(training, target, tomorrow);
     const marketing = [];
     if (tomorrow.marketingVideo) marketing.push({ key: 'video', label: 'Vidéo sponsorisée' });
-    if (tomorrow.marketingCollab) marketing.push({ key: 'collab', label: 'Collaboration' });
+    const collabHits = (context.campaigns || []).filter((campaign) => campaign.type === 'collab' && campaign.start <= targetDate && targetDate <= campaign.end);
+    if (collabHits.some((campaign) => campaign.role === 'shoot')) marketing.push({ key: 'collab', role: 'shoot', label: 'Tournage' });
+    if (collabHits.some((campaign) => campaign.role === 'publish')) marketing.push({ key: 'collab', role: 'publish', label: 'Publication' });
+    if (!collabHits.some((campaign) => campaign.role) && tomorrow.marketingCollab) marketing.push({ key: 'collab', label: 'Collaboration' });
     return {
         targetDate,
         label: formatFrenchDate(targetDate),

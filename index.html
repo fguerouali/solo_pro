@@ -1636,7 +1636,7 @@
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <div class="xl:col-span-1 space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-lg">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Nouvelle opération</h3>
+                <h3 id="marketing-form-title" class="text-lg font-semibold text-gray-800 mb-4">Nouvelle opération</h3>
                 <form id="marketing-form" class="space-y-4">
                     <div>
                         <label for="marketing-type" class="block text-sm font-medium text-gray-700">Type</label>
@@ -1649,27 +1649,42 @@
                         <label for="marketing-name" class="block text-sm font-medium text-gray-700">Nom</label>
                         <input type="text" id="marketing-name" required maxlength="80" class="mt-1 w-full input-style" placeholder="Titre de la vidéo ou nom de l'influenceur">
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label for="marketing-start" class="block text-sm font-medium text-gray-700">Début</label>
-                            <input type="date" id="marketing-start" required class="mt-1 w-full input-style">
+                    <div id="marketing-video-dates">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="marketing-start" class="block text-sm font-medium text-gray-700">Début</label>
+                                <input type="date" id="marketing-start" required class="mt-1 w-full input-style">
+                            </div>
+                            <div>
+                                <label for="marketing-end" class="block text-sm font-medium text-gray-700">Fin</label>
+                                <input type="date" id="marketing-end" required class="mt-1 w-full input-style">
+                            </div>
                         </div>
-                        <div>
-                            <label for="marketing-end" class="block text-sm font-medium text-gray-700">Fin</label>
-                            <input type="date" id="marketing-end" required class="mt-1 w-full input-style">
+                    </div>
+                    <div id="marketing-collab-dates" class="hidden">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="marketing-shoot" class="block text-sm font-medium text-gray-700">Date de tournage</label>
+                                <input type="date" id="marketing-shoot" class="mt-1 w-full input-style">
+                            </div>
+                            <div>
+                                <label for="marketing-publish" class="block text-sm font-medium text-gray-700">Date de publication</label>
+                                <input type="date" id="marketing-publish" class="mt-1 w-full input-style">
+                            </div>
                         </div>
+                        <p class="text-xs text-gray-500 mt-2">Seule la publication compte dans les ventes.</p>
+                    </div>
+                    <div>
+                        <label for="marketing-amount" class="block text-sm font-medium text-gray-700">Montant (Mad)</label>
+                        <input type="number" id="marketing-amount" min="0" step="0.01" required class="mt-1 w-full input-style" placeholder="0.00">
                     </div>
                     <div>
                         <label for="marketing-note" class="block text-sm font-medium text-gray-700">Note <span class="text-gray-400 font-normal">(optionnel)</span></label>
                         <input type="text" id="marketing-note" maxlength="140" class="mt-1 w-full input-style" placeholder="Plateforme, code promo...">
                     </div>
-                    <button type="submit" class="btn-primary w-full">Ajouter au planning</button>
+                    <button type="submit" id="marketing-submit" class="btn-primary w-full">Ajouter au planning</button>
+                    <button type="button" id="marketing-cancel" class="btn-secondary w-full hidden">Annuler la modification</button>
                 </form>
-            </div>
-            <div class="bg-white p-6 rounded-2xl shadow-lg">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Impact mesuré</h3>
-                <p class="text-xs text-gray-500 mb-3">Écart d'un jour d'opération par rapport à un jour normal, une fois la météo et les matchs mis à part.</p>
-                <div id="marketing-impact" class="space-y-3 text-sm text-gray-600">La prévision n'a pas encore assez d'opérations passées.</div>
             </div>
         </div>
         <div class="xl:col-span-2 space-y-6">
@@ -1688,7 +1703,8 @@
                 <div id="marketing-calendar" class="grid grid-cols-7 gap-1"></div>
                 <div class="flex flex-wrap gap-3 mt-4 text-xs text-gray-500">
                     <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-violet-400"></span>Vidéo sponsorisée</span>
-                    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>Collaboration</span>
+                    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>Tournage</span>
+                    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-400"></span>Publication</span>
                 </div>
             </div>
             <div class="bg-white p-6 rounded-2xl shadow-lg">
@@ -2130,7 +2146,7 @@
         // --- IMPORTS FIREBASE ---
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, getDocs, serverTimestamp, writeBatch, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, getDocs, serverTimestamp, writeBatch, increment, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // --- CONFIGURATION ---
@@ -2197,8 +2213,8 @@ let allAbsences = []; // AJOUTEZ CETTE LIGNE
 let allSalaryPayments = []; // AJOUTEZ CETTE LIGNE
 let allDailyPayments = [];
         let allMarketingOps = [];
+        let marketingEditingId = null;
         let marketingVisibleMonth = null;
-        let latestMarketingImpact = null;
         let allAppUsers = [];
         let currentUserProfile = null;
         let selectedPermissionsUserId = null;
@@ -2400,6 +2416,9 @@ let allDailyPayments = [];
             document.getElementById('charge-date').value = getTodayDateString();
             document.getElementById('marketing-start').value = getTodayDateString();
             document.getElementById('marketing-end').value = getTodayDateString();
+            document.getElementById('marketing-shoot').value = getTodayDateString();
+            document.getElementById('marketing-publish').value = getTodayDateString();
+            syncMarketingTypeFields();
             const today = new Date();
             const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -2716,7 +2735,7 @@ let allDailyPayments = [];
             });
             onSnapshot(marketingOpsCol, snapshot => {
                 allMarketingOps = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                allMarketingOps.sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')));
+                allMarketingOps.sort((a, b) => marketingSortKey(b).localeCompare(marketingSortKey(a)));
                 markDirty('marketing', 'kpis');
             });
             onSnapshot(checklistConfigRef, snapshot => {
@@ -4488,17 +4507,28 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             return [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
         };
 
-        const buildForecastCampaigns = () => (allMarketingOps || []).map((op) => ({
-            type: op.type === 'collab' ? 'collab' : 'video',
-            start: String(op.startDate || ''),
-            end: String(op.endDate || op.startDate || '')
-        })).filter((op) => /^\d{4}-\d{2}-\d{2}$/.test(op.start) && /^\d{4}-\d{2}-\d{2}$/.test(op.end));
+        const buildForecastCampaigns = () => {
+            const campaigns = [];
+            (allMarketingOps || []).forEach((op) => {
+                if (op.type === 'collab') {
+                    const publish = String(op.publishDate || '');
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(publish)) campaigns.push({ type: 'collab', role: 'publish', start: publish, end: publish });
+                    return;
+                }
+                const start = String(op.startDate || '');
+                const end = String(op.endDate || start);
+                if (/^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end) && end >= start) {
+                    campaigns.push({ type: 'video', start, end });
+                }
+            });
+            return campaigns;
+        };
 
         const forecastSignature = (days, campaigns) => {
             const pizzas = days.reduce((sum, day) => sum + day.pizzas, 0);
             const known = days.reduce((sum, day) => sum + day.knownSurPlaceMidi + day.knownSurPlaceSoir + day.knownLivraisonMidi + day.knownLivraisonSoir, 0);
             const unknown = days.reduce((sum, day) => sum + day.unknownMidi + day.unknownSoir, 0);
-            const ops = (campaigns || []).map((op) => `${op.type}:${op.start}:${op.end}`).sort().join(',');
+            const ops = (campaigns || []).map((op) => `${op.type}:${op.role || ''}:${op.start}:${op.end}`).sort().join(',');
             const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
             return `v4|${today}|${days.length}|${known}|${unknown}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${ops}`;
         };
@@ -4527,7 +4557,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             else badges.push(['Météo calme', 'bg-gray-100 text-gray-700']);
             if (data.match) badges.push([data.match.text, 'bg-emerald-100 text-emerald-800']);
             (data.marketing || []).forEach((item) => {
-                badges.push([item.label, item.key === 'video' ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800']);
+                const tone = item.role === 'publish' ? 'bg-orange-100 text-orange-800' : (item.key === 'video' ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800');
+                badges.push([item.label, tone]);
             });
             badges.forEach(([label, cls]) => {
                 const span = document.createElement('span');
@@ -4566,20 +4597,23 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             else if (!(data.shareMidi || data.shareSoir)) limits.push('les tickets avec canal ne contiennent pas de livraison');
             if (!data.weatherOk) limits.push('météo indisponible');
             if (!data.footballOk) limits.push('calendrier des matchs indisponible');
+            const notedMarketing = new Set();
             (data.marketing || []).forEach((item) => {
+                if (notedMarketing.has(item.key)) return;
+                notedMarketing.add(item.key);
                 const impact = data.marketingImpact?.[item.key];
                 if (impact?.measured) {
                     const ticketSign = impact.tickets > 0 ? '+' : '';
                     const pizzaSign = impact.pizzas > 0 ? '+' : '';
-                    limits.push(`${item.label} ajoutée au jour normal (${ticketSign}${impact.tickets} tickets, ${pizzaSign}${impact.pizzas} pizzas, sur ${impact.days} jours)`);
+                    const label = item.key === 'collab' ? 'Collaboration' : item.label;
+                    limits.push(`${label} ajoutée au jour normal (${ticketSign}${impact.tickets} tickets, ${pizzaSign}${impact.pizzas} pizzas, sur ${impact.days} jours)`);
                 } else {
-                    limits.push(`${item.label} prévue, effet pas encore mesurable`);
+                    const label = item.key === 'collab' ? 'Collaboration' : item.label;
+                    limits.push(`${label} prévue, effet pas encore mesurable`);
                 }
             });
             if (data.marketingDays) limits.push(`${data.marketingDays} jours marketing écartés du jour normal`);
             noteEl.textContent = `Calculé sur ${data.trainedDays} jours ouverts, hors lundis et hors Ramadan 2026.${limits.length ? ` ${limits.join(', ')}.` : ''}`;
-            latestMarketingImpact = data.marketingImpact || null;
-            renderMarketingImpact();
         };
 
         let forecastTimer = null;
@@ -4659,34 +4693,107 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             return `${fmt(startDate, false)} – ${fmt(endDate, true)}`;
         };
 
-        const renderMarketingImpact = () => {
-            const box = document.getElementById('marketing-impact');
-            if (!box) return;
-            const impact = latestMarketingImpact;
-            if (!impact) {
-                box.textContent = 'La prévision n’a pas encore assez d’opérations passées.';
-                return;
+        const marketingSortKey = (op) => {
+            if (op?.type === 'collab') return op.shootDate || op.publishDate || op.startDate || '';
+            return op?.startDate || '';
+        };
+
+        const collabDates = (op) => ({
+            shoot: op.shootDate || op.startDate || '',
+            publish: op.publishDate || op.endDate || ''
+        });
+
+        const marketingMarksOn = (op, iso) => {
+            if (op.type === 'collab') {
+                const dates = collabDates(op);
+                const marks = [];
+                if (dates.shoot === iso) marks.push('shoot');
+                if (dates.publish === iso) marks.push('publish');
+                return marks;
             }
-            box.replaceChildren();
-            ['video', 'collab'].forEach((key) => {
-                const row = impact[key] || { days: 0, measured: false, tickets: 0, pizzas: 0 };
-                const line = document.createElement('div');
-                line.className = 'flex items-start justify-between gap-3';
-                const title = document.createElement('p');
-                title.className = 'font-medium text-gray-800';
-                title.textContent = MARKETING_TYPE_LABELS[key];
-                const detail = document.createElement('p');
-                detail.className = 'text-right text-gray-600';
-                if (!row.days) detail.textContent = 'Aucune journée passée';
-                else if (!row.measured) detail.textContent = `${row.days} jour${row.days > 1 ? 's' : ''} passé${row.days > 1 ? 's' : ''}, pas encore mesurable`;
-                else {
-                    const ticketSign = row.tickets > 0 ? '+' : '';
-                    const pizzaSign = row.pizzas > 0 ? '+' : '';
-                    detail.textContent = `${ticketSign}${row.tickets} tickets, ${pizzaSign}${row.pizzas} pizzas`;
-                }
-                line.append(title, detail);
-                box.appendChild(line);
+            if (op.startDate && op.startDate <= iso && (op.endDate || op.startDate) >= iso) return ['video'];
+            return [];
+        };
+
+        const marketingLastDate = (op) => {
+            if (op.type === 'collab') {
+                const dates = collabDates(op);
+                return [dates.shoot, dates.publish].filter(Boolean).sort().pop() || '';
+            }
+            return op.endDate || op.startDate || '';
+        };
+
+        const formatMarketingWhen = (op) => {
+            if (op.type !== 'collab') return formatMarketingRange(op.startDate, op.endDate);
+            const dates = collabDates(op);
+            const parts = [];
+            if (dates.shoot) parts.push(`Tournage ${formatMarketingRange(dates.shoot, dates.shoot)}`);
+            if (dates.publish) parts.push(`Publication ${formatMarketingRange(dates.publish, dates.publish)}`);
+            return parts.join(' · ');
+        };
+
+        const formatMarketingAmount = (value) => {
+            const amount = Number(value);
+            if (!Number.isFinite(amount)) return '';
+            return ` · ${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Mad`;
+        };
+
+        const syncMarketingTypeFields = () => {
+            const collab = document.getElementById('marketing-type')?.value === 'collab';
+            document.getElementById('marketing-video-dates')?.classList.toggle('hidden', collab);
+            document.getElementById('marketing-collab-dates')?.classList.toggle('hidden', !collab);
+            ['marketing-start', 'marketing-end'].forEach((id) => {
+                const field = document.getElementById(id);
+                if (!field) return;
+                field.required = !collab;
+                field.disabled = collab;
             });
+            ['marketing-shoot', 'marketing-publish'].forEach((id) => {
+                const field = document.getElementById(id);
+                if (!field) return;
+                field.required = collab;
+                field.disabled = !collab;
+            });
+        };
+
+        const resetMarketingForm = () => {
+            marketingEditingId = null;
+            const form = document.getElementById('marketing-form');
+            form?.reset();
+            const today = getTodayDateString();
+            ['marketing-start', 'marketing-end', 'marketing-shoot', 'marketing-publish'].forEach((id) => {
+                const field = document.getElementById(id);
+                if (field) field.value = today;
+            });
+            const title = document.getElementById('marketing-form-title');
+            const submit = document.getElementById('marketing-submit');
+            if (title) title.textContent = 'Nouvelle opération';
+            if (submit) submit.textContent = 'Ajouter au planning';
+            document.getElementById('marketing-cancel')?.classList.add('hidden');
+            syncMarketingTypeFields();
+        };
+
+        const editMarketingOp = (id) => {
+            const op = allMarketingOps.find((item) => item.id === id);
+            if (!op) return;
+            marketingEditingId = id;
+            document.getElementById('marketing-type').value = op.type === 'collab' ? 'collab' : 'video';
+            document.getElementById('marketing-name').value = op.name || '';
+            document.getElementById('marketing-note').value = op.note || '';
+            document.getElementById('marketing-amount').value = Number.isFinite(Number(op.amount)) ? op.amount : '';
+            syncMarketingTypeFields();
+            if (op.type === 'collab') {
+                const dates = collabDates(op);
+                document.getElementById('marketing-shoot').value = dates.shoot;
+                document.getElementById('marketing-publish').value = dates.publish;
+            } else {
+                document.getElementById('marketing-start').value = op.startDate || '';
+                document.getElementById('marketing-end').value = op.endDate || op.startDate || '';
+            }
+            document.getElementById('marketing-form-title').textContent = 'Modifier l\'opération';
+            document.getElementById('marketing-submit').textContent = 'Enregistrer';
+            document.getElementById('marketing-cancel').classList.remove('hidden');
+            document.getElementById('marketing-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         };
 
         const renderMarketing = () => {
@@ -4716,18 +4823,22 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 num.className = `text-xs font-semibold ${inMonth ? 'text-gray-700' : 'text-gray-300'}`;
                 num.textContent = String(day.getDate());
                 cell.appendChild(num);
-                allMarketingOps.filter((op) => op.startDate && op.startDate <= iso && (op.endDate || op.startDate) >= iso).forEach((op) => {
-                    const chip = document.createElement('p');
-                    chip.className = `mt-1 truncate rounded px-1 text-[10px] font-semibold ${op.type === 'collab' ? 'bg-amber-100 text-amber-800' : 'bg-violet-100 text-violet-800'}`;
-                    chip.textContent = op.name || MARKETING_TYPE_LABELS[op.type] || 'Opération';
-                    chip.title = `${MARKETING_TYPE_LABELS[op.type] || ''} · ${op.name || ''}`;
-                    cell.appendChild(chip);
+                allMarketingOps.forEach((op) => {
+                    marketingMarksOn(op, iso).forEach((mark) => {
+                        const chip = document.createElement('p');
+                        const tone = mark === 'publish' ? 'bg-orange-100 text-orange-800' : (mark === 'shoot' ? 'bg-amber-100 text-amber-800' : 'bg-violet-100 text-violet-800');
+                        chip.className = `mt-1 truncate rounded px-1 text-[10px] font-semibold ${tone}`;
+                        const prefix = mark === 'shoot' ? 'Tournage' : (mark === 'publish' ? 'Publication' : '');
+                        chip.textContent = prefix ? `${prefix} · ${op.name || ''}`.trim() : (op.name || MARKETING_TYPE_LABELS[op.type] || 'Opération');
+                        chip.title = chip.textContent;
+                        cell.appendChild(chip);
+                    });
                 });
                 calendar.appendChild(cell);
             }
 
-            const past = allMarketingOps.filter((op) => (op.endDate || op.startDate || '') < todayIso);
-            const upcoming = allMarketingOps.filter((op) => (op.endDate || op.startDate || '') >= todayIso);
+            const past = allMarketingOps.filter((op) => marketingLastDate(op) && marketingLastDate(op) < todayIso);
+            const upcoming = allMarketingOps.filter((op) => !marketingLastDate(op) || marketingLastDate(op) >= todayIso);
             history.replaceChildren();
             const appendOps = (ops, emptyText) => {
                 if (!ops.length) {
@@ -4746,7 +4857,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     title.textContent = op.name || 'Sans nom';
                     const meta = document.createElement('p');
                     meta.className = 'text-xs text-gray-500 mt-1';
-                    meta.textContent = `${MARKETING_TYPE_LABELS[op.type] || 'Opération'} · ${formatMarketingRange(op.startDate, op.endDate)}`;
+                    meta.textContent = `${MARKETING_TYPE_LABELS[op.type] || 'Opération'} · ${formatMarketingWhen(op)}${formatMarketingAmount(op.amount)}`;
                     text.append(title, meta);
                     if (op.note) {
                         const note = document.createElement('p');
@@ -4754,13 +4865,22 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         note.textContent = op.note;
                         text.appendChild(note);
                     }
+                    const actions = document.createElement('div');
+                    actions.className = 'flex items-center gap-2 shrink-0';
+                    const edit = document.createElement('button');
+                    edit.type = 'button';
+                    edit.dataset.id = op.id;
+                    edit.className = 'edit-marketing-btn text-gray-400 hover:text-gray-800';
+                    edit.title = 'Modifier';
+                    edit.innerHTML = '<i class="fas fa-pen"></i>';
                     const remove = document.createElement('button');
                     remove.type = 'button';
                     remove.dataset.id = op.id;
                     remove.className = 'delete-marketing-btn text-gray-400 hover:text-red-600';
                     remove.title = 'Supprimer';
                     remove.innerHTML = '<i class="fas fa-trash"></i>';
-                    card.append(text, remove);
+                    actions.append(edit, remove);
+                    card.append(text, actions);
                     history.appendChild(card);
                 });
             };
@@ -4774,7 +4894,6 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             pastTitle.textContent = 'Passé';
             history.appendChild(pastTitle);
             appendOps(past, 'Aucune opération passée.');
-            renderMarketingImpact();
         };
 
         document.getElementById('marketing-form')?.addEventListener('submit', async (event) => {
@@ -4782,25 +4901,51 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             if (!canWrite('marketing')) return showToast('Accès refusé.');
             const type = document.getElementById('marketing-type').value === 'collab' ? 'collab' : 'video';
             const name = document.getElementById('marketing-name').value.trim();
-            const startDate = document.getElementById('marketing-start').value;
-            const endDate = document.getElementById('marketing-end').value || startDate;
             const note = document.getElementById('marketing-note').value.trim();
-            if (!name || !startDate) return showToast('Nom et date de début obligatoires.');
-            if (endDate < startDate) return showToast('La fin doit être après le début.');
-            const span = Math.round((new Date(`${endDate}T12:00:00`) - new Date(`${startDate}T12:00:00`)) / 86400000) + 1;
-            if (span > 45) return showToast('Une opération ne peut pas dépasser 45 jours.');
+            const amount = Number(document.getElementById('marketing-amount').value);
+            if (!name) return showToast('Le nom est obligatoire.');
+            if (!Number.isFinite(amount) || amount < 0) return showToast('Le montant est obligatoire.');
+            const roundedAmount = Math.round(amount * 100) / 100;
+            let fields;
+            if (type === 'collab') {
+                const shootDate = document.getElementById('marketing-shoot').value;
+                const publishDate = document.getElementById('marketing-publish').value;
+                if (!shootDate || !publishDate) return showToast('Les dates de tournage et de publication sont obligatoires.');
+                fields = { type, name, note, amount: roundedAmount, shootDate, publishDate };
+            } else {
+                const startDate = document.getElementById('marketing-start').value;
+                const endDate = document.getElementById('marketing-end').value || startDate;
+                if (!startDate) return showToast('La date de début est obligatoire.');
+                if (endDate < startDate) return showToast('La fin doit être après le début.');
+                const span = Math.round((new Date(`${endDate}T12:00:00`) - new Date(`${startDate}T12:00:00`)) / 86400000) + 1;
+                if (span > 45) return showToast('Une vidéo ne peut pas dépasser 45 jours.');
+                fields = { type, name, note, amount: roundedAmount, startDate, endDate };
+            }
             try {
-                await addDoc(marketingOpsCol, { type, name, startDate, endDate, note, createdAt: serverTimestamp() });
-                document.getElementById('marketing-form').reset();
-                document.getElementById('marketing-type').value = type;
-                document.getElementById('marketing-start').value = startDate;
-                document.getElementById('marketing-end').value = endDate;
-                showToast('Opération ajoutée au planning.');
+                if (marketingEditingId) {
+                    const payload = { ...fields, updatedAt: serverTimestamp() };
+                    if (type === 'collab') {
+                        payload.startDate = deleteField();
+                        payload.endDate = deleteField();
+                    } else {
+                        payload.shootDate = deleteField();
+                        payload.publishDate = deleteField();
+                    }
+                    await updateDoc(doc(marketingOpsCol, marketingEditingId), payload);
+                    showToast('Opération modifiée.');
+                } else {
+                    await addDoc(marketingOpsCol, { ...fields, createdAt: serverTimestamp() });
+                    showToast('Opération ajoutée au planning.');
+                }
+                resetMarketingForm();
             } catch (error) {
                 console.error(error);
                 showToast('Erreur lors de l\'enregistrement.');
             }
         });
+
+        document.getElementById('marketing-type')?.addEventListener('change', syncMarketingTypeFields);
+        document.getElementById('marketing-cancel')?.addEventListener('click', resetMarketingForm);
 
         document.getElementById('marketing-start')?.addEventListener('change', () => {
             const start = document.getElementById('marketing-start').value;
@@ -4821,11 +4966,18 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
         document.getElementById('marketing-next-month')?.addEventListener('click', () => shiftMarketingMonth(1));
 
         document.getElementById('marketing-history')?.addEventListener('click', async (event) => {
+            const editButton = event.target.closest('.edit-marketing-btn');
+            if (editButton) {
+                if (!canWrite('marketing')) return showToast('Accès refusé.');
+                editMarketingOp(editButton.dataset.id);
+                return;
+            }
             const button = event.target.closest('.delete-marketing-btn');
             if (!button) return;
             if (!canWrite('marketing')) return showToast('Accès refusé.');
             if (!confirm('Supprimer cette opération ?')) return;
             try {
+                if (marketingEditingId === button.dataset.id) resetMarketingForm();
                 await deleteDoc(doc(marketingOpsCol, button.dataset.id));
                 showToast('Opération supprimée.');
             } catch (error) {
