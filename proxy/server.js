@@ -267,7 +267,7 @@ app.get('/api/google-reviews', async (req, res) => {
 app.post('/api/forecast', async (req, res) => {
     console.log('Proxy received forecast request');
     try {
-        const data = await runForecast(req.body?.days);
+        const data = await runForecast(req.body?.days, req.body?.campaigns);
         res.json({ code: 200, data });
     } catch (error) {
         console.error('Error in /api/forecast:', error);

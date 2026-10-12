@@ -724,6 +724,7 @@
 					<button class="tab-link" data-tab="finance"><i class="fas fa-coins mr-2"></i>Finance</button>
 					<button class="tab-link" data-tab="tasklist"><i class="fas fa-clipboard-check mr-2"></i>Task List</button>
 					<button class="tab-link" data-tab="inventaire"><i class="fas fa-clipboard-list mr-2"></i>Inventaire</button>
+					<button class="tab-link" data-tab="marketing"><i class="fas fa-bullhorn mr-2"></i>Marketing</button>
 					<button class="tab-link hidden" data-tab="admin" id="admin-tab-link"><i class="fas fa-user-shield mr-2"></i>Administration</button>
 
                 </nav>
@@ -1625,6 +1626,81 @@
     </div>
 </div>
 
+<div id="marketing-content" class="tab-content">
+    <div class="flex flex-wrap justify-between items-end gap-4 mb-6">
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-800">Marketing</h2>
+            <p class="text-sm text-gray-500">Planning des opérations, et historique utilisé par la prévision.</p>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div class="xl:col-span-1 space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Nouvelle opération</h3>
+                <form id="marketing-form" class="space-y-4">
+                    <div>
+                        <label for="marketing-type" class="block text-sm font-medium text-gray-700">Type</label>
+                        <select id="marketing-type" required class="mt-1 w-full input-style">
+                            <option value="video">Vidéo sponsorisée</option>
+                            <option value="collab">Collaboration influenceur</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="marketing-name" class="block text-sm font-medium text-gray-700">Nom</label>
+                        <input type="text" id="marketing-name" required maxlength="80" class="mt-1 w-full input-style" placeholder="Titre de la vidéo ou nom de l'influenceur">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="marketing-start" class="block text-sm font-medium text-gray-700">Début</label>
+                            <input type="date" id="marketing-start" required class="mt-1 w-full input-style">
+                        </div>
+                        <div>
+                            <label for="marketing-end" class="block text-sm font-medium text-gray-700">Fin</label>
+                            <input type="date" id="marketing-end" required class="mt-1 w-full input-style">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="marketing-note" class="block text-sm font-medium text-gray-700">Note <span class="text-gray-400 font-normal">(optionnel)</span></label>
+                        <input type="text" id="marketing-note" maxlength="140" class="mt-1 w-full input-style" placeholder="Plateforme, code promo...">
+                    </div>
+                    <button type="submit" class="btn-primary w-full">Ajouter au planning</button>
+                </form>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Impact mesuré</h3>
+                <p class="text-xs text-gray-500 mb-3">Écart d'un jour d'opération par rapport à un jour normal, une fois la météo et les matchs mis à part.</p>
+                <div id="marketing-impact" class="space-y-3 text-sm text-gray-600">La prévision n'a pas encore assez d'opérations passées.</div>
+            </div>
+        </div>
+        <div class="xl:col-span-2 space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Planning</h3>
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="marketing-prev-month" class="btn-secondary py-1 px-3" aria-label="Mois précédent"><i class="fas fa-chevron-left"></i></button>
+                        <p id="marketing-month-label" class="text-sm font-semibold text-gray-800 min-w-[9rem] text-center"></p>
+                        <button type="button" id="marketing-next-month" class="btn-secondary py-1 px-3" aria-label="Mois suivant"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-400 mb-1">
+                    <span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span>
+                </div>
+                <div id="marketing-calendar" class="grid grid-cols-7 gap-1"></div>
+                <div class="flex flex-wrap gap-3 mt-4 text-xs text-gray-500">
+                    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-violet-400"></span>Vidéo sponsorisée</span>
+                    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>Collaboration</span>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Historique</h3>
+                <div id="marketing-history" class="space-y-3">
+                    <p class="text-center text-gray-500 py-6 text-sm">Aucune opération enregistrée.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ONGLET ADMINISTRATION -->
 <div id="admin-content" class="tab-content">
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -2081,7 +2157,8 @@
             { id: 'rh', label: 'RH' },
             { id: 'finance', label: 'Finance' },
             { id: 'tasklist', label: 'Task List' },
-            { id: 'inventaire', label: 'Inventaire' }
+            { id: 'inventaire', label: 'Inventaire' },
+            { id: 'marketing', label: 'Marketing' }
         ];
 
         const INVENTORY_TOLERANCE_PERCENT = 15;
@@ -2103,7 +2180,7 @@
         // --- COLLECTIONS REFS ---
         let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol, chargesCol;
 		let employeesCol, absencesCol, salaryPaymentsCol;
-		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol, googleReviewsRef, aiAnalysisLatestRef;
+		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol, googleReviewsRef, aiAnalysisLatestRef, marketingOpsCol;
         let googleReviewsState = { rating: null, reviewCount: null, snapshots: [], recentReviews: [], url: 'https://share.google/GX15aEMbOqaVjxGMs', status: 'idle' };
         let latestAiAnalysis = null;
         let aiChatHistory = [];
@@ -2119,6 +2196,9 @@
 let allAbsences = []; // AJOUTEZ CETTE LIGNE
 let allSalaryPayments = []; // AJOUTEZ CETTE LIGNE
 let allDailyPayments = [];
+        let allMarketingOps = [];
+        let marketingVisibleMonth = null;
+        let latestMarketingImpact = null;
         let allAppUsers = [];
         let currentUserProfile = null;
         let selectedPermissionsUserId = null;
@@ -2135,7 +2215,7 @@ let allDailyPayments = [];
         const renderPending = {
             kpis: false, ingredients: false, products: false, orders: false,
             charges: false, losses: false, purchaseOrders: false, suppliers: false,
-            employees: false, salaryPayments: false, dailyPayments: false, tasklist: false, inventaire: false
+            employees: false, salaryPayments: false, dailyPayments: false, tasklist: false, inventaire: false, marketing: false
         };
         let productByIdMap = null;
         let ingredientByIdMap = null;
@@ -2290,6 +2370,7 @@ let allDailyPayments = [];
             googleReviewsRef = doc(db, `artifacts/${appId}/public/data/settings/googleReviews`);
             aiAnalysisLatestRef = doc(db, `artifacts/${appId}/public/data/settings/aiAnalysisLatest`);
             inventorySubmissionsCol = collection(db, `artifacts/${appId}/public/data/inventorySubmissions`);
+            marketingOpsCol = collection(db, `artifacts/${appId}/public/data/marketingOps`);
             collectionsInitialized = true;
         };
 
@@ -2317,6 +2398,8 @@ let allDailyPayments = [];
             document.getElementById('api-start-date').value = getTodayDateString();
             document.getElementById('api-end-date').value = getTodayDateString();
             document.getElementById('charge-date').value = getTodayDateString();
+            document.getElementById('marketing-start').value = getTodayDateString();
+            document.getElementById('marketing-end').value = getTodayDateString();
             const today = new Date();
             const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -2631,6 +2714,11 @@ let allDailyPayments = [];
                 });
                 markDirty('ingredients', 'inventaire');
             });
+            onSnapshot(marketingOpsCol, snapshot => {
+                allMarketingOps = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                allMarketingOps.sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')));
+                markDirty('marketing', 'kpis');
+            });
             onSnapshot(checklistConfigRef, snapshot => {
                 if (!snapshot.exists()) return;
                 const opening = snapshot.data().opening || [];
@@ -2844,6 +2932,10 @@ let allDailyPayments = [];
                 }
                 renderPending.inventaire = false;
             }
+            if (renderPending.marketing) {
+                renderMarketing();
+                renderPending.marketing = false;
+            }
         };
 
         const scheduleTasklistDataSync = () => {
@@ -2913,7 +3005,8 @@ let allDailyPayments = [];
                 .replace(/\s+/g, '');
             if (!ch) return '';
             if (ch.includes('glovo')) return 'glovo';
-            if (ch.includes('foodweb') || ch.includes('website') || ch.includes('foodsite')) return 'foodwebsite';
+            if (ch.includes('foodweb') || ch.includes('website') || ch.includes('foodsite') || ch.includes('siteweb')) return 'foodwebsite';
+            if (ch.includes('livraison') || ch.includes('delivery') || ch.includes('domicile')) return 'livraison';
             return '';
         };
 
@@ -3835,6 +3928,7 @@ let allDailyPayments = [];
                 document.getElementById(`${moduleId}-content`).classList.add('active');
                 if (moduleId === 'tasklist') renderTasklist();
                 if (moduleId === 'inventaire') renderInventaire();
+                if (moduleId === 'marketing') renderMarketing();
             });
         });
         
@@ -4354,13 +4448,31 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 if (!date || date < oldest) return;
                 const key = aiLocalDateKey(date);
                 if (!byDay.has(key)) {
-                    byDay.set(key, { date: key, surPlaceMidi: 0, surPlaceSoir: 0, livraisonMidi: 0, livraisonSoir: 0, pizzas: 0, labeled: false });
+                    byDay.set(key, {
+                        date: key,
+                        surPlaceMidi: 0,
+                        surPlaceSoir: 0,
+                        livraisonMidi: 0,
+                        livraisonSoir: 0,
+                        pizzas: 0,
+                        knownSurPlaceMidi: 0,
+                        knownSurPlaceSoir: 0,
+                        knownLivraisonMidi: 0,
+                        knownLivraisonSoir: 0,
+                        unknownMidi: 0,
+                        unknownSoir: 0
+                    });
                 }
                 const row = byDay.get(key);
-                if (String(order.salesChannel || '').trim()) row.labeled = true;
                 const slot = date.getHours() < 17 ? 'Midi' : 'Soir';
-                const channel = classifyLivraisonChannel(order.salesChannel) ? 'livraison' : 'surPlace';
-                row[`${channel}${slot}`] += 1;
+                const channelName = String(order.salesChannel || '').trim();
+                if (!channelName) {
+                    row[`unknown${slot}`] += 1;
+                } else if (classifyLivraisonChannel(channelName)) {
+                    row[`knownLivraison${slot}`] += 1;
+                } else {
+                    row[`knownSurPlace${slot}`] += 1;
+                }
                 (order.items || []).forEach(item => {
                     const qty = Number(item.quantity) || 0;
                     if (!qty) return;
@@ -4376,12 +4488,19 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             return [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
         };
 
-        const forecastSignature = (days) => {
+        const buildForecastCampaigns = () => (allMarketingOps || []).map((op) => ({
+            type: op.type === 'collab' ? 'collab' : 'video',
+            start: String(op.startDate || ''),
+            end: String(op.endDate || op.startDate || '')
+        })).filter((op) => /^\d{4}-\d{2}-\d{2}$/.test(op.start) && /^\d{4}-\d{2}-\d{2}$/.test(op.end));
+
+        const forecastSignature = (days, campaigns) => {
             const pizzas = days.reduce((sum, day) => sum + day.pizzas, 0);
-            const tickets = days.reduce((sum, day) => sum + day.surPlaceMidi + day.surPlaceSoir + day.livraisonMidi + day.livraisonSoir, 0);
-            const labeled = days.filter((day) => day.labeled).length;
+            const known = days.reduce((sum, day) => sum + day.knownSurPlaceMidi + day.knownSurPlaceSoir + day.knownLivraisonMidi + day.knownLivraisonSoir, 0);
+            const unknown = days.reduce((sum, day) => sum + day.unknownMidi + day.unknownSoir, 0);
+            const ops = (campaigns || []).map((op) => `${op.type}:${op.start}:${op.end}`).sort().join(',');
             const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
-            return `v2|${today}|${days.length}|${labeled}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${tickets}`;
+            return `v4|${today}|${days.length}|${known}|${unknown}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${ops}`;
         };
 
         const renderForecast = (data, errorMessage) => {
@@ -4407,6 +4526,9 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             else if (data.weather?.hot) badges.push([`Chaud${data.weather.tempMax ? ` ${Math.round(data.weather.tempMax)}°` : ''}`, 'bg-orange-100 text-orange-800']);
             else badges.push(['Météo calme', 'bg-gray-100 text-gray-700']);
             if (data.match) badges.push([data.match.text, 'bg-emerald-100 text-emerald-800']);
+            (data.marketing || []).forEach((item) => {
+                badges.push([item.label, item.key === 'video' ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800']);
+            });
             badges.forEach(([label, cls]) => {
                 const span = document.createElement('span');
                 span.className = `text-xs font-semibold px-2 py-1 rounded-full ${cls}`;
@@ -4438,10 +4560,26 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     </div>
                 </div>`;
             const limits = [];
-            if (data.backcastDays) limits.push(`${data.backcastDays} jours anciens répartis selon la part récente sur place / livraison`);
+            const shareText = `midi ${Math.round((data.shareMidi || 0) * 100)} %, soir ${Math.round((data.shareSoir || 0) * 100)} %`;
+            if (data.backcastDays) limits.push(`${data.backcastDays} jours sans canal répartis selon les tickets récents (${shareText})`);
+            else if (!data.knownTickets) limits.push('aucun ticket récent avec un canal, livraison non estimée');
+            else if (!(data.shareMidi || data.shareSoir)) limits.push('les tickets avec canal ne contiennent pas de livraison');
             if (!data.weatherOk) limits.push('météo indisponible');
             if (!data.footballOk) limits.push('calendrier des matchs indisponible');
+            (data.marketing || []).forEach((item) => {
+                const impact = data.marketingImpact?.[item.key];
+                if (impact?.measured) {
+                    const ticketSign = impact.tickets > 0 ? '+' : '';
+                    const pizzaSign = impact.pizzas > 0 ? '+' : '';
+                    limits.push(`${item.label} ajoutée au jour normal (${ticketSign}${impact.tickets} tickets, ${pizzaSign}${impact.pizzas} pizzas, sur ${impact.days} jours)`);
+                } else {
+                    limits.push(`${item.label} prévue, effet pas encore mesurable`);
+                }
+            });
+            if (data.marketingDays) limits.push(`${data.marketingDays} jours marketing écartés du jour normal`);
             noteEl.textContent = `Calculé sur ${data.trainedDays} jours ouverts, hors lundis et hors Ramadan 2026.${limits.length ? ` ${limits.join(', ')}.` : ''}`;
+            latestMarketingImpact = data.marketingImpact || null;
+            renderMarketingImpact();
         };
 
         let forecastTimer = null;
@@ -4452,13 +4590,14 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
         const refreshForecast = async () => {
             const days = buildForecastHistory();
+            const campaigns = buildForecastCampaigns();
             if (!days.length || !PROXY_URL) {
                 renderForecast(null, days.length ? 'Proxy non configuré.' : 'Aucune vente à analyser.');
                 return;
             }
-            const signature = forecastSignature(days);
+            const signature = forecastSignature(days, campaigns);
             try {
-                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v2') || 'null');
+                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v4') || 'null');
                 if (cached && cached.signature === signature && cached.data) {
                     renderForecast(cached.data);
                     return;
@@ -4472,12 +4611,12 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 const response = await fetch(`${PROXY_URL}/api/forecast`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ days })
+                    body: JSON.stringify({ days, campaigns })
                 });
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok) throw new Error(payload.message || 'Erreur de prévision');
                 try {
-                    sessionStorage.setItem('solo-forecast-cache-v2', JSON.stringify({ signature, data: payload.data }));
+                    sessionStorage.setItem('solo-forecast-cache-v4', JSON.stringify({ signature, data: payload.data }));
                 } catch (error) {
                     console.warn('Cache prévision non enregistré', error);
                 }
@@ -4496,6 +4635,204 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
         };
 
         const aiLocalDateKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+        const MARKETING_TYPE_LABELS = {
+            video: 'Vidéo sponsorisée',
+            collab: 'Collaboration'
+        };
+
+        const marketingIso = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const formatMarketingRange = (start, end) => {
+            const startDate = new Date(`${start}T12:00:00`);
+            const endDate = new Date(`${end || start}T12:00:00`);
+            const sameDay = start === (end || start);
+            const fmt = (date, withYear) => date.toLocaleDateString('fr-FR', withYear
+                ? { day: 'numeric', month: 'short', year: 'numeric' }
+                : { day: 'numeric', month: 'short' });
+            if (sameDay) return fmt(startDate, true);
+            return `${fmt(startDate, false)} – ${fmt(endDate, true)}`;
+        };
+
+        const renderMarketingImpact = () => {
+            const box = document.getElementById('marketing-impact');
+            if (!box) return;
+            const impact = latestMarketingImpact;
+            if (!impact) {
+                box.textContent = 'La prévision n’a pas encore assez d’opérations passées.';
+                return;
+            }
+            box.replaceChildren();
+            ['video', 'collab'].forEach((key) => {
+                const row = impact[key] || { days: 0, measured: false, tickets: 0, pizzas: 0 };
+                const line = document.createElement('div');
+                line.className = 'flex items-start justify-between gap-3';
+                const title = document.createElement('p');
+                title.className = 'font-medium text-gray-800';
+                title.textContent = MARKETING_TYPE_LABELS[key];
+                const detail = document.createElement('p');
+                detail.className = 'text-right text-gray-600';
+                if (!row.days) detail.textContent = 'Aucune journée passée';
+                else if (!row.measured) detail.textContent = `${row.days} jour${row.days > 1 ? 's' : ''} passé${row.days > 1 ? 's' : ''}, pas encore mesurable`;
+                else {
+                    const ticketSign = row.tickets > 0 ? '+' : '';
+                    const pizzaSign = row.pizzas > 0 ? '+' : '';
+                    detail.textContent = `${ticketSign}${row.tickets} tickets, ${pizzaSign}${row.pizzas} pizzas`;
+                }
+                line.append(title, detail);
+                box.appendChild(line);
+            });
+        };
+
+        const renderMarketing = () => {
+            const calendar = document.getElementById('marketing-calendar');
+            const history = document.getElementById('marketing-history');
+            const label = document.getElementById('marketing-month-label');
+            if (!calendar || !history || !label) return;
+            if (!marketingVisibleMonth) {
+                const today = new Date();
+                marketingVisibleMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            }
+            const monthDate = marketingVisibleMonth;
+            label.textContent = monthDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+            const todayIso = getTodayDateString();
+            const gridStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+            const mondayOffset = (gridStart.getDay() + 6) % 7;
+            gridStart.setDate(gridStart.getDate() - mondayOffset);
+            calendar.replaceChildren();
+            for (let i = 0; i < 42; i += 1) {
+                const day = new Date(gridStart);
+                day.setDate(gridStart.getDate() + i);
+                const iso = marketingIso(day);
+                const inMonth = day.getMonth() === monthDate.getMonth();
+                const cell = document.createElement('div');
+                cell.className = `min-h-[4.5rem] rounded-lg p-1 text-left ${inMonth ? 'bg-gray-50' : 'bg-white'} ${iso === todayIso ? 'ring-2 ring-gray-800' : ''}`;
+                const num = document.createElement('p');
+                num.className = `text-xs font-semibold ${inMonth ? 'text-gray-700' : 'text-gray-300'}`;
+                num.textContent = String(day.getDate());
+                cell.appendChild(num);
+                allMarketingOps.filter((op) => op.startDate && op.startDate <= iso && (op.endDate || op.startDate) >= iso).forEach((op) => {
+                    const chip = document.createElement('p');
+                    chip.className = `mt-1 truncate rounded px-1 text-[10px] font-semibold ${op.type === 'collab' ? 'bg-amber-100 text-amber-800' : 'bg-violet-100 text-violet-800'}`;
+                    chip.textContent = op.name || MARKETING_TYPE_LABELS[op.type] || 'Opération';
+                    chip.title = `${MARKETING_TYPE_LABELS[op.type] || ''} · ${op.name || ''}`;
+                    cell.appendChild(chip);
+                });
+                calendar.appendChild(cell);
+            }
+
+            const past = allMarketingOps.filter((op) => (op.endDate || op.startDate || '') < todayIso);
+            const upcoming = allMarketingOps.filter((op) => (op.endDate || op.startDate || '') >= todayIso);
+            history.replaceChildren();
+            const appendOps = (ops, emptyText) => {
+                if (!ops.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'text-sm text-gray-400';
+                    empty.textContent = emptyText;
+                    history.appendChild(empty);
+                    return;
+                }
+                ops.forEach((op) => {
+                    const card = document.createElement('div');
+                    card.className = 'flex items-start justify-between gap-3 border border-gray-100 rounded-xl p-3';
+                    const text = document.createElement('div');
+                    const title = document.createElement('p');
+                    title.className = 'font-medium text-gray-900';
+                    title.textContent = op.name || 'Sans nom';
+                    const meta = document.createElement('p');
+                    meta.className = 'text-xs text-gray-500 mt-1';
+                    meta.textContent = `${MARKETING_TYPE_LABELS[op.type] || 'Opération'} · ${formatMarketingRange(op.startDate, op.endDate)}`;
+                    text.append(title, meta);
+                    if (op.note) {
+                        const note = document.createElement('p');
+                        note.className = 'text-sm text-gray-600 mt-1';
+                        note.textContent = op.note;
+                        text.appendChild(note);
+                    }
+                    const remove = document.createElement('button');
+                    remove.type = 'button';
+                    remove.dataset.id = op.id;
+                    remove.className = 'delete-marketing-btn text-gray-400 hover:text-red-600';
+                    remove.title = 'Supprimer';
+                    remove.innerHTML = '<i class="fas fa-trash"></i>';
+                    card.append(text, remove);
+                    history.appendChild(card);
+                });
+            };
+            const upcomingTitle = document.createElement('p');
+            upcomingTitle.className = 'text-xs font-semibold uppercase tracking-widest text-gray-400';
+            upcomingTitle.textContent = 'À venir et en cours';
+            history.appendChild(upcomingTitle);
+            appendOps(upcoming, 'Rien de prévu.');
+            const pastTitle = document.createElement('p');
+            pastTitle.className = 'text-xs font-semibold uppercase tracking-widest text-gray-400 pt-2';
+            pastTitle.textContent = 'Passé';
+            history.appendChild(pastTitle);
+            appendOps(past, 'Aucune opération passée.');
+            renderMarketingImpact();
+        };
+
+        document.getElementById('marketing-form')?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!canWrite('marketing')) return showToast('Accès refusé.');
+            const type = document.getElementById('marketing-type').value === 'collab' ? 'collab' : 'video';
+            const name = document.getElementById('marketing-name').value.trim();
+            const startDate = document.getElementById('marketing-start').value;
+            const endDate = document.getElementById('marketing-end').value || startDate;
+            const note = document.getElementById('marketing-note').value.trim();
+            if (!name || !startDate) return showToast('Nom et date de début obligatoires.');
+            if (endDate < startDate) return showToast('La fin doit être après le début.');
+            const span = Math.round((new Date(`${endDate}T12:00:00`) - new Date(`${startDate}T12:00:00`)) / 86400000) + 1;
+            if (span > 45) return showToast('Une opération ne peut pas dépasser 45 jours.');
+            try {
+                await addDoc(marketingOpsCol, { type, name, startDate, endDate, note, createdAt: serverTimestamp() });
+                document.getElementById('marketing-form').reset();
+                document.getElementById('marketing-type').value = type;
+                document.getElementById('marketing-start').value = startDate;
+                document.getElementById('marketing-end').value = endDate;
+                showToast('Opération ajoutée au planning.');
+            } catch (error) {
+                console.error(error);
+                showToast('Erreur lors de l\'enregistrement.');
+            }
+        });
+
+        document.getElementById('marketing-start')?.addEventListener('change', () => {
+            const start = document.getElementById('marketing-start').value;
+            const end = document.getElementById('marketing-end');
+            if (start && (!end.value || end.value < start)) end.value = start;
+        });
+
+        const shiftMarketingMonth = (delta) => {
+            if (!marketingVisibleMonth) {
+                const today = new Date();
+                marketingVisibleMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            }
+            marketingVisibleMonth = new Date(marketingVisibleMonth.getFullYear(), marketingVisibleMonth.getMonth() + delta, 1);
+            renderMarketing();
+        };
+
+        document.getElementById('marketing-prev-month')?.addEventListener('click', () => shiftMarketingMonth(-1));
+        document.getElementById('marketing-next-month')?.addEventListener('click', () => shiftMarketingMonth(1));
+
+        document.getElementById('marketing-history')?.addEventListener('click', async (event) => {
+            const button = event.target.closest('.delete-marketing-btn');
+            if (!button) return;
+            if (!canWrite('marketing')) return showToast('Accès refusé.');
+            if (!confirm('Supprimer cette opération ?')) return;
+            try {
+                await deleteDoc(doc(marketingOpsCol, button.dataset.id));
+                showToast('Opération supprimée.');
+            } catch (error) {
+                console.error(error);
+                showToast('Erreur lors de la suppression.');
+            }
+        });
 
         const aiSeriesStats = (values) => {
             const nums = (values || []).map(Number).filter(Number.isFinite);
