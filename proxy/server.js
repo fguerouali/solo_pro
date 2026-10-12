@@ -3,6 +3,7 @@ const cors = require('cors');
 const LaCaissePOSProvider = require('./providers/lacaisseProvider');
 const { getGoogleReviewsSummary } = require('./services/googleReviews');
 const { isConfigured: isAiConfigured, runAiAnalysis, runAiChat } = require('./services/aiAnalysis');
+const { runForecast } = require('./services/forecast');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,7 +55,7 @@ app.get('/health', (req, res) => {
         lacaisseConfigured: lacaisseProvider.isConfigured(),
         googlePlacesConfigured: Boolean(process.env.GOOGLE_PLACES_API_KEY),
         openaiConfigured: isAiConfigured(),
-        routes: ['/api/login', '/api/sales', '/api/journal', '/api/google-reviews', '/api/ai-analysis', '/api/ai-chat'],
+        routes: ['/api/login', '/api/sales', '/api/journal', '/api/google-reviews', '/api/ai-analysis', '/api/ai-chat', '/api/forecast'],
         version: 'ai-analysis-v2'
     });
 });
@@ -259,6 +260,23 @@ app.get('/api/google-reviews', async (req, res) => {
         res.status(status).json({
             message: error.message,
             code: error.code || 'GOOGLE_REVIEWS_ERROR'
+        });
+    }
+});
+
+app.post('/api/forecast', async (req, res) => {
+    console.log('Proxy received forecast request');
+    try {
+        const data = await runForecast(req.body?.days);
+        res.json({ code: 200, data });
+    } catch (error) {
+        console.error('Error in /api/forecast:', error);
+        const status = error.code === 'NOT_ENOUGH_HISTORY' || error.code === 'MISSING_HISTORY' || error.code === 'INVALID_HISTORY'
+            ? 400
+            : 500;
+        res.status(status).json({
+            message: error.message || 'Erreur de prévision',
+            code: error.code || 'FORECAST_ERROR'
         });
     }
 });

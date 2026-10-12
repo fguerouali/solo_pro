@@ -763,6 +763,18 @@
                     </div>
                 </div>
 
+                <div id="forecast-card" class="mb-8 bg-white p-5 rounded-2xl shadow-lg" data-readonly-allowed="true">
+                    <div class="flex flex-wrap justify-between items-start gap-3">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">Prévision</h3>
+                            <p id="forecast-date" class="text-sm text-gray-500">Chargement…</p>
+                        </div>
+                        <div id="forecast-badges" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div id="forecast-body" class="mt-4 text-sm text-gray-500">Préparation de l'historique…</div>
+                    <p id="forecast-note" class="text-xs text-gray-400 mt-3"></p>
+                </div>
+
 
                 <!-- KPIs -->
 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6 mb-8">
@@ -4324,6 +4336,153 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             renderOperatingChargesBreakdown(filteredCharges, totalSales, filterLabel);
             const aiPeriodHint = document.getElementById('ai-analysis-period-hint');
             if (aiPeriodHint) aiPeriodHint.textContent = `Période analysée : ${filterLabel.replace(/^Période\s*:\s*/i, '')}`;
+            scheduleForecastRefresh();
+        };
+
+        const forecastRangeText = (slot) => {
+            if (!slot) return '—';
+            return `${formatKpiInteger(slot.low)}–${formatKpiInteger(slot.high)}`;
+        };
+
+        const buildForecastHistory = () => {
+            const productById = getProductByIdMap();
+            const byDay = new Map();
+            const oldest = new Date();
+            oldest.setDate(oldest.getDate() - 370);
+            (orderHistory || []).forEach(order => {
+                const date = toDate(order.saleDate || order.createdAt);
+                if (!date || date < oldest) return;
+                const key = aiLocalDateKey(date);
+                if (!byDay.has(key)) {
+                    byDay.set(key, { date: key, surPlaceMidi: 0, surPlaceSoir: 0, livraisonMidi: 0, livraisonSoir: 0, pizzas: 0 });
+                }
+                const row = byDay.get(key);
+                const slot = date.getHours() < 17 ? 'Midi' : 'Soir';
+                const channel = classifyLivraisonChannel(order.salesChannel) ? 'livraison' : 'surPlace';
+                row[`${channel}${slot}`] += 1;
+                (order.items || []).forEach(item => {
+                    const qty = Number(item.quantity) || 0;
+                    if (!qty) return;
+                    const product = productById.get(item.id);
+                    if (product) {
+                        if (product.type === 'Pizza') row.pizzas += qty;
+                        return;
+                    }
+                    const name = String(item.name || '');
+                    if (/pizza/i.test(name) && !/panuozzo/i.test(name)) row.pizzas += qty;
+                });
+            });
+            return [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
+        };
+
+        const forecastSignature = (days) => {
+            const pizzas = days.reduce((sum, day) => sum + day.pizzas, 0);
+            const tickets = days.reduce((sum, day) => sum + day.surPlaceMidi + day.surPlaceSoir + day.livraisonMidi + day.livraisonSoir, 0);
+            const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
+            return `${today}|${days.length}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${tickets}`;
+        };
+
+        const renderForecast = (data, errorMessage) => {
+            const dateEl = document.getElementById('forecast-date');
+            const badgesEl = document.getElementById('forecast-badges');
+            const bodyEl = document.getElementById('forecast-body');
+            const noteEl = document.getElementById('forecast-note');
+            if (!dateEl || !bodyEl) return;
+            badgesEl.innerHTML = '';
+            if (errorMessage) {
+                dateEl.textContent = 'Prévision indisponible';
+                bodyEl.replaceChildren();
+                const errorLine = document.createElement('p');
+                errorLine.className = 'text-sm text-red-600';
+                errorLine.textContent = errorMessage;
+                bodyEl.appendChild(errorLine);
+                noteEl.textContent = '';
+                return;
+            }
+            dateEl.textContent = data.closedTomorrow ? `${data.label} (demain lundi, fermé)` : data.label;
+            const badges = [];
+            if (data.weather?.rain) badges.push(['Pluie', 'bg-blue-100 text-blue-800']);
+            else if (data.weather?.hot) badges.push([`Chaud${data.weather.tempMax ? ` ${Math.round(data.weather.tempMax)}°` : ''}`, 'bg-orange-100 text-orange-800']);
+            else badges.push(['Météo calme', 'bg-gray-100 text-gray-700']);
+            if (data.match) badges.push([data.match.text, 'bg-emerald-100 text-emerald-800']);
+            badges.forEach(([label, cls]) => {
+                const span = document.createElement('span');
+                span.className = `text-xs font-semibold px-2 py-1 rounded-full ${cls}`;
+                span.textContent = label;
+                badgesEl.appendChild(span);
+            });
+            const cell = (slot) => `<p class="text-2xl font-semibold text-gray-900">${formatKpiInteger(slot.value)}</p><p class="text-xs text-gray-500">${forecastRangeText(slot)} tickets</p>`;
+            bodyEl.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div class="lg:col-span-2">
+                        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Indicateur tickets</p>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div></div>
+                            <p class="text-xs font-medium text-gray-500">Midi</p>
+                            <p class="text-xs font-medium text-gray-500">Soir</p>
+                            <p class="text-sm font-medium text-gray-700 text-left">Sur place</p>
+                            <div>${cell(data.surPlace.midi)}</div>
+                            <div>${cell(data.surPlace.soir)}</div>
+                            <p class="text-sm font-medium text-gray-700 text-left">Livraison</p>
+                            <div>${cell(data.livraison.midi)}</div>
+                            <div>${cell(data.livraison.soir)}</div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-4 text-center">
+                        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Production</p>
+                        <p class="text-4xl font-semibold text-gray-900 mt-2">${formatKpiInteger(data.production.value)}</p>
+                        <p class="text-sm text-gray-600 mt-1">pizzas à préparer</p>
+                        <p class="text-xs text-gray-500 mt-1">fourchette ${forecastRangeText(data.production)}</p>
+                    </div>
+                </div>`;
+            const limits = [];
+            if (!data.weatherOk) limits.push('météo indisponible');
+            if (!data.footballOk) limits.push('calendrier des matchs indisponible');
+            noteEl.textContent = `Calculé sur ${data.trainedDays} jours ouverts, hors lundis et hors Ramadan 2026.${limits.length ? ` ${limits.join(', ')}.` : ''}`;
+        };
+
+        let forecastTimer = null;
+        const scheduleForecastRefresh = () => {
+            clearTimeout(forecastTimer);
+            forecastTimer = setTimeout(refreshForecast, 800);
+        };
+
+        const refreshForecast = async () => {
+            const days = buildForecastHistory();
+            if (!days.length || !PROXY_URL) {
+                renderForecast(null, days.length ? 'Proxy non configuré.' : 'Aucune vente à analyser.');
+                return;
+            }
+            const signature = forecastSignature(days);
+            try {
+                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v1') || 'null');
+                if (cached && cached.signature === signature && cached.data) {
+                    renderForecast(cached.data);
+                    return;
+                }
+            } catch (error) {
+                console.warn('Cache prévision illisible', error);
+            }
+            const dateEl = document.getElementById('forecast-date');
+            if (dateEl && dateEl.textContent === 'Chargement…') dateEl.textContent = 'Analyse de l\'historique…';
+            try {
+                const response = await fetch(`${PROXY_URL}/api/forecast`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days })
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(payload.message || 'Erreur de prévision');
+                try {
+                    sessionStorage.setItem('solo-forecast-cache-v1', JSON.stringify({ signature, data: payload.data }));
+                } catch (error) {
+                    console.warn('Cache prévision non enregistré', error);
+                }
+                renderForecast(payload.data);
+            } catch (error) {
+                console.error('Forecast failed:', error);
+                renderForecast(null, error.message || 'Erreur de prévision');
+            }
         };
 
         const roundAi = (value, digits = 2) => {
