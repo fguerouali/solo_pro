@@ -220,12 +220,44 @@ function sanitizeDays(days) {
     return cleaned;
 }
 
+function wait(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function fetchJson(url) {
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!response.ok) {
         throw new Error(`HTTP ${response.status} pour ${url.split('?')[0]}`);
     }
     return response.json();
+}
+
+async function fetchFixturePayloads(urls) {
+    const payloads = [];
+    const batchSize = 4;
+    for (let index = 0; index < urls.length; index += batchSize) {
+        if (index) await wait(450);
+        const batch = urls.slice(index, index + batchSize);
+        const rows = await Promise.all(batch.map(async (url) => {
+            try {
+                return await fetchJson(url);
+            } catch (error) {
+                if (!/429/.test(String(error.message))) {
+                    console.warn(`[Forecast] Matchs ${url.split('?')[1]}: ${error.message}`);
+                    return null;
+                }
+                await wait(900);
+                try {
+                    return await fetchJson(url);
+                } catch (retryError) {
+                    console.warn(`[Forecast] Matchs ${url.split('?')[1]}: ${retryError.message}`);
+                    return null;
+                }
+            }
+        }));
+        payloads.push(...rows);
+    }
+    return payloads;
 }
 
 function seasonsAround(today) {
@@ -241,14 +273,47 @@ function parseKickoffHour(event) {
     return 20;
 }
 
-function eventLevel(home, away) {
+function isChampionsLeague(event) {
+    return String(event.idLeague || '') === '4480' || /champions league/i.test(event.strLeague || '');
+}
+
+function isRealOrBarcelona(home, away) {
+    const text = `${home} ${away}`.toLowerCase();
+    return text.includes('real madrid') || text.includes('barcelona');
+}
+
+function championsStage(event) {
+    const round = String(event.intRound || '');
+    if (round === '200') return 'final';
+    if (round === '150') return 'semi';
+    return '';
+}
+
+function eventLevel(event) {
+    const home = event.strHomeTeam || '';
+    const away = event.strAwayTeam || '';
     const text = `${home} ${away}`.toLowerCase();
     const wydad = text.includes('wydad');
     const raja = text.includes('raja');
     const morocco = /\bmorocco\b|\bmaroc\b/.test(text);
-    if (!wydad && !raja && !morocco) return 0;
+    const champions = isChampionsLeague(event);
+    const stage = champions ? championsStage(event) : '';
+    if (champions && (stage === 'final' || stage === 'semi' || isRealOrBarcelona(home, away))) return 2;
     if ((wydad && raja) || morocco) return 2;
-    return 1;
+    if (wydad || raja) return 1;
+    return 0;
+}
+
+function matchLabel(event, level) {
+    const home = event.strHomeTeam || '';
+    const away = event.strAwayTeam || '';
+    const names = `${home} ${away}`;
+    const stage = isChampionsLeague(event) ? championsStage(event) : '';
+    if (stage === 'final') return `Finale ${home} - ${away}`;
+    if (stage === 'semi') return `Demi-finale ${home} - ${away}`;
+    if (isChampionsLeague(event) && isRealOrBarcelona(home, away)) return `Ligue des champions ${home} - ${away}`;
+    if (level === 2 && /wydad/i.test(names) && /raja/i.test(names)) return `Derby ${home} - ${away}`;
+    return `${home} - ${away}`;
 }
 
 async function loadFixtures(today) {
@@ -257,40 +322,36 @@ async function loadFixtures(today) {
     }
     const byDate = new Map();
     const clubSeasons = seasonsAround(today);
-    const urls = [];
+    const urls = [
+        'https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=133738',
+        'https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=133739',
+        'https://www.thesportsdb.com/api/v1/json/3/eventspastleague.php?id=4520',
+        'https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php?id=4520',
+        'https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=136139',
+        'https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=136139'
+    ];
     for (const league of FIXTURE_LEAGUES) {
         const seasons = league.seasons || clubSeasons;
         for (const season of seasons) {
             urls.push(`https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=${league.id}&s=${encodeURIComponent(season)}`);
         }
     }
-    urls.push(
-        'https://www.thesportsdb.com/api/v1/json/3/eventspastleague.php?id=4520',
-        'https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php?id=4520',
-        'https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=136139',
-        'https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=136139'
-    );
-    const payloads = await Promise.all(urls.map(async (url) => {
-        try {
-            return await fetchJson(url);
-        } catch (error) {
-            console.warn(`[Forecast] Matchs ${url.split('?')[1]}: ${error.message}`);
-            return null;
+    const championsRounds = ['1', '2', '3', '4', '5', '6', '7', '8', '125', '150', '160', '200'];
+    for (const season of clubSeasons.slice(0, 2)) {
+        for (const round of championsRounds) {
+            urls.push(`https://www.thesportsdb.com/api/v1/json/3/eventsround.php?id=4480&r=${round}&s=${encodeURIComponent(season)}`);
         }
-    }));
+    }
+    const payloads = await fetchFixturePayloads(urls);
     for (const payload of payloads) {
         const events = payload?.events || payload?.results || [];
         for (const event of events) {
             const date = String(event.dateEvent || '');
             if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-            const home = event.strHomeTeam || '';
-            const away = event.strAwayTeam || '';
-            const level = eventLevel(home, away);
+            const level = eventLevel(event);
             if (!level) continue;
             const hour = parseKickoffHour(event);
-            const label = level === 2 && /wydad/i.test(home + away) && /raja/i.test(home + away)
-                ? `Derby ${home} - ${away}`
-                : `${home} - ${away}`;
+            const label = matchLabel(event, level);
             const current = byDate.get(date) || [];
             if (!current.some((match) => match.label === label)) {
                 current.push({ hour, level, label });

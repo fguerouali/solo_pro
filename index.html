@@ -4535,7 +4535,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const unknown = days.reduce((sum, day) => sum + day.unknownMidi + day.unknownSoir, 0);
             const ops = (campaigns || []).map((op) => `${op.type}:${op.role || ''}:${op.start}:${op.end}`).sort().join(',');
             const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
-            return `v5|${today}|${days.length}|${known}|${unknown}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${ops}`;
+            return `v6|${today}|${days.length}|${known}|${unknown}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${ops}`;
         };
 
         const renderForecast = (data, errorMessage) => {
@@ -4703,7 +4703,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             }
             const signature = forecastSignature(days, campaigns);
             try {
-                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v5') || 'null');
+                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v6') || 'null');
                 if (cached && cached.signature === signature && cached.data) {
                     renderForecast(cached.data);
                     return;
@@ -4722,7 +4722,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok) throw new Error(payload.message || 'Erreur de prévision');
                 try {
-                    sessionStorage.setItem('solo-forecast-cache-v5', JSON.stringify({ signature, data: payload.data }));
+                    sessionStorage.setItem('solo-forecast-cache-v6', JSON.stringify({ signature, data: payload.data }));
                 } catch (error) {
                     console.warn('Cache prévision non enregistré', error);
                 }
