@@ -673,7 +673,8 @@
         .planning-track { touch-action: none; background: #f3f4f6; border-radius: 0.45rem; margin: 0.2rem 0; }
         .planning-band { position: absolute; top: 0; bottom: 0; background: rgba(255,255,255,.72); border-left: 1px dashed #d1d5db; }
         .planning-line { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(17,24,39,.06); }
-        .planning-bar { position: absolute; top: 0.28rem; bottom: 0.28rem; border-radius: 0.35rem; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800; overflow: hidden; cursor: grab; min-width: 0; }
+        .planning-bar { position: absolute; top: 0.28rem; bottom: 0.28rem; border-radius: 0.35rem; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800; overflow: hidden; cursor: grab; min-width: 0; white-space: nowrap; padding: 0 0.35rem; }
+        .planning-bar:has(.planning-remove) { padding-right: 1.15rem; }
         .planning-bar .planning-remove { position: absolute; right: 0.15rem; top: 0.1rem; width: 1rem; height: 1rem; border-radius: 999px; background: rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
         .planning-global { display: flex; flex-direction: column; gap: 0.8rem; }
         .planning-global-day { border-radius: 1rem; padding: 0.7rem; background: #f9fafb; text-align: left; border: 2px solid transparent; width: 100%; cursor: pointer; }
@@ -1685,7 +1686,7 @@
     <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div>
             <h2 class="text-2xl font-semibold text-gray-800">Planning</h2>
-            <p class="text-sm text-gray-500">Glisse sur la ligne d'un salarié pour tracer son horaire. Étire les bords pour ajuster. Touche le nom pour changer le métier.</p>
+            <p class="text-sm text-gray-500">Glisse pour tracer un créneau. Touche une barre pour changer son métier. Touche le nom pour choisir le métier du prochain créneau.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <button id="planning-prev" type="button" class="btn-secondary px-3" aria-label="Semaine précédente"><i class="fas fa-chevron-left"></i></button>
@@ -3112,6 +3113,8 @@ let allDailyPayments = [];
 
             { id: 'pizza', label: 'Pizzaïolo', color: '#dc2626' },
 
+            { id: 'cuisine', label: 'Cuisine', color: '#ea580c' },
+
             { id: 'service', label: 'Service', color: '#2563eb' },
 
             { id: 'plonge', label: 'Plonge', color: '#059669' },
@@ -3206,7 +3209,7 @@ let allDailyPayments = [];
 
         const planningSnap = (hour, bounds) => Math.min(bounds.end, Math.max(bounds.start, Math.round(hour * 2) / 2));
 
-        const planningRoleMeta = (id) => PLANNING_ROLES.find((role) => role.id === id) || PLANNING_ROLES[1];
+        const planningRoleMeta = (id) => PLANNING_ROLES.find((role) => role.id === id) || PLANNING_ROLES.find((role) => role.id === 'service');
 
         const planningActiveEmployees = () => allEmployees.filter((employee) => employee.active !== false && employee.name);
 
@@ -3280,17 +3283,27 @@ let allDailyPayments = [];
 
                 const bars = mine.map((shift) => {
 
+                    const shiftRole = planningRoleMeta(shift.role || planningRoleOf(employee.id));
+
                     const left = ((Number(shift.start) - bounds.start) / span) * 100;
 
                     const width = ((Number(shift.end) - Number(shift.start)) / span) * 100;
 
-                    return `<div class="planning-bar" data-planning-bar="1" data-start="${shift.start}" data-end="${shift.end}" style="left:${left}%;width:${width}%;background:${role.color}"><span>${planningDuration(Number(shift.start), Number(shift.end))}</span>${compact ? '' : '<span class="planning-remove planning-write" aria-label="Retirer">×</span>'}</div>`;
+                    const duration = planningDuration(Number(shift.start), Number(shift.end));
+
+                    const text = compact ? duration : `${shiftRole.label} · ${duration}`;
+
+                    return `<div class="planning-bar" data-planning-bar="1" data-start="${shift.start}" data-end="${shift.end}" data-role="${shiftRole.id}" style="left:${left}%;width:${width}%;background:${shiftRole.color}"><span>${text}</span>${compact ? '' : '<span class="planning-remove planning-write" aria-label="Retirer">×</span>'}</div>`;
 
                 }).join('');
 
+                const usedRoles = [...new Set(mine.map((shift) => shift.role || planningRoleOf(employee.id)))];
+
+                const summaryColor = usedRoles.length === 1 ? planningRoleMeta(usedRoles[0]).color : '#6b7280';
+
                 const person = compact
 
-                    ? `<div class="planning-person"><strong>${planningEscape(employee.name)}</strong>${total ? `<small style="color:${role.color}">${planningDuration(0, total)}</small>` : ''}</div>`
+                    ? `<div class="planning-person"><strong>${planningEscape(employee.name)}</strong>${total ? `<small style="color:${summaryColor}">${planningDuration(0, total)}</small>` : ''}</div>`
 
                     : `<button type="button" class="planning-role planning-person" data-planning-role="${planningEscape(employee.id)}"><strong>${planningEscape(employee.name)}</strong><small style="color:${role.color}">${role.label}${total ? ` · ${planningDuration(0, total)}` : ''}</small></button>`;
 
@@ -3442,7 +3455,7 @@ let allDailyPayments = [];
 
         };
 
-        const planningInsertShift = (list, employeeId, start, end) => {
+        const planningInsertShift = (list, employeeId, start, end, role) => {
 
             const next = [];
 
@@ -3462,7 +3475,7 @@ let allDailyPayments = [];
 
             });
 
-            next.push({ employeeId, start, end });
+            next.push({ employeeId, start, end, role: role || planningRoleOf(employeeId) });
 
             return next.filter((shift) => Number(shift.end) - Number(shift.start) >= 0.5);
 
@@ -3554,7 +3567,7 @@ let allDailyPayments = [];
 
                 bar.className = 'planning-bar planning-bar-live';
 
-                const role = planningRoleMeta(planningRoleOf(drag.employeeId));
+                const role = planningRoleMeta(drag.role || planningRoleOf(drag.employeeId));
 
                 bar.style.background = role.color;
 
@@ -3616,7 +3629,15 @@ let allDailyPayments = [];
 
                     originEnd: Number(bar.dataset.end),
 
-                    anchor: hour
+                    role: bar.dataset.role || planningRoleOf(track.dataset.planningEmployee),
+
+                    anchor: hour,
+
+                    originX: event.clientX,
+
+                    originY: event.clientY,
+
+                    moved: false
 
                 };
 
@@ -3636,7 +3657,15 @@ let allDailyPayments = [];
 
                     originEnd: hour,
 
-                    anchor: hour
+                    role: planningRoleOf(track.dataset.planningEmployee),
+
+                    anchor: hour,
+
+                    originX: event.clientX,
+
+                    originY: event.clientY,
+
+                    moved: false
 
                 };
 
@@ -3651,6 +3680,8 @@ let allDailyPayments = [];
         const planningPointerMove = (event) => {
 
             if (!planningDrag || event.pointerId !== planningDrag.pointerId) return;
+
+            if (Math.hypot(event.clientX - planningDrag.originX, event.clientY - planningDrag.originY) > 8) planningDrag.moved = true;
 
             const track = document.querySelector(`#planning-board .planning-track[data-planning-date="${planningDrag.date}"][data-planning-employee="${planningDrag.employeeId}"]`);
 
@@ -3680,13 +3711,39 @@ let allDailyPayments = [];
 
             planningDrag = null;
 
+            if (drag.type !== 'draw' && !drag.moved) {
+
+                const shifts = JSON.parse(JSON.stringify(planningShifts()));
+
+                const list = shifts[drag.date] || [];
+
+                const current = list.find((shift) => shift.employeeId === drag.employeeId && Number(shift.start) === drag.originStart);
+
+                if (current) {
+
+                    const shown = current.role || drag.role || 'service';
+
+                    const index = PLANNING_ROLES.findIndex((role) => role.id === shown);
+
+                    current.role = PLANNING_ROLES[(index + 1) % PLANNING_ROLES.length].id;
+
+                    shifts[drag.date] = list;
+
+                    planningCommit({ shifts });
+
+                } else if (planningRenderQueued) renderPlanning();
+
+                return;
+
+            }
+
             if (range.end - range.start >= 0.5) {
 
                 const shifts = JSON.parse(JSON.stringify(planningShifts()));
 
                 const list = (shifts[drag.date] || []).filter((shift) => !(shift.employeeId === drag.employeeId && Number(shift.start) === drag.originStart && Number(shift.end) === drag.originEnd));
 
-                shifts[drag.date] = planningInsertShift(list, drag.employeeId, range.start, range.end);
+                shifts[drag.date] = planningInsertShift(list, drag.employeeId, range.start, range.end, drag.role);
 
                 planningCommit({ shifts });
 
@@ -3796,7 +3853,19 @@ let allDailyPayments = [];
 
                     roles[employeeId] = nextRole;
 
-                    planningCommit({ roles });
+                    const shifts = JSON.parse(JSON.stringify(planningShifts()));
+
+                    Object.values(shifts).forEach((list) => {
+
+                        (list || []).forEach((shift) => {
+
+                            if (shift.employeeId === employeeId && !shift.role) shift.role = current;
+
+                        });
+
+                    });
+
+                    planningCommit({ roles, shifts });
 
                     return;
 
