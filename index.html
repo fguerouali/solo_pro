@@ -785,6 +785,18 @@
                         <p id="kpi-total-sales" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
                         <p id="kpi-total-sales-rate" class="kpi-rate text-gray-500 mt-1">100 %</p>
                     </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center" title="Nombre de ventes avant 17h, heure de Casablanca">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Vente Midi</h3>
+                        <p id="kpi-sales-midi" class="kpi-value text-gray-900 mt-1">0</p>
+                        <p id="kpi-sales-midi-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
+                        <p class="text-xs text-gray-400 mt-1">Avant 17h</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-lg text-center" title="Nombre de ventes à partir de 17h, heure de Casablanca">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Vente Soir</h3>
+                        <p id="kpi-sales-soir" class="kpi-value text-gray-900 mt-1">0</p>
+                        <p id="kpi-sales-soir-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
+                        <p class="text-xs text-gray-400 mt-1">Dès 17h</p>
+                    </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Ventes (Nbre)</h3>
                         <p id="kpi-total-orders" class="kpi-value text-gray-900 mt-1">0</p>
@@ -4356,13 +4368,29 @@ let allDailyPayments = [];
             });
 
             let totalSales = 0;
+            let ordersMidi = 0;
+            let ordersSoir = 0;
             let totalCogs = 0;
             let totalPizzasSold = 0;
             let totalPanuozzoSold = 0;
             const topBuckets = { Pizza: {}, Boisson: {}, Panuozzo: {}, Dessert: {} };
+            const casablancaHour = (value) => {
+                const date = toDate(value);
+                if (!date) return null;
+                const hour = Number(new Intl.DateTimeFormat('en-GB', {
+                    timeZone: 'Africa/Casablanca',
+                    hour: '2-digit',
+                    hourCycle: 'h23'
+                }).format(date));
+                if (!Number.isFinite(hour)) return null;
+                return hour === 24 ? 0 : hour;
+            };
 
             filteredOrders.forEach(order => {
                 totalSales += order.totalPrice;
+                const serviceHour = casablancaHour(order.saleDate || order.createdAt);
+                if (serviceHour != null && serviceHour < 17) ordersMidi += 1;
+                else ordersSoir += 1;
                 (order.items || []).forEach(item => {
                     const product = productById.get(item.id);
                     if (!product) return;
@@ -4409,6 +4437,11 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             // --- Update KPI DOM ---
             document.getElementById('kpi-total-sales').textContent = formatKpiMoney(totalSales);
             document.getElementById('kpi-total-sales-rate').textContent = totalSales > 0 ? '100 %' : '0 %';
+            const pctOfOrders = (value) => totalOrders > 0 ? `${((value / totalOrders) * 100).toFixed(1)} %` : '0 %';
+            document.getElementById('kpi-sales-midi').textContent = formatKpiInteger(ordersMidi);
+            document.getElementById('kpi-sales-midi-rate').textContent = pctOfOrders(ordersMidi);
+            document.getElementById('kpi-sales-soir').textContent = formatKpiInteger(ordersSoir);
+            document.getElementById('kpi-sales-soir-rate').textContent = pctOfOrders(ordersSoir);
             document.getElementById('kpi-total-purchases').textContent = formatKpiMoney(totalPurchases);
             document.getElementById('kpi-total-purchases-rate').textContent = pctOfSales(totalPurchases);
             document.getElementById('kpi-unpaid-purchases').textContent = formatKpiMoney(totalUnpaidPurchases);
