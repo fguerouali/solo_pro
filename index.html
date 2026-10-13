@@ -935,21 +935,25 @@
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Vente Sur Place</h3>
                         <p id="kpi-sales-sur-place" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
                         <p id="kpi-sales-sur-place-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
+                        <p id="kpi-sales-sur-place-count" class="text-xs text-gray-400 mt-1">0 vente</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Vente Emporter</h3>
                         <p id="kpi-sales-emporter" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
                         <p id="kpi-sales-emporter-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
+                        <p id="kpi-sales-emporter-count" class="text-xs text-gray-400 mt-1">0 vente</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Livraison Glovo</h3>
                         <p id="kpi-sales-livraison-glovo" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
                         <p id="kpi-sales-livraison-glovo-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
+                        <p id="kpi-sales-livraison-glovo-count" class="text-xs text-gray-400 mt-1">0 vente</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Livraison Foodwebsite</h3>
                         <p id="kpi-sales-livraison-foodwebsite" class="kpi-value text-gray-900 mt-1">0.00 Mad</p>
                         <p id="kpi-sales-livraison-foodwebsite-rate" class="kpi-rate text-gray-500 mt-1">0 %</p>
+                        <p id="kpi-sales-livraison-foodwebsite-count" class="text-xs text-gray-400 mt-1">0 vente</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center" title="Avis Google Solo Pizzeria Napoletana">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Avis Google</h3>
@@ -3478,6 +3482,18 @@ let allDailyPayments = [];
             return '';
         };
 
+        const classifyActivityChannel = (salesChannel) => {
+            const livraison = classifyLivraisonChannel(salesChannel);
+            if (livraison === 'glovo' || livraison === 'foodwebsite') return livraison;
+            const ch = String(salesChannel || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase();
+            if (ch.includes('emporter') || ch.includes('emporte') || ch.includes('takeaway')) return 'emporter';
+            if (livraison) return '';
+            return 'surplace';
+        };
+
         const sumLivraisonChannelsFromOrders = (orders) => {
             const totals = { glovo: 0, foodwebsite: 0 };
             (orders || []).forEach(order => {
@@ -4803,6 +4819,10 @@ let allDailyPayments = [];
             let totalSales = 0;
             let ordersMidi = 0;
             let ordersSoir = 0;
+            let ordersSurPlace = 0;
+            let ordersEmporter = 0;
+            let ordersGlovo = 0;
+            let ordersFoodwebsite = 0;
             let totalCogs = 0;
             let totalPizzasSold = 0;
             let totalPanuozzoSold = 0;
@@ -4824,6 +4844,11 @@ let allDailyPayments = [];
                 const serviceHour = casablancaHour(order.saleDate || order.createdAt);
                 if (serviceHour != null && serviceHour < 17) ordersMidi += 1;
                 else ordersSoir += 1;
+                const activityChannel = classifyActivityChannel(order.salesChannel);
+                if (activityChannel === 'surplace') ordersSurPlace += 1;
+                else if (activityChannel === 'emporter') ordersEmporter += 1;
+                else if (activityChannel === 'glovo') ordersGlovo += 1;
+                else if (activityChannel === 'foodwebsite') ordersFoodwebsite += 1;
                 (order.items || []).forEach(item => {
                     const product = productById.get(item.id);
                     if (!product) return;
@@ -4884,14 +4909,19 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             document.getElementById('kpi-total-orders').textContent = formatKpiInteger(totalOrders);
             document.getElementById('kpi-total-pizzas').textContent = formatKpiInteger(totalPizzasSold);
             document.getElementById('kpi-total-panuozzo').textContent = formatKpiInteger(totalPanuozzoSold);
+            const formatSalesCount = (value) => `${formatKpiInteger(value)} vente${Number(value) > 1 ? 's' : ''}`;
             document.getElementById('kpi-sales-sur-place').textContent = formatKpiMoney(salesSurPlace);
             document.getElementById('kpi-sales-sur-place-rate').textContent = pctOfSales(salesSurPlace);
+            document.getElementById('kpi-sales-sur-place-count').textContent = formatSalesCount(ordersSurPlace);
             document.getElementById('kpi-sales-emporter').textContent = formatKpiMoney(salesEmporter);
             document.getElementById('kpi-sales-emporter-rate').textContent = pctOfSales(salesEmporter);
+            document.getElementById('kpi-sales-emporter-count').textContent = formatSalesCount(ordersEmporter);
             document.getElementById('kpi-sales-livraison-glovo').textContent = formatKpiMoney(salesLivraisonGlovo);
             document.getElementById('kpi-sales-livraison-glovo-rate').textContent = pctOfSales(salesLivraisonGlovo);
+            document.getElementById('kpi-sales-livraison-glovo-count').textContent = formatSalesCount(ordersGlovo);
             document.getElementById('kpi-sales-livraison-foodwebsite').textContent = formatKpiMoney(salesLivraisonFoodwebsite);
             document.getElementById('kpi-sales-livraison-foodwebsite-rate').textContent = pctOfSales(salesLivraisonFoodwebsite);
+            document.getElementById('kpi-sales-livraison-foodwebsite-count').textContent = formatSalesCount(ordersFoodwebsite);
             renderGoogleReviewsKpi();
             document.getElementById('kpi-avg-order-value').textContent = formatKpiMoney(avgOrderValue);
             document.getElementById('kpi-gross-margin').textContent = formatKpiMoney(grossMargin);
