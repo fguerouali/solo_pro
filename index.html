@@ -653,120 +653,41 @@
         .module-read-only form:not([data-readonly-allowed="true"]) { display: none !important; }
         .module-read-only .planning-write,
         .module-read-only .planning-remove { display: none !important; }
-        .module-read-only .planning-chip { cursor: default; }
-        .planning-staff {
-            display: flex;
-            gap: 0.5rem;
-            overflow-x: auto;
-            padding: 0.75rem;
-            position: sticky;
-            bottom: 0.75rem;
-            z-index: 20;
-            background: #fff;
-            border-radius: 1.25rem;
-            box-shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
-        }
-        .planning-staff.over { outline: 2px solid #111827; }
-        .planning-chip {
-            touch-action: none;
-            user-select: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            min-height: 44px;
-            padding: 0.25rem 0.6rem 0.25rem 0.25rem;
-            border: 0;
-            border-radius: 999px;
-            font-size: 0.82rem;
-            font-weight: 700;
-            color: #111827;
-            cursor: grab;
-            max-width: 100%;
-        }
-        .planning-avatar {
-            width: 1.7rem;
-            height: 1.7rem;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.75);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.68rem;
-            font-weight: 800;
-            flex: none;
-        }
-        .planning-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .planning-remove {
-            width: 1.35rem;
-            height: 1.35rem;
-            border-radius: 999px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(17, 24, 39, 0.12);
-            flex: none;
-        }
-        .planning-ghost {
-            position: fixed;
-            z-index: 80;
-            pointer-events: none;
-            transform: translate(-50%, -60%) rotate(-8deg) scale(1.05);
-            box-shadow: 0 16px 36px rgba(17, 24, 39, 0.22);
-        }
-        .planning-board {
-            display: flex;
-            gap: 0.7rem;
-            overflow-x: auto;
-            scroll-snap-type: x mandatory;
-            padding-bottom: 0.25rem;
-        }
-        .planning-day {
-            flex: 0 0 84%;
-            scroll-snap-align: center;
-            background: #fff;
-            border-radius: 1.25rem;
-            padding: 0.75rem;
-            box-shadow: 0 8px 24px rgba(17, 24, 39, 0.05);
-            min-height: 240px;
-        }
-        .planning-day.is-today { box-shadow: 0 0 0 2px #111827, 0 8px 24px rgba(17, 24, 39, 0.05); }
-        .planning-day.is-closed { background: #f3f4f6; color: #6b7280; }
-        .planning-slot {
-            min-height: 96px;
-            border-radius: 1rem;
-            border: 2px dashed transparent;
-            padding: 0.45rem;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.35rem;
-            align-content: flex-start;
-        }
-        .planning-slot.midi { background: #fff7ed; border-color: #fdba74; }
-        .planning-slot.soir { background: #111827; border-color: #111827; }
-        .planning-slot.over,
-        [data-planning-drop="slot"].over { outline: 2px solid #111827; outline-offset: 1px; }
-        .planning-slot .planning-empty { font-size: 0.75rem; font-weight: 600; }
-        .planning-slot.midi .planning-empty { color: #c2410c; }
-        .planning-slot.soir .planning-empty { color: rgba(255, 255, 255, 0.62); }
-        .planning-overview-table { display: none; }
-        .planning-overview-list { display: flex; flex-direction: column; gap: 0.55rem; }
-        .planning-line { background: #f9fafb; border-radius: 1rem; padding: 0.7rem 0.8rem; }
-        @media (min-width: 900px) {
-            .planning-overview-list { display: none; }
-            .planning-overview-table {
-                display: grid;
-                grid-template-columns: 4.4rem repeat(7, minmax(0, 1fr));
-                gap: 0.4rem;
-                align-items: stretch;
-                width: 100%;
-            }
-            .planning-board {
-                display: grid;
-                grid-template-columns: repeat(7, minmax(0, 1fr));
-                width: 100%;
-                overflow: visible;
-            }
-            .planning-day { flex: none; min-width: 0; }
+        .planning-legend { display: flex; flex-wrap: wrap; gap: 0.7rem 1rem; }
+        .planning-legend span { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 700; color: #374151; }
+        .planning-swatch { width: 0.85rem; height: 0.85rem; border-radius: 0.2rem; }
+        .planning-days { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.2rem; }
+        .planning-day-btn { border: 0; background: #fff; border-radius: 999px; padding: 0.45rem 0.8rem; font-size: 0.8rem; font-weight: 700; color: #4b5563; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+        .planning-day-btn.active { background: #111827; color: #fff; }
+        .planning-sheet { display: grid; grid-template-columns: 7.4rem minmax(0, 1fr); align-items: stretch; }
+        .planning-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .planning-scale { min-width: 860px; }
+        .planning-gutter, .planning-person { position: sticky; left: 0; z-index: 3; background: #fff; }
+        .planning-hours, .planning-track { position: relative; height: 2.7rem; }
+        .planning-hours { height: 1.6rem; }
+        .planning-tick { position: absolute; top: 0; transform: translateX(-50%); font-size: 0.65rem; font-weight: 700; color: #9ca3af; }
+        .planning-person { display: flex; flex-direction: column; justify-content: center; min-height: 2.7rem; padding-right: 0.4rem; }
+        .planning-person strong { font-size: 0.78rem; line-height: 1.1; }
+        .planning-person small { font-size: 0.65rem; font-weight: 700; }
+        .planning-role { border: 0; background: transparent; padding: 0; text-align: left; }
+        .planning-track { touch-action: none; background: #f3f4f6; border-radius: 0.45rem; margin: 0.2rem 0; }
+        .planning-band { position: absolute; top: 0; bottom: 0; background: rgba(255,255,255,.72); border-left: 1px dashed #d1d5db; }
+        .planning-line { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(17,24,39,.06); }
+        .planning-bar { position: absolute; top: 0.28rem; bottom: 0.28rem; border-radius: 0.35rem; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800; overflow: hidden; cursor: grab; min-width: 0; }
+        .planning-bar .planning-remove { position: absolute; right: 0.15rem; top: 0.1rem; width: 1rem; height: 1rem; border-radius: 999px; background: rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+        .planning-global { display: flex; flex-direction: column; gap: 0.8rem; }
+        .planning-global-day { border-radius: 1rem; padding: 0.7rem; background: #f9fafb; text-align: left; border: 2px solid transparent; width: 100%; cursor: pointer; }
+        .planning-global-day.active { border-color: #111827; background: #fff; }
+        .planning-global .planning-scale { min-width: 720px; }
+        .planning-global .planning-gutter,
+        .planning-global .planning-person { background: #f9fafb; }
+        .planning-global-day.active .planning-gutter,
+        .planning-global-day.active .planning-person { background: #fff; }
+        .planning-global .planning-track, .planning-global .planning-person { min-height: 1.7rem; height: 1.7rem; }
+        .planning-global .planning-hours { height: 1.2rem; }
+        @media (min-width: 768px) {
+            .planning-sheet { grid-template-columns: 11rem minmax(0, 1fr); }
+            .planning-scale { min-width: 980px; }
         }
     </style>
 </head>
@@ -1761,10 +1682,10 @@
 </div>
 
 <div id="planning-content" class="tab-content">
-    <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div>
             <h2 class="text-2xl font-semibold text-gray-800">Planning</h2>
-            <p class="text-sm text-gray-500">Glisse un salarié sur le midi ou le soir. La semaine reste lisible d'un seul regard.</p>
+            <p class="text-sm text-gray-500">Glisse sur la ligne d'un salarié pour tracer son horaire. Étire les bords pour ajuster. Touche le nom pour changer le métier.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <button id="planning-prev" type="button" class="btn-secondary px-3" aria-label="Semaine précédente"><i class="fas fa-chevron-left"></i></button>
@@ -1776,12 +1697,16 @@
             <button id="planning-copy" type="button" class="btn-secondary planning-write text-sm">Reprendre la semaine d'avant</button>
         </div>
     </div>
+    <div id="planning-legend" class="planning-legend mb-3"></div>
+    <div id="planning-days" class="planning-days mb-3"></div>
     <section class="bg-white rounded-2xl shadow-lg p-3 sm:p-4 mb-4">
+        <p id="planning-day-caption" class="text-sm font-semibold text-gray-700 mb-3"></p>
+        <div id="planning-board"></div>
+    </section>
+    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Image de la semaine</h3>
+    <section class="bg-white rounded-2xl shadow-lg p-3 sm:p-4">
         <div id="planning-overview"></div>
     </section>
-    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Placer l'équipe</h3>
-    <div id="planning-board" class="planning-board mb-4"></div>
-    <div id="planning-staff" class="planning-staff" data-planning-drop="staff"></div>
     <p id="planning-status" class="text-xs text-gray-400 mt-3"></p>
 </div>
 
@@ -2378,6 +2303,7 @@ let allDailyPayments = [];
         let planningByWeek = {};
         let planningWeekStart = '';
         let planningDrag = null;
+        let planningSelectedDate = '';
         let planningSaveTimer = null;
         let planningDirty = false;
         let planningRenderQueued = false;
@@ -3182,274 +3108,724 @@ let allDailyPayments = [];
         // --- HELPERS ---
         const showToast = (message) => { const toast = document.getElementById('toast'); document.getElementById('toast-message').textContent = message; toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), 3000); };
 
-        const PLANNING_WEEK = [
-            { offset: 0, name: 'Lundi', short: 'Lun', closed: true },
-            { offset: 1, name: 'Mardi', short: 'Mar', midi: '12:30–16:30', soir: '19:30–23:30' },
-            { offset: 2, name: 'Mercredi', short: 'Mer', midi: '12:30–16:30', soir: '19:30–23:30' },
-            { offset: 3, name: 'Jeudi', short: 'Jeu', midi: '12:30–16:30', soir: '19:30–23:30' },
-            { offset: 4, name: 'Vendredi', short: 'Ven', midi: '12:30–16:30', soir: '19:30–23:30' },
-            { offset: 5, name: 'Samedi', short: 'Sam', midi: '13:30–17:30', soir: '17:30–23:30' },
-            { offset: 6, name: 'Dimanche', short: 'Dim', midi: '13:30–17:30', soir: '17:30–22:30' }
+        const PLANNING_ROLES = [
+
+            { id: 'pizza', label: 'Pizzaïolo', color: '#dc2626' },
+
+            { id: 'service', label: 'Service', color: '#2563eb' },
+
+            { id: 'plonge', label: 'Plonge', color: '#059669' },
+
+            { id: 'management', label: 'Management', color: '#7c3aed' }
+
         ];
-        const PLANNING_COLORS = ['#fecaca', '#fed7aa', '#fde68a', '#bbf7d0', '#a5f3fc', '#bfdbfe', '#ddd6fe', '#fbcfe8'];
+
+        const PLANNING_DAYS = [
+
+            { offset: 0, name: 'Lundi', short: 'Lun' },
+
+            { offset: 1, name: 'Mardi', short: 'Mar' },
+
+            { offset: 2, name: 'Mercredi', short: 'Mer' },
+
+            { offset: 3, name: 'Jeudi', short: 'Jeu' },
+
+            { offset: 4, name: 'Vendredi', short: 'Ven' },
+
+            { offset: 5, name: 'Samedi', short: 'Sam' },
+
+            { offset: 6, name: 'Dimanche', short: 'Dim' }
+
+        ];
+
+
 
         const planningEscape = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
         const planningIso = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
         const planningParseIso = (iso) => {
+
             const [year, month, day] = String(iso).split('-').map(Number);
+
             return new Date(year, month - 1, day);
+
         };
+
         const planningMondayOf = (date) => {
+
             const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
             const day = copy.getDay();
+
             copy.setDate(copy.getDate() + (day === 0 ? -6 : 1 - day));
+
             return copy;
+
         };
+
         const planningAddDays = (iso, days) => {
+
             const date = planningParseIso(iso);
+
             date.setDate(date.getDate() + days);
+
             return planningIso(date);
+
         };
-        const planningColor = (id) => {
-            let index = 0;
-            for (const char of String(id || '')) index = (index + char.charCodeAt(0)) % PLANNING_COLORS.length;
-            return PLANNING_COLORS[index];
+
+        const planningWindow = (iso) => {
+
+            const weekend = [0, 6].includes(planningParseIso(iso).getDay());
+
+            return { start: weekend ? 10.5 : 10, service: weekend ? 13 : 12, end: 24, weekend };
+
         };
-        const planningInitials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('').toUpperCase();
-        const planningEmployee = (id) => allEmployees.find((employee) => employee.id === id) || { id, name: 'Ancien salarié' };
+
+        const planningHourLabel = (hour) => {
+
+            const whole = hour === 24 ? 0 : Math.floor(hour);
+
+            const minutes = Math.round((hour % 1) * 60);
+
+            return minutes ? `${whole}h${String(minutes).padStart(2, '0')}` : `${whole}h`;
+
+        };
+
+        const planningDuration = (start, end) => {
+
+            const hours = Math.round((end - start) * 2) / 2;
+
+            const whole = Math.floor(hours);
+
+            const minutes = Math.round((hours - whole) * 60);
+
+            return minutes ? `${whole}h${String(minutes).padStart(2, '0')}` : `${whole}h`;
+
+        };
+
+        const planningSnap = (hour, bounds) => Math.min(bounds.end, Math.max(bounds.start, Math.round(hour * 2) / 2));
+
+        const planningRoleMeta = (id) => PLANNING_ROLES.find((role) => role.id === id) || PLANNING_ROLES[1];
+
         const planningActiveEmployees = () => allEmployees.filter((employee) => employee.active !== false && employee.name);
-        const planningCurrentAssignments = () => {
-            const stored = planningByWeek[planningWeekStart]?.assignments;
+
+        const planningRoleOf = (employeeId) => planningByWeek[planningWeekStart]?.roles?.[employeeId]
+
+            || planningByWeek[planningAddDays(planningWeekStart || planningIso(planningMondayOf(new Date())), -7)]?.roles?.[employeeId]
+
+            || 'service';
+
+        const planningShifts = () => {
+
+            const stored = planningByWeek[planningWeekStart]?.shifts;
+
             return stored && typeof stored === 'object' ? stored : {};
+
         };
-        const planningChip = (employee, date, slot) => {
-            const placed = Boolean(date);
-            return `<div class="planning-chip" data-planning-employee="${planningEscape(employee.id)}" ${placed ? `data-planning-date="${date}" data-planning-slot="${slot}"` : ''} style="background:${planningColor(employee.id)}">
-                <span class="planning-avatar">${planningEscape(planningInitials(employee.name))}</span>
-                <span class="planning-chip-name">${planningEscape(employee.name)}</span>
-                ${placed ? '<span class="planning-remove planning-write" aria-label="Retirer">×</span>' : ''}
-            </div>`;
+
+        const planningCaption = (bounds) => bounds.weekend
+
+            ? 'Préparation 10h30–00h · Service continu 13h–00h'
+
+            : 'Préparation 10h–00h · Service continu 12h–00h';
+
+        const planningHourFromEvent = (event, track) => {
+
+            const rect = track.getBoundingClientRect();
+
+            const bounds = planningWindow(track.dataset.planningDate);
+
+            const ratio = rect.width ? Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)) : 0;
+
+            return planningSnap(bounds.start + ratio * (bounds.end - bounds.start), bounds);
+
         };
-        const planningSlotHtml = (date, slot, ids) => {
-            const chips = (ids || []).map((id) => planningChip(planningEmployee(id), date, slot)).join('');
-            return `<div class="planning-slot ${slot}" data-planning-drop="slot" data-planning-date="${date}" data-planning-slot="${slot}">${chips || '<span class="planning-empty">Dépose ici</span>'}</div>`;
-        };
-        const renderPlanning = () => {
-            if (planningDrag) {
-                planningRenderQueued = true;
-                return;
-            }
-            planningRenderQueued = false;
-            if (!planningWeekStart) planningWeekStart = planningIso(planningMondayOf(new Date()));
-            const label = document.getElementById('planning-week-label');
-            const overview = document.getElementById('planning-overview');
-            const board = document.getElementById('planning-board');
-            const staff = document.getElementById('planning-staff');
-            if (!overview || !board || !staff) return;
-            const start = planningParseIso(planningWeekStart);
-            const end = planningParseIso(planningAddDays(planningWeekStart, 6));
-            const sameMonth = start.getMonth() === end.getMonth();
-            const startText = sameMonth
-                ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric' }).format(start)
-                : new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' }).format(start);
-            const endText = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' }).format(end);
-            if (label) label.textContent = `Semaine du ${startText} au ${endText}`;
-            const today = planningIso(new Date());
-            const assignments = planningCurrentAssignments();
-            const days = PLANNING_WEEK.map((day) => {
-                const date = planningAddDays(planningWeekStart, day.offset);
-                const slots = assignments[date] || {};
-                return { ...day, date, midiIds: Array.isArray(slots.midi) ? slots.midi : [], soirIds: Array.isArray(slots.soir) ? slots.soir : [] };
-            });
-            const header = days.map((day) => `<div class="text-center text-xs font-semibold uppercase tracking-wide ${day.date === today ? 'text-gray-900' : 'text-gray-400'}">${day.short}<div class="text-base font-bold">${planningParseIso(day.date).getDate()}</div></div>`).join('');
-            const row = (slot) => days.map((day) => {
-                if (day.closed) return '<div class="rounded-xl bg-gray-50 text-center text-xs text-gray-400 py-3">Fermé</div>';
-                const ids = slot === 'midi' ? day.midiIds : day.soirIds;
-                const chips = ids.map((id) => planningChip(planningEmployee(id), day.date, slot)).join('');
-                return `<div class="rounded-xl p-1 min-h-[3.2rem] ${slot === 'midi' ? 'bg-orange-50' : 'bg-gray-900'}" data-planning-drop="slot" data-planning-date="${day.date}" data-planning-slot="${slot}">${chips || `<span class="block text-center text-xs py-2 ${slot === 'midi' ? 'text-orange-300' : 'text-white/50'}">—</span>`}</div>`;
-            }).join('');
-            const list = days.map((day) => {
-                const dateLabel = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(planningParseIso(day.date));
-                if (day.closed) return `<article class="planning-line"><p class="font-semibold capitalize">${dateLabel}</p><p class="text-sm text-gray-400">Restaurant fermé</p></article>`;
-                return `<article class="planning-line ${day.date === today ? 'ring-2 ring-gray-900' : ''}">
-                    <p class="font-semibold capitalize mb-2">${dateLabel}</p>
-                    <div class="mb-2 rounded-xl bg-orange-50 p-2" data-planning-drop="slot" data-planning-date="${day.date}" data-planning-slot="midi"><p class="text-xs font-semibold text-orange-700 mb-1">Midi · ${day.midi}</p><div class="flex flex-wrap gap-1">${day.midiIds.map((id) => planningChip(planningEmployee(id), day.date, 'midi')).join('') || '<span class="text-xs text-gray-400">Personne</span>'}</div></div>
-                    <div class="rounded-xl bg-gray-900 p-2" data-planning-drop="slot" data-planning-date="${day.date}" data-planning-slot="soir"><p class="text-xs font-semibold text-white mb-1">Soir · ${day.soir}</p><div class="flex flex-wrap gap-1">${day.soirIds.map((id) => planningChip(planningEmployee(id), day.date, 'soir')).join('') || '<span class="text-xs text-white/50">Personne</span>'}</div></div>
-                </article>`;
-            }).join('');
-            overview.innerHTML = `<div class="planning-overview-table"><div></div>${header}<div class="text-xs font-bold text-orange-700 self-center">Midi</div>${row('midi')}<div class="text-xs font-bold text-gray-800 self-center">Soir</div>${row('soir')}</div><div class="planning-overview-list">${list}</div>`;
-            board.innerHTML = days.map((day) => {
-                const dateNumber = planningParseIso(day.date).getDate();
-                if (day.closed) return `<article class="planning-day is-closed ${day.date === today ? 'is-today' : ''}"><p class="font-semibold">${day.name} ${dateNumber}</p><p class="mt-6 text-sm">Restaurant fermé</p></article>`;
-                return `<article class="planning-day ${day.date === today ? 'is-today' : ''}">
-                    <p class="font-semibold text-gray-900">${day.name} ${dateNumber}</p>
-                    <p class="text-[11px] font-semibold text-orange-700 mt-2 mb-1">Midi · ${day.midi}</p>
-                    ${planningSlotHtml(day.date, 'midi', day.midiIds)}
-                    <p class="text-[11px] font-semibold text-gray-500 mt-2 mb-1">Soir · ${day.soir}</p>
-                    ${planningSlotHtml(day.date, 'soir', day.soirIds)}
-                </article>`;
-            }).join('');
+
+        const planningSheetHtml = (date, compact) => {
+
             const people = planningActiveEmployees();
-            staff.innerHTML = people.length
-                ? people.map((employee) => planningChip(employee)).join('')
-                : '<p class="text-sm text-gray-500 px-2">Aucun salarié actif. Ajoute-les dans RH.</p>';
+
+            if (!people.length) return '<p class="text-sm text-gray-500">Aucun salarié actif. Ajoute-les dans RH.</p>';
+
+            const bounds = planningWindow(date);
+
+            const span = bounds.end - bounds.start;
+
+            const shifts = Array.isArray(planningShifts()[date]) ? planningShifts()[date] : [];
+
+            const ticks = [];
+
+            for (let hour = Math.ceil(bounds.start); hour <= bounds.end; hour += 1) ticks.push(hour);
+
+            if (bounds.start % 1) ticks.unshift(bounds.start);
+
+            const tickHtml = ticks.map((hour, index) => {
+                const left = ((hour - bounds.start) / span) * 100;
+                const shift = index === 0 ? '0' : (index === ticks.length - 1 ? '-100%' : '-50%');
+                return `<span class="planning-tick" style="left:${left}%;transform:translateX(${shift})">${planningHourLabel(hour)}</span>`;
+            }).join('');
+
+            const lines = ticks.map((hour) => `<span class="planning-line" style="left:${((hour - bounds.start) / span) * 100}%"></span>`).join('');
+
+            const band = `<div class="planning-band" style="left:${((bounds.service - bounds.start) / span) * 100}%;width:${((bounds.end - bounds.service) / span) * 100}%"></div>`;
+
+            const body = people.map((employee) => {
+
+                const role = planningRoleMeta(planningRoleOf(employee.id));
+
+                const mine = shifts.filter((shift) => shift.employeeId === employee.id);
+
+                const total = mine.reduce((sum, shift) => sum + (Number(shift.end) - Number(shift.start)), 0);
+
+                const bars = mine.map((shift) => {
+
+                    const left = ((Number(shift.start) - bounds.start) / span) * 100;
+
+                    const width = ((Number(shift.end) - Number(shift.start)) / span) * 100;
+
+                    return `<div class="planning-bar" data-planning-bar="1" data-start="${shift.start}" data-end="${shift.end}" style="left:${left}%;width:${width}%;background:${role.color}"><span>${planningDuration(Number(shift.start), Number(shift.end))}</span>${compact ? '' : '<span class="planning-remove planning-write" aria-label="Retirer">×</span>'}</div>`;
+
+                }).join('');
+
+                const person = compact
+
+                    ? `<div class="planning-person"><strong>${planningEscape(employee.name)}</strong>${total ? `<small style="color:${role.color}">${planningDuration(0, total)}</small>` : ''}</div>`
+
+                    : `<button type="button" class="planning-role planning-person" data-planning-role="${planningEscape(employee.id)}"><strong>${planningEscape(employee.name)}</strong><small style="color:${role.color}">${role.label}${total ? ` · ${planningDuration(0, total)}` : ''}</small></button>`;
+
+                return `<div class="planning-sheet"><div class="planning-gutter">${person}</div><div class="planning-track" data-planning-date="${date}" data-planning-employee="${planningEscape(employee.id)}">${band}${lines}${bars}</div></div>`;
+
+            }).join('');
+
+            return `<div class="planning-scroll"><div class="planning-scale"><div class="planning-sheet"><div class="planning-gutter planning-hours"></div><div class="planning-hours">${tickHtml}</div></div>${body}</div></div>`;
+
         };
-        const planningCommit = (assignments) => {
-            planningByWeek[planningWeekStart] = { ...(planningByWeek[planningWeekStart] || {}), weekStart: planningWeekStart, assignments };
-            planningDirty = true;
-            renderPlanning();
-            const status = document.getElementById('planning-status');
-            if (status) status.textContent = 'Enregistrement…';
-            clearTimeout(planningSaveTimer);
-            planningSaveTimer = setTimeout(async () => {
-                try {
-                    if (!planningWeeksCol) throw new Error('Planning indisponible');
-                    await setDoc(doc(planningWeeksCol, planningWeekStart), {
-                        weekStart: planningWeekStart,
-                        assignments,
-                        updatedAt: serverTimestamp()
-                    }, { merge: true });
-                    planningDirty = false;
-                    if (status) status.textContent = 'Planning enregistré';
-                } catch (error) {
-                    planningDirty = false;
-                    console.error(error);
-                    if (status) status.textContent = 'Enregistrement impossible';
-                    showToast('Le planning n’a pas pu être enregistré.');
-                }
-            }, 350);
-        };
-        const planningMove = ({ employeeId, fromDate = '', fromSlot = '', toDate = '', toSlot = '' }) => {
-            if (!canWrite('planning') || !employeeId) return;
-            if (fromDate === toDate && fromSlot === toSlot) return;
-            const assignments = JSON.parse(JSON.stringify(planningCurrentAssignments()));
-            const ensure = (date) => {
-                if (!assignments[date]) assignments[date] = { midi: [], soir: [] };
-                if (!Array.isArray(assignments[date].midi)) assignments[date].midi = [];
-                if (!Array.isArray(assignments[date].soir)) assignments[date].soir = [];
-            };
-            if (fromDate && fromSlot) {
-                ensure(fromDate);
-                assignments[fromDate][fromSlot] = assignments[fromDate][fromSlot].filter((id) => id !== employeeId);
+
+        const renderPlanning = () => {
+
+            if (planningDrag) {
+
+                planningRenderQueued = true;
+
+                return;
+
             }
-            if (toDate && toSlot) {
-                ensure(toDate);
-                if (!assignments[toDate][toSlot].includes(employeeId)) assignments[toDate][toSlot].push(employeeId);
-            }
-            planningCommit(assignments);
-        };
-        const shiftPlanningWeek = (days) => {
+
+            planningRenderQueued = false;
+
             if (!planningWeekStart) planningWeekStart = planningIso(planningMondayOf(new Date()));
-            planningWeekStart = planningAddDays(planningWeekStart, days);
-            const status = document.getElementById('planning-status');
-            if (status) status.textContent = '';
-            renderPlanning();
-        };
-        const planningClearHighlight = () => {
-            document.querySelectorAll('.planning-slot.over, #planning-staff.over').forEach((el) => el.classList.remove('over'));
-        };
-        const planningPointerDown = (event) => {
-            if (!canWrite('planning') || (event.button != null && event.button !== 0)) return;
-            if (event.target.closest('.planning-remove')) return;
-            const chip = event.target.closest('.planning-chip');
-            if (!chip || !document.getElementById('planning-content')?.contains(chip)) return;
-            event.preventDefault();
-            const ghost = chip.cloneNode(true);
-            ghost.classList.add('planning-ghost');
-            ghost.querySelector('.planning-remove')?.remove();
-            document.body.appendChild(ghost);
-            ghost.style.left = `${event.clientX}px`;
-            ghost.style.top = `${event.clientY}px`;
-            chip.setPointerCapture?.(event.pointerId);
-            planningDrag = {
-                pointerId: event.pointerId,
-                employeeId: chip.dataset.planningEmployee,
-                fromDate: chip.dataset.planningDate || '',
-                fromSlot: chip.dataset.planningSlot || '',
-                ghost
-            };
-        };
-        const planningPointerMove = (event) => {
-            if (!planningDrag || event.pointerId !== planningDrag.pointerId) return;
-            planningDrag.ghost.style.left = `${event.clientX}px`;
-            planningDrag.ghost.style.top = `${event.clientY}px`;
-            planningDrag.ghost.style.visibility = 'hidden';
-            const under = document.elementFromPoint(event.clientX, event.clientY);
-            planningDrag.ghost.style.visibility = '';
-            planningClearHighlight();
-            const drop = under?.closest('[data-planning-drop]');
-            if (drop?.dataset.planningDrop === 'staff') drop.classList.add('over');
-            if (drop?.dataset.planningDrop === 'slot') drop.classList.add('over');
-        };
-        const planningPointerEnd = (event) => {
-            if (!planningDrag || event.pointerId !== planningDrag.pointerId) return;
-            planningDrag.ghost.style.visibility = 'hidden';
-            const under = document.elementFromPoint(event.clientX, event.clientY);
-            const drop = under?.closest('[data-planning-drop]');
-            const drag = planningDrag;
-            drag.ghost.remove();
-            planningDrag = null;
-            planningClearHighlight();
-            if (drop?.dataset.planningDrop === 'staff' && drag.fromDate) {
-                planningMove({ employeeId: drag.employeeId, fromDate: drag.fromDate, fromSlot: drag.fromSlot });
-            } else if (drop?.dataset.planningDrop === 'slot') {
-                planningMove({
-                    employeeId: drag.employeeId,
-                    fromDate: drag.fromDate,
-                    fromSlot: drag.fromSlot,
-                    toDate: drop.dataset.planningDate,
-                    toSlot: drop.dataset.planningSlot
-                });
-            } else if (planningRenderQueued) {
-                renderPlanning();
+
+            const weekEnd = planningAddDays(planningWeekStart, 6);
+
+            const today = planningIso(new Date());
+
+            if (!planningSelectedDate || planningSelectedDate < planningWeekStart || planningSelectedDate > weekEnd) {
+
+                planningSelectedDate = today >= planningWeekStart && today <= weekEnd ? today : planningWeekStart;
+
             }
+
+            const label = document.getElementById('planning-week-label');
+
+            const start = planningParseIso(planningWeekStart);
+
+            const end = planningParseIso(weekEnd);
+
+            const sameMonth = start.getMonth() === end.getMonth();
+
+            const startText = sameMonth
+
+                ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric' }).format(start)
+
+                : new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' }).format(start);
+
+            if (label) label.textContent = `Semaine du ${startText} au ${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' }).format(end)}`;
+
+            const legend = document.getElementById('planning-legend');
+
+            if (legend) legend.innerHTML = PLANNING_ROLES.map((role) => `<span><i class="planning-swatch" style="background:${role.color}"></i>${role.label}</span>`).join('');
+
+            const days = PLANNING_DAYS.map((day) => ({ ...day, date: planningAddDays(planningWeekStart, day.offset) }));
+
+            const dayBar = document.getElementById('planning-days');
+
+            if (dayBar) {
+
+                dayBar.innerHTML = days.map((day) => `<button type="button" class="planning-day-btn ${day.date === planningSelectedDate ? 'active' : ''}" data-planning-select="${day.date}">${day.short} ${planningParseIso(day.date).getDate()}</button>`).join('');
+
+            }
+
+            const caption = document.getElementById('planning-day-caption');
+
+            const selected = days.find((day) => day.date === planningSelectedDate) || days[0];
+
+            if (caption) caption.textContent = `${selected.name} ${planningParseIso(selected.date).getDate()} · ${planningCaption(planningWindow(selected.date))}`;
+
+            const board = document.getElementById('planning-board');
+
+            if (board) board.innerHTML = planningSheetHtml(selected.date, false);
+
+            const overview = document.getElementById('planning-overview');
+
+            if (overview) {
+
+                overview.innerHTML = planningActiveEmployees().length
+                    ? `<div class="planning-global">${days.map((day) => `<div class="planning-global-day ${day.date === planningSelectedDate ? 'active' : ''}" data-planning-select="${day.date}"><p class="font-semibold text-gray-900">${day.name} ${planningParseIso(day.date).getDate()}</p><p class="text-xs text-gray-500 mb-2">${planningCaption(planningWindow(day.date))}</p>${planningSheetHtml(day.date, true)}</div>`).join('')}</div>`
+                    : '<p class="text-sm text-gray-500">La semaine s’affichera ici dès qu’il y a des salariés.</p>';
+
+            }
+
         };
-        const bindPlanning = () => {
-            const root = document.getElementById('planning-content');
-            if (!root || root.dataset.bound === '1') return;
-            root.dataset.bound = '1';
-            document.getElementById('planning-prev')?.addEventListener('click', () => shiftPlanningWeek(-7));
-            document.getElementById('planning-next')?.addEventListener('click', () => shiftPlanningWeek(7));
-            document.getElementById('planning-today')?.addEventListener('click', () => {
-                planningWeekStart = planningIso(planningMondayOf(new Date()));
-                renderPlanning();
-            });
-            document.getElementById('planning-copy')?.addEventListener('click', () => {
-                if (!canWrite('planning')) return;
-                const previousId = planningAddDays(planningWeekStart, -7);
-                const previous = planningByWeek[previousId]?.assignments;
-                if (!previous || !Object.keys(previous).length) {
-                    showToast('La semaine d’avant est vide.');
-                    return;
-                }
-                const shifted = {};
-                Object.entries(previous).forEach(([date, slots]) => {
-                    shifted[planningAddDays(date, 7)] = {
-                        midi: Array.isArray(slots?.midi) ? [...slots.midi] : [],
-                        soir: Array.isArray(slots?.soir) ? [...slots.soir] : []
-                    };
-                });
-                planningCommit(shifted);
-                showToast('Semaine précédente reprise.');
-            });
-            root.addEventListener('pointerdown', planningPointerDown);
-            document.addEventListener('pointermove', planningPointerMove);
-            document.addEventListener('pointerup', planningPointerEnd);
-            document.addEventListener('pointercancel', planningPointerEnd);
-            root.addEventListener('click', (event) => {
-                const remove = event.target.closest('.planning-remove');
-                if (!remove || !canWrite('planning')) return;
-                const chip = remove.closest('.planning-chip');
-                if (!chip) return;
-                planningMove({
-                    employeeId: chip.dataset.planningEmployee,
-                    fromDate: chip.dataset.planningDate,
-                    fromSlot: chip.dataset.planningSlot
-                });
-            });
+
+        const planningCommit = ({ shifts, roles }) => {
+
+            const current = planningByWeek[planningWeekStart] || {};
+
+            const next = {
+
+                weekStart: planningWeekStart,
+
+                roles: roles || current.roles || {},
+
+                shifts: shifts || current.shifts || {}
+
+            };
+
+            planningByWeek[planningWeekStart] = next;
+
+            planningDirty = true;
+
             renderPlanning();
+
+            const status = document.getElementById('planning-status');
+
+            if (status) status.textContent = 'Enregistrement…';
+
+            clearTimeout(planningSaveTimer);
+
+            planningSaveTimer = setTimeout(async () => {
+
+                try {
+
+                    if (!planningWeeksCol) throw new Error('Planning indisponible');
+
+                    await setDoc(doc(planningWeeksCol, planningWeekStart), {
+
+                        weekStart: planningWeekStart,
+
+                        roles: next.roles,
+
+                        shifts: next.shifts,
+
+                        updatedAt: serverTimestamp()
+
+                    }, { merge: true });
+
+                    planningDirty = false;
+
+                    if (status) status.textContent = 'Planning enregistré';
+
+                } catch (error) {
+
+                    planningDirty = false;
+
+                    console.error(error);
+
+                    if (status) status.textContent = 'Enregistrement impossible';
+
+                    showToast('Le planning n’a pas pu être enregistré.');
+
+                }
+
+            }, 350);
+
         };
+
+        const planningInsertShift = (list, employeeId, start, end) => {
+
+            const next = [];
+
+            (list || []).forEach((shift) => {
+
+                if (shift.employeeId !== employeeId || shift.end <= start || shift.start >= end) {
+
+                    next.push(shift);
+
+                    return;
+
+                }
+
+                if (shift.start < start) next.push({ ...shift, end: start });
+
+                if (shift.end > end) next.push({ ...shift, start: end });
+
+            });
+
+            next.push({ employeeId, start, end });
+
+            return next.filter((shift) => Number(shift.end) - Number(shift.start) >= 0.5);
+
+        };
+
+        const shiftPlanningWeek = (days) => {
+
+            if (!planningWeekStart) planningWeekStart = planningIso(planningMondayOf(new Date()));
+
+            planningWeekStart = planningAddDays(planningWeekStart, days);
+
+            planningSelectedDate = '';
+
+            const status = document.getElementById('planning-status');
+
+            if (status) status.textContent = '';
+
+            renderPlanning();
+
+        };
+
+        const planningLiveRange = (drag, hour) => {
+
+            const bounds = planningWindow(drag.date);
+
+            let start = drag.originStart;
+
+            let end = drag.originEnd;
+
+            if (drag.type === 'draw') {
+
+                start = Math.min(drag.anchor, hour);
+
+                end = Math.max(drag.anchor, hour);
+
+            } else if (drag.type === 'move') {
+
+                const length = drag.originEnd - drag.originStart;
+
+                start = planningSnap(drag.originStart + (hour - drag.anchor), bounds);
+
+                end = Math.round((start + length) * 2) / 2;
+
+                if (end > bounds.end) {
+
+                    end = bounds.end;
+
+                    start = end - length;
+
+                }
+
+                if (start < bounds.start) {
+
+                    start = bounds.start;
+
+                    end = start + length;
+
+                }
+
+            } else if (drag.type === 'resize-start') {
+
+                start = Math.min(hour, drag.originEnd - 0.5);
+
+                end = drag.originEnd;
+
+            } else {
+
+                start = drag.originStart;
+
+                end = Math.max(hour, drag.originStart + 0.5);
+
+            }
+
+            return { start: planningSnap(start, bounds), end: planningSnap(end, bounds) };
+
+        };
+
+        const planningPaintLive = (drag, start, end) => {
+
+            const track = document.querySelector(`#planning-board .planning-track[data-planning-date="${drag.date}"][data-planning-employee="${drag.employeeId}"]`);
+
+            if (!track) return;
+
+            let bar = track.querySelector('.planning-bar-live');
+
+            if (!bar) {
+
+                bar = document.createElement('div');
+
+                bar.className = 'planning-bar planning-bar-live';
+
+                const role = planningRoleMeta(planningRoleOf(drag.employeeId));
+
+                bar.style.background = role.color;
+
+                bar.innerHTML = '<span></span>';
+
+                track.appendChild(bar);
+
+            }
+
+            const bounds = planningWindow(drag.date);
+
+            const span = bounds.end - bounds.start;
+
+            bar.style.left = `${((start - bounds.start) / span) * 100}%`;
+
+            bar.style.width = `${Math.max(0, ((end - start) / span) * 100)}%`;
+
+            bar.querySelector('span').textContent = end - start >= 0.5 ? planningDuration(start, end) : '';
+
+        };
+
+        const planningPointerDown = (event) => {
+
+            if (!canWrite('planning') || (event.button != null && event.button !== 0)) return;
+
+            if (event.target.closest('.planning-remove') || event.target.closest('.planning-role')) return;
+
+            const track = event.target.closest('#planning-board .planning-track');
+
+            if (!track) return;
+
+            event.preventDefault();
+
+            const bar = event.target.closest('.planning-bar');
+
+            const hour = planningHourFromEvent(event, track);
+
+            if (bar && !bar.classList.contains('planning-bar-live')) {
+
+                const rect = bar.getBoundingClientRect();
+
+                let type = 'move';
+
+                if (event.clientX - rect.left < 18) type = 'resize-start';
+
+                else if (rect.right - event.clientX < 18) type = 'resize-end';
+
+                planningDrag = {
+
+                    type,
+
+                    pointerId: event.pointerId,
+
+                    date: track.dataset.planningDate,
+
+                    employeeId: track.dataset.planningEmployee,
+
+                    originStart: Number(bar.dataset.start),
+
+                    originEnd: Number(bar.dataset.end),
+
+                    anchor: hour
+
+                };
+
+            } else {
+
+                planningDrag = {
+
+                    type: 'draw',
+
+                    pointerId: event.pointerId,
+
+                    date: track.dataset.planningDate,
+
+                    employeeId: track.dataset.planningEmployee,
+
+                    originStart: hour,
+
+                    originEnd: hour,
+
+                    anchor: hour
+
+                };
+
+            }
+
+            const range = planningLiveRange(planningDrag, hour);
+
+            planningPaintLive(planningDrag, range.start, range.end);
+
+        };
+
+        const planningPointerMove = (event) => {
+
+            if (!planningDrag || event.pointerId !== planningDrag.pointerId) return;
+
+            const track = document.querySelector(`#planning-board .planning-track[data-planning-date="${planningDrag.date}"][data-planning-employee="${planningDrag.employeeId}"]`);
+
+            if (!track) return;
+
+            const range = planningLiveRange(planningDrag, planningHourFromEvent(event, track));
+
+            planningDrag.liveStart = range.start;
+
+            planningDrag.liveEnd = range.end;
+
+            planningPaintLive(planningDrag, range.start, range.end);
+
+        };
+
+        const planningPointerEnd = (event) => {
+
+            if (!planningDrag || event.pointerId !== planningDrag.pointerId) return;
+
+            const drag = planningDrag;
+
+            const track = document.querySelector(`#planning-board .planning-track[data-planning-date="${drag.date}"][data-planning-employee="${drag.employeeId}"]`);
+
+            const hour = track ? planningHourFromEvent(event, track) : drag.anchor;
+
+            const range = planningLiveRange(drag, hour);
+
+            planningDrag = null;
+
+            if (range.end - range.start >= 0.5) {
+
+                const shifts = JSON.parse(JSON.stringify(planningShifts()));
+
+                const list = (shifts[drag.date] || []).filter((shift) => !(shift.employeeId === drag.employeeId && Number(shift.start) === drag.originStart && Number(shift.end) === drag.originEnd));
+
+                shifts[drag.date] = planningInsertShift(list, drag.employeeId, range.start, range.end);
+
+                planningCommit({ shifts });
+
+            } else if (planningRenderQueued || drag.type === 'draw') {
+
+                renderPlanning();
+
+            }
+
+        };
+
+        const bindPlanning = () => {
+
+            const root = document.getElementById('planning-content');
+
+            if (!root || root.dataset.bound === '1') return;
+
+            root.dataset.bound = '1';
+
+            document.getElementById('planning-prev')?.addEventListener('click', () => shiftPlanningWeek(-7));
+
+            document.getElementById('planning-next')?.addEventListener('click', () => shiftPlanningWeek(7));
+
+            document.getElementById('planning-today')?.addEventListener('click', () => {
+
+                planningWeekStart = planningIso(planningMondayOf(new Date()));
+
+                planningSelectedDate = '';
+
+                renderPlanning();
+
+            });
+
+            document.getElementById('planning-copy')?.addEventListener('click', () => {
+
+                if (!canWrite('planning')) return;
+
+                const previous = planningByWeek[planningAddDays(planningWeekStart, -7)];
+
+                const source = previous?.shifts;
+
+                if (!source || !Object.keys(source).length) {
+
+                    showToast('La semaine d’avant est vide.');
+
+                    return;
+
+                }
+
+                const shifts = {};
+
+                Object.entries(source).forEach(([date, list]) => {
+
+                    shifts[planningAddDays(date, 7)] = (list || []).map((shift) => ({ ...shift }));
+
+                });
+
+                planningCommit({ shifts, roles: { ...(previous.roles || {}) } });
+
+                showToast('Semaine précédente reprise.');
+
+            });
+
+            root.addEventListener('pointerdown', planningPointerDown);
+
+            document.addEventListener('pointermove', planningPointerMove);
+
+            document.addEventListener('pointerup', planningPointerEnd);
+
+            document.addEventListener('pointercancel', planningPointerEnd);
+
+            root.addEventListener('click', (event) => {
+
+                const select = event.target.closest('[data-planning-select]');
+
+                if (select) {
+
+                    planningSelectedDate = select.dataset.planningSelect;
+
+                    renderPlanning();
+
+                    document.getElementById('planning-board')?.scrollIntoView({ block: 'nearest' });
+
+                    return;
+
+                }
+
+                const roleButton = event.target.closest('[data-planning-role]');
+
+                if (roleButton && canWrite('planning')) {
+
+                    const employeeId = roleButton.dataset.planningRole;
+
+                    const current = planningRoleOf(employeeId);
+
+                    const index = PLANNING_ROLES.findIndex((role) => role.id === current);
+
+                    const nextRole = PLANNING_ROLES[(index + 1) % PLANNING_ROLES.length].id;
+
+                    const roles = { ...(planningByWeek[planningWeekStart]?.roles || {}) };
+
+                    planningActiveEmployees().forEach((employee) => {
+
+                        if (!roles[employee.id]) roles[employee.id] = planningRoleOf(employee.id);
+
+                    });
+
+                    roles[employeeId] = nextRole;
+
+                    planningCommit({ roles });
+
+                    return;
+
+                }
+
+                const remove = event.target.closest('.planning-remove');
+
+                if (!remove || !canWrite('planning')) return;
+
+                const bar = remove.closest('.planning-bar');
+
+                const track = remove.closest('.planning-track');
+
+                if (!bar || !track) return;
+
+                const shifts = JSON.parse(JSON.stringify(planningShifts()));
+
+                shifts[track.dataset.planningDate] = (shifts[track.dataset.planningDate] || []).filter((shift) => !(shift.employeeId === track.dataset.planningEmployee && Number(shift.start) === Number(bar.dataset.start)));
+
+                planningCommit({ shifts });
+
+            });
+
+            renderPlanning();
+
+        };
+
         bindPlanning();
+
         const formatKpiMoney = (value) => {
             const n = Number(value);
             if (!Number.isFinite(n)) return '0,00 Mad';
