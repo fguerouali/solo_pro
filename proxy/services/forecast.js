@@ -470,40 +470,42 @@ function describeMatch(matches) {
     return { label: main.label, hour: main.hour, level: main.level, text: `${main.label} ${hour}h` };
 }
 
-function buildForecast(days, context) {
-    const today = context.today;
-    const targetDate = nextOpenDay(today);
-    const training = context.enriched.filter((row) => !isMonday(row.date) && !isRamadan2026(row.date) && row.date < today);
-    if (training.length < MIN_TRAINING_DAYS) {
-        const error = new Error(`Pas assez d'historique exploitable (${training.length} jours). Il en faut au moins ${MIN_TRAINING_DAYS}, hors lundis et hors Ramadan.`);
-        error.code = 'NOT_ENOUGH_HISTORY';
-        throw error;
-    }
-    const weather = context.weatherByDate.get(targetDate) || { rain: false, hot: false, precipitation: 0, tempMax: null };
-    const matches = context.fixturesByDate.get(targetDate) || [];
+function marketingBadges(date, dayContext, campaigns) {
+    const marketing = [];
+    if (dayContext.marketingVideo) marketing.push({ key: 'video', label: 'Vidéo sponsorisée' });
+    const collabHits = campaigns.filter((campaign) => campaign.type === 'collab' && campaign.start <= date && date <= campaign.end);
+    if (collabHits.some((campaign) => campaign.role === 'shoot')) marketing.push({ key: 'collab', role: 'shoot', label: 'Tournage' });
+    if (collabHits.some((campaign) => campaign.role === 'publish')) marketing.push({ key: 'collab', role: 'publish', label: 'Publication' });
+    if (!collabHits.some((campaign) => campaign.role) && dayContext.marketingCollab) marketing.push({ key: 'collab', label: 'Collaboration' });
+    return marketing;
+}
+
+function forecastOneDay(date, horizon, training, context) {
+    const closed = isMonday(date);
+    const summary = {
+        date,
+        horizon,
+        label: formatFrenchDate(date),
+        closed
+    };
+    if (closed) return summary;
+    const weather = context.weatherByDate.get(date) || { rain: false, hot: false, precipitation: 0, tempMax: null };
+    const matches = context.fixturesByDate.get(date) || [];
     const campaigns = context.campaigns || [];
-    const tomorrow = {
-        date: targetDate,
-        dow: weekdayIndex(targetDate),
+    const dayContext = {
+        date,
+        dow: weekdayIndex(date),
         rain: weather.rain,
         hot: weather.hot,
         matchMidi: matchSlot(matches, 'midi'),
         matchSoir: matchSlot(matches, 'soir'),
-        marketingVideo: campaignOnDate(campaigns, targetDate, 'video'),
-        marketingCollab: campaignOnDate(campaigns, targetDate, 'collab')
+        marketingVideo: campaignOnDate(campaigns, date, 'video'),
+        marketingCollab: campaignOnDate(campaigns, date, 'collab')
     };
     const slots = {};
-    for (const target of TARGETS) slots[target] = predictTarget(training, target, tomorrow);
-    const marketing = [];
-    if (tomorrow.marketingVideo) marketing.push({ key: 'video', label: 'Vidéo sponsorisée' });
-    const collabHits = (context.campaigns || []).filter((campaign) => campaign.type === 'collab' && campaign.start <= targetDate && targetDate <= campaign.end);
-    if (collabHits.some((campaign) => campaign.role === 'shoot')) marketing.push({ key: 'collab', role: 'shoot', label: 'Tournage' });
-    if (collabHits.some((campaign) => campaign.role === 'publish')) marketing.push({ key: 'collab', role: 'publish', label: 'Publication' });
-    if (!collabHits.some((campaign) => campaign.role) && tomorrow.marketingCollab) marketing.push({ key: 'collab', label: 'Collaboration' });
+    for (const target of TARGETS) slots[target] = predictTarget(training, target, dayContext);
     return {
-        targetDate,
-        label: formatFrenchDate(targetDate),
-        closedTomorrow: isMonday(isoAddDays(today, 1)),
+        ...summary,
         weather: {
             rain: weather.rain,
             hot: weather.hot,
@@ -511,16 +513,33 @@ function buildForecast(days, context) {
             precipitation: weather.precipitation
         },
         match: describeMatch(matches),
-        marketing,
+        marketing: marketingBadges(date, dayContext, campaigns),
+        surPlace: { midi: slots.surPlaceMidi, soir: slots.surPlaceSoir },
+        livraison: { midi: slots.livraisonMidi, soir: slots.livraisonSoir },
+        production: slots.pizzas
+    };
+}
+
+function buildForecast(days, context) {
+    const today = context.today;
+    const training = context.enriched.filter((row) => !isMonday(row.date) && !isRamadan2026(row.date) && row.date < today);
+    if (training.length < MIN_TRAINING_DAYS) {
+        const error = new Error(`Pas assez d'historique exploitable (${training.length} jours). Il en faut au moins ${MIN_TRAINING_DAYS}, hors lundis et hors Ramadan.`);
+        error.code = 'NOT_ENOUGH_HISTORY';
+        throw error;
+    }
+    const forecastDays = [
+        forecastOneDay(today, 'J', training, context),
+        forecastOneDay(isoAddDays(today, 1), 'J+1', training, context)
+    ];
+    return {
+        days: forecastDays,
+        trainedDays: training.length,
         marketingImpact: {
             video: measureMarketing(training, (row) => row.marketingVideo),
             collab: measureMarketing(training, (row) => row.marketingCollab)
         },
         marketingDays: training.filter((row) => marketingLevel(row) > 0).length,
-        surPlace: { midi: slots.surPlaceMidi, soir: slots.surPlaceSoir },
-        livraison: { midi: slots.livraisonMidi, soir: slots.livraisonSoir },
-        production: slots.pizzas,
-        trainedDays: training.length,
         backcastDays: context.backcastDays || 0,
         knownTickets: context.knownTickets || 0,
         shareMidi: context.shareMidi || 0,
@@ -542,7 +561,7 @@ async function runForecast(rawDays, rawCampaigns) {
     let weatherByDate = new Map();
     let fixturesByDate = new Map();
     try {
-        const weather = await loadWeather(startDate, nextOpenDay(today));
+        const weather = await loadWeather(startDate, isoAddDays(today, 1));
         weatherByDate = weather.rows;
     } catch (error) {
         weatherOk = false;

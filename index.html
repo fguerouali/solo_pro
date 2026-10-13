@@ -2736,7 +2736,12 @@ let allDailyPayments = [];
             onSnapshot(marketingOpsCol, snapshot => {
                 allMarketingOps = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 allMarketingOps.sort((a, b) => marketingSortKey(b).localeCompare(marketingSortKey(a)));
-                markDirty('marketing', 'kpis');
+                try {
+                    renderMarketing();
+                } catch (error) {
+                    console.error(error);
+                }
+                markDirty('kpis');
             });
             onSnapshot(checklistConfigRef, snapshot => {
                 if (!snapshot.exists()) return;
@@ -2937,6 +2942,10 @@ let allDailyPayments = [];
                 populateIngredientSelects();
                 renderPending.ingredients = false;
             }
+            if (renderPending.marketing) {
+                try { renderMarketing(); } catch (error) { console.error(error); }
+                renderPending.marketing = false;
+            }
             if (renderPending.kpis) {
                 updateAndRenderKPIs();
                 renderPending.kpis = false;
@@ -2950,10 +2959,6 @@ let allDailyPayments = [];
                     renderInventaire();
                 }
                 renderPending.inventaire = false;
-            }
-            if (renderPending.marketing) {
-                renderMarketing();
-                renderPending.marketing = false;
             }
         };
 
@@ -4530,7 +4535,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const unknown = days.reduce((sum, day) => sum + day.unknownMidi + day.unknownSoir, 0);
             const ops = (campaigns || []).map((op) => `${op.type}:${op.role || ''}:${op.start}:${op.end}`).sort().join(',');
             const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
-            return `v4|${today}|${days.length}|${known}|${unknown}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${ops}`;
+            return `v5|${today}|${days.length}|${known}|${unknown}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${ops}`;
         };
 
         const renderForecast = (data, errorMessage) => {
@@ -4550,46 +4555,128 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 noteEl.textContent = '';
                 return;
             }
-            dateEl.textContent = data.closedTomorrow ? `${data.label} (demain lundi, fermé)` : data.label;
-            const badges = [];
-            if (data.weather?.rain) badges.push(['Pluie', 'bg-blue-100 text-blue-800']);
-            else if (data.weather?.hot) badges.push([`Chaud${data.weather.tempMax ? ` ${Math.round(data.weather.tempMax)}°` : ''}`, 'bg-orange-100 text-orange-800']);
-            else badges.push(['Météo calme', 'bg-gray-100 text-gray-700']);
-            if (data.match) badges.push([data.match.text, 'bg-emerald-100 text-emerald-800']);
-            (data.marketing || []).forEach((item) => {
-                const tone = item.role === 'publish' ? 'bg-orange-100 text-orange-800' : (item.key === 'video' ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800');
-                badges.push([item.label, tone]);
-            });
-            badges.forEach(([label, cls]) => {
+            dateEl.textContent = "Aujourd'hui et demain";
+            badgesEl.innerHTML = '';
+            const horizonLabel = { J: "Aujourd'hui", 'J+1': 'Demain' };
+            const addBadge = (parent, label, cls) => {
                 const span = document.createElement('span');
                 span.className = `text-xs font-semibold px-2 py-1 rounded-full ${cls}`;
                 span.textContent = label;
-                badgesEl.appendChild(span);
+                parent.appendChild(span);
+            };
+            const numberBlock = (slot, unit) => {
+                const wrap = document.createElement('div');
+                const value = document.createElement('p');
+                value.className = 'text-2xl font-semibold text-gray-900';
+                value.textContent = formatKpiInteger(slot?.value);
+                const range = document.createElement('p');
+                range.className = 'text-xs text-gray-500';
+                range.textContent = `${forecastRangeText(slot)} ${unit}`;
+                wrap.append(value, range);
+                return wrap;
+            };
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-1 xl:grid-cols-2 gap-4';
+            (data.days || []).forEach((day) => {
+                const card = document.createElement('section');
+                card.className = 'rounded-xl border border-gray-100 p-4';
+                const head = document.createElement('div');
+                head.className = 'flex flex-wrap items-start justify-between gap-2';
+                const titles = document.createElement('div');
+                const kicker = document.createElement('p');
+                kicker.className = 'text-xs font-semibold uppercase tracking-widest text-gray-400';
+                kicker.textContent = horizonLabel[day.horizon] || day.horizon;
+                const title = document.createElement('p');
+                title.className = 'text-sm font-semibold text-gray-800';
+                title.textContent = day.label;
+                titles.append(kicker, title);
+                const badges = document.createElement('div');
+                badges.className = 'flex flex-wrap gap-2';
+                if (!day.closed) {
+                    if (day.weather?.rain) addBadge(badges, 'Pluie', 'bg-blue-100 text-blue-800');
+                    else if (day.weather?.hot) addBadge(badges, `Chaud${day.weather.tempMax ? ` ${Math.round(day.weather.tempMax)}°` : ''}`, 'bg-orange-100 text-orange-800');
+                    else addBadge(badges, 'Météo calme', 'bg-gray-100 text-gray-700');
+                    if (day.match) addBadge(badges, day.match.text, 'bg-emerald-100 text-emerald-800');
+                    (day.marketing || []).forEach((item) => {
+                        const tone = item.role === 'publish' ? 'bg-orange-100 text-orange-800' : (item.key === 'video' ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800');
+                        addBadge(badges, item.label, tone);
+                    });
+                }
+                head.append(titles, badges);
+                card.appendChild(head);
+                if (day.closed) {
+                    const closed = document.createElement('p');
+                    closed.className = 'text-lg font-semibold text-gray-500 mt-6';
+                    closed.textContent = 'Restaurant fermé';
+                    card.appendChild(closed);
+                    grid.appendChild(card);
+                    return;
+                }
+                const body = document.createElement('div');
+                body.className = 'grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4';
+                const tickets = document.createElement('div');
+                tickets.className = 'lg:col-span-2';
+                const ticketTitle = document.createElement('p');
+                ticketTitle.className = 'text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2';
+                ticketTitle.textContent = 'Indicateur tickets';
+                const table = document.createElement('div');
+                table.className = 'grid grid-cols-3 gap-2 text-center items-center';
+                const blank = document.createElement('div');
+                const midi = document.createElement('p');
+                midi.className = 'text-xs font-medium text-gray-500';
+                midi.textContent = 'Midi';
+                const soir = document.createElement('p');
+                soir.className = 'text-xs font-medium text-gray-500';
+                soir.textContent = 'Soir';
+                const surPlace = document.createElement('p');
+                surPlace.className = 'text-sm font-medium text-gray-700 text-left';
+                surPlace.textContent = 'Sur place';
+                const livraison = document.createElement('p');
+                livraison.className = 'text-sm font-medium text-gray-700 text-left';
+                livraison.textContent = 'Livraison';
+                table.append(
+                    blank, midi, soir,
+                    surPlace, numberBlock(day.surPlace?.midi, 'tickets'), numberBlock(day.surPlace?.soir, 'tickets'),
+                    livraison, numberBlock(day.livraison?.midi, 'tickets'), numberBlock(day.livraison?.soir, 'tickets')
+                );
+                tickets.append(ticketTitle, table);
+                const production = document.createElement('div');
+                production.className = 'bg-gray-50 rounded-xl p-4 text-center';
+                const productionTitle = document.createElement('p');
+                productionTitle.className = 'text-xs font-semibold text-gray-400 uppercase tracking-widest';
+                productionTitle.textContent = 'Production';
+                const productionValue = document.createElement('p');
+                productionValue.className = 'text-4xl font-semibold text-gray-900 mt-2';
+                productionValue.textContent = formatKpiInteger(day.production?.value);
+                const productionUnit = document.createElement('p');
+                productionUnit.className = 'text-sm text-gray-600 mt-1';
+                productionUnit.textContent = 'pizzas à préparer';
+                const productionRange = document.createElement('p');
+                productionRange.className = 'text-xs text-gray-500 mt-1';
+                productionRange.textContent = `fourchette ${forecastRangeText(day.production)}`;
+                production.append(productionTitle, productionValue, productionUnit, productionRange);
+                body.append(tickets, production);
+                card.appendChild(body);
+                const noted = new Set();
+                (day.marketing || []).forEach((item) => {
+                    if (noted.has(item.key)) return;
+                    noted.add(item.key);
+                    const impact = data.marketingImpact?.[item.key];
+                    const line = document.createElement('p');
+                    line.className = 'text-xs text-gray-500 mt-3';
+                    const label = item.key === 'collab' ? 'Collaboration' : item.label;
+                    if (impact?.measured) {
+                        const ticketSign = impact.tickets > 0 ? '+' : '';
+                        const pizzaSign = impact.pizzas > 0 ? '+' : '';
+                        line.textContent = `${label} ajoutée au jour normal (${ticketSign}${impact.tickets} tickets, ${pizzaSign}${impact.pizzas} pizzas, sur ${impact.days} jours)`;
+                    } else {
+                        line.textContent = `${label} prévue, effet pas encore mesurable`;
+                    }
+                    card.appendChild(line);
+                });
+                grid.appendChild(card);
             });
-            const cell = (slot) => `<p class="text-2xl font-semibold text-gray-900">${formatKpiInteger(slot.value)}</p><p class="text-xs text-gray-500">${forecastRangeText(slot)} tickets</p>`;
-            bodyEl.innerHTML = `
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <div class="lg:col-span-2">
-                        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Indicateur tickets</p>
-                        <div class="grid grid-cols-3 gap-2 text-center">
-                            <div></div>
-                            <p class="text-xs font-medium text-gray-500">Midi</p>
-                            <p class="text-xs font-medium text-gray-500">Soir</p>
-                            <p class="text-sm font-medium text-gray-700 text-left">Sur place</p>
-                            <div>${cell(data.surPlace.midi)}</div>
-                            <div>${cell(data.surPlace.soir)}</div>
-                            <p class="text-sm font-medium text-gray-700 text-left">Livraison</p>
-                            <div>${cell(data.livraison.midi)}</div>
-                            <div>${cell(data.livraison.soir)}</div>
-                        </div>
-                    </div>
-                    <div class="bg-gray-50 rounded-xl p-4 text-center">
-                        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Production</p>
-                        <p class="text-4xl font-semibold text-gray-900 mt-2">${formatKpiInteger(data.production.value)}</p>
-                        <p class="text-sm text-gray-600 mt-1">pizzas à préparer</p>
-                        <p class="text-xs text-gray-500 mt-1">fourchette ${forecastRangeText(data.production)}</p>
-                    </div>
-                </div>`;
+            bodyEl.replaceChildren(grid);
             const limits = [];
             const shareText = `midi ${Math.round((data.shareMidi || 0) * 100)} %, soir ${Math.round((data.shareSoir || 0) * 100)} %`;
             if (data.backcastDays) limits.push(`${data.backcastDays} jours sans canal répartis selon les tickets récents (${shareText})`);
@@ -4597,21 +4684,6 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             else if (!(data.shareMidi || data.shareSoir)) limits.push('les tickets avec canal ne contiennent pas de livraison');
             if (!data.weatherOk) limits.push('météo indisponible');
             if (!data.footballOk) limits.push('calendrier des matchs indisponible');
-            const notedMarketing = new Set();
-            (data.marketing || []).forEach((item) => {
-                if (notedMarketing.has(item.key)) return;
-                notedMarketing.add(item.key);
-                const impact = data.marketingImpact?.[item.key];
-                if (impact?.measured) {
-                    const ticketSign = impact.tickets > 0 ? '+' : '';
-                    const pizzaSign = impact.pizzas > 0 ? '+' : '';
-                    const label = item.key === 'collab' ? 'Collaboration' : item.label;
-                    limits.push(`${label} ajoutée au jour normal (${ticketSign}${impact.tickets} tickets, ${pizzaSign}${impact.pizzas} pizzas, sur ${impact.days} jours)`);
-                } else {
-                    const label = item.key === 'collab' ? 'Collaboration' : item.label;
-                    limits.push(`${label} prévue, effet pas encore mesurable`);
-                }
-            });
             if (data.marketingDays) limits.push(`${data.marketingDays} jours marketing écartés du jour normal`);
             noteEl.textContent = `Calculé sur ${data.trainedDays} jours ouverts, hors lundis et hors Ramadan 2026.${limits.length ? ` ${limits.join(', ')}.` : ''}`;
         };
@@ -4631,7 +4703,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             }
             const signature = forecastSignature(days, campaigns);
             try {
-                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v4') || 'null');
+                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v5') || 'null');
                 if (cached && cached.signature === signature && cached.data) {
                     renderForecast(cached.data);
                     return;
@@ -4650,7 +4722,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok) throw new Error(payload.message || 'Erreur de prévision');
                 try {
-                    sessionStorage.setItem('solo-forecast-cache-v4', JSON.stringify({ signature, data: payload.data }));
+                    sessionStorage.setItem('solo-forecast-cache-v5', JSON.stringify({ signature, data: payload.data }));
                 } catch (error) {
                     console.warn('Cache prévision non enregistré', error);
                 }
@@ -4796,6 +4868,40 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             document.getElementById('marketing-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         };
 
+        const upsertLocalMarketingOp = (op) => {
+            const index = allMarketingOps.findIndex((item) => (
+                (marketingEditingId && item.id === marketingEditingId)
+                || (
+                    item.type === op.type
+                    && item.name === op.name
+                    && String(item.publishDate || '') === String(op.publishDate || '')
+                    && String(item.shootDate || '') === String(op.shootDate || '')
+                    && String(item.startDate || '') === String(op.startDate || '')
+                    && String(item.endDate || '') === String(op.endDate || '')
+                )
+            ));
+            if (index >= 0) allMarketingOps[index] = { ...allMarketingOps[index], ...op };
+            else allMarketingOps.unshift({ id: `pending-${Date.now()}`, ...op });
+            allMarketingOps.sort((a, b) => marketingSortKey(b).localeCompare(marketingSortKey(a)));
+        };
+
+        const revealMarketingOp = (op) => {
+            const dates = op.type === 'collab'
+                ? [op.shootDate, op.publishDate]
+                : [op.startDate, op.endDate];
+            const valid = dates.filter((iso) => /^\d{4}-\d{2}-\d{2}$/.test(iso));
+            const visible = marketingVisibleMonth;
+            const shown = visible && valid.some((iso) => {
+                const [year, month] = iso.split('-').map(Number);
+                return year === visible.getFullYear() && month - 1 === visible.getMonth();
+            });
+            if (!shown && valid.length) {
+                const [year, month] = valid.sort()[0].split('-').map(Number);
+                marketingVisibleMonth = new Date(year, month - 1, 1);
+            }
+            renderMarketing();
+        };
+
         const renderMarketing = () => {
             const calendar = document.getElementById('marketing-calendar');
             const history = document.getElementById('marketing-history');
@@ -4937,6 +5043,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     await addDoc(marketingOpsCol, { ...fields, createdAt: serverTimestamp() });
                     showToast('Opération ajoutée au planning.');
                 }
+                upsertLocalMarketingOp(fields);
+                revealMarketingOp(fields);
                 resetMarketingForm();
             } catch (error) {
                 console.error(error);
