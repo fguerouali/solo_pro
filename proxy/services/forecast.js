@@ -581,6 +581,19 @@ function forecastOneDay(date, horizon, training, context) {
     };
 }
 
+function predictedPizzaCount(day) {
+    if (!day || day.closed || !day.production) return 0;
+    return day.production.value || 0;
+}
+
+function buildPizzaSeries(training, context, startDate, endDate) {
+    const pizzasByDate = {};
+    for (let date = startDate; date <= endDate; date = isoAddDays(date, 1)) {
+        pizzasByDate[date] = isMonday(date) ? 0 : predictedPizzaCount(forecastOneDay(date, 'serie', training, context));
+    }
+    return pizzasByDate;
+}
+
 function buildForecast(days, context) {
     const today = context.today;
     const training = context.enriched.filter((row) => !isMonday(row.date) && !isRamadan2026(row.date) && row.date < today);
@@ -593,8 +606,10 @@ function buildForecast(days, context) {
         forecastOneDay(today, 'J', training, context),
         forecastOneDay(isoAddDays(today, 1), 'J+1', training, context)
     ];
+    const historyStart = context.historyStart && context.historyStart < today ? context.historyStart : isoAddDays(today, -28);
     return {
         days: forecastDays,
+        pizzasByDate: buildPizzaSeries(training, context, historyStart, isoAddDays(today, 16)),
         trainedDays: training.length,
         marketingImpact: {
             video: measureMarketing(training, (row) => row.marketingVideo),
@@ -639,6 +654,7 @@ async function runForecast(rawDays, rawCampaigns) {
     const enriched = enrichDays(days, weatherByDate, fixturesByDate, campaigns);
     return buildForecast(days, {
         today,
+        historyStart: days[0]?.date,
         enriched,
         campaigns,
         weatherByDate,

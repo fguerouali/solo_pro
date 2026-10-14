@@ -848,6 +848,7 @@
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Pizzas Vendues</h3>
                         <p id="kpi-total-pizzas" class="kpi-value text-gray-900 mt-1">0</p>
+                        <p id="kpi-pizzas-predicted" class="text-xs text-gray-400 mt-1">Prévues …</p>
                     </div>
                     <div class="bg-white p-4 rounded-2xl shadow-lg text-center">
                         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Panuozzo Vendus</h3>
@@ -5395,6 +5396,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             renderTopProducts(topDesserts, 'top-desserts-list', 'Aucun dessert vendu dans cette période');
 
             renderOperatingChargesBreakdown(filteredCharges, totalSales, filterLabel);
+            renderPredictedPizzas();
             const aiPeriodHint = document.getElementById('ai-analysis-period-hint');
             if (aiPeriodHint) aiPeriodHint.textContent = `Période analysée : ${filterLabel.replace(/^Période\s*:\s*/i, '')}`;
             scheduleForecastRefresh();
@@ -5478,7 +5480,69 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const unknown = days.reduce((sum, day) => sum + day.unknownMidi + day.unknownSoir, 0);
             const ops = (campaigns || []).map((op) => `${op.type}:${op.role || ''}:${op.start}:${op.end}`).sort().join(',');
             const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
-            return `v6|${today}|${days.length}|${known}|${unknown}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${ops}`;
+            return `v7|${today}|${days.length}|${known}|${unknown}|${days[0]?.date || ''}|${days[days.length - 1]?.date || ''}|${pizzas}|${ops}`;
+        };
+
+        let forecastSnapshot = null;
+        const renderPredictedPizzas = () => {
+            const el = document.getElementById('kpi-pizzas-predicted');
+            if (!el) return;
+            const series = forecastSnapshot && forecastSnapshot.pizzasByDate;
+            if (!series || !Object.keys(series).length) {
+                el.textContent = forecastSnapshot === false ? 'Prévues —' : 'Prévues …';
+                return;
+            }
+            const isoOf = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const today = getTodayDateKey();
+            let startIso = today;
+            let endIso = today;
+            const startDate = kpiFilterState?.startDate;
+            const endDate = kpiFilterState?.endDate;
+            if (!startDate || !endDate) {
+                let first = null;
+                (orderHistory || []).forEach((order) => {
+                    const date = toDate(order.saleDate || order.createdAt);
+                    if (!date) return;
+                    const key = isoOf(date);
+                    if (!first || key < first) first = key;
+                });
+                startIso = first || Object.keys(series).sort()[0];
+                endIso = today;
+            } else {
+                startIso = isoOf(startDate);
+                endIso = isoOf(endDate);
+            }
+            if (!startIso || startIso > endIso) {
+                el.textContent = 'Prévues 0';
+                return;
+            }
+            const byDow = [[], [], [], [], [], [], []];
+            Object.entries(series).forEach(([date, tickets]) => {
+                const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
+                if (dow === 1) return;
+                byDow[dow].push(Number(tickets) || 0);
+            });
+            const medianOf = (values) => {
+                if (!values.length) return 0;
+                const sorted = [...values].sort((a, b) => a - b);
+                const mid = Math.floor(sorted.length / 2);
+                return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+            };
+            const fallback = byDow.map(medianOf);
+            const addIso = (iso) => {
+                const [year, month, day] = iso.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                date.setDate(date.getDate() + 1);
+                return isoOf(date);
+            };
+            let sum = 0;
+            let guard = 0;
+            for (let date = startIso; date <= endIso && guard < 1500; date = addIso(date), guard += 1) {
+                const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
+                if (Object.prototype.hasOwnProperty.call(series, date)) sum += Number(series[date]) || 0;
+                else if (dow !== 1) sum += fallback[dow] || 0;
+            }
+            el.textContent = `Prévues ${formatKpiInteger(Math.round(sum))}`;
         };
 
         const renderForecast = (data, errorMessage) => {
@@ -5489,6 +5553,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             if (!dateEl || !bodyEl) return;
             badgesEl.innerHTML = '';
             if (errorMessage) {
+                forecastSnapshot = false;
+                renderPredictedPizzas();
                 dateEl.textContent = 'Prévision indisponible';
                 bodyEl.replaceChildren();
                 const errorLine = document.createElement('p');
@@ -5498,6 +5564,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 noteEl.textContent = '';
                 return;
             }
+            forecastSnapshot = data;
+            renderPredictedPizzas();
             dateEl.textContent = "Aujourd'hui et demain";
             badgesEl.innerHTML = '';
             const horizonLabel = { J: "Aujourd'hui", 'J+1': 'Demain' };
@@ -5646,7 +5714,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             }
             const signature = forecastSignature(days, campaigns);
             try {
-                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v6') || 'null');
+                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v7') || 'null');
                 if (cached && cached.signature === signature && cached.data) {
                     renderForecast(cached.data);
                     return;
@@ -5665,7 +5733,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok) throw new Error(payload.message || 'Erreur de prévision');
                 try {
-                    sessionStorage.setItem('solo-forecast-cache-v6', JSON.stringify({ signature, data: payload.data }));
+                    sessionStorage.setItem('solo-forecast-cache-v7', JSON.stringify({ signature, data: payload.data }));
                 } catch (error) {
                     console.warn('Cache prévision non enregistré', error);
                 }
