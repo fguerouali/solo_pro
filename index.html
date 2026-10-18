@@ -2221,6 +2221,43 @@
         </div>
     </div>
 </div>
+<div id="advances-modal" class="modal fixed z-10 inset-0 overflow-y-auto bg-black bg-opacity-50 items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+        <h3 class="text-xl font-semibold mb-2 text-gray-800">Avance sur salaire</h3>
+        <p class="text-sm text-gray-600 mb-1">Salarié: <span id="advance-employee-name" class="font-semibold"></span></p>
+        <p class="text-xs text-gray-500 mb-4">Le montant encore dû est retiré du prochain salaire.</p>
+        <form id="advance-form" class="mb-6">
+            <input type="hidden" id="advance-employee-id">
+            <div class="space-y-3">
+                <div>
+                    <label for="advance-amount" class="block text-sm font-medium text-gray-700">Montant (Mad)</label>
+                    <input type="number" id="advance-amount" min="0.01" step="0.01" required class="mt-1 w-full input-style">
+                </div>
+                <div>
+                    <label for="advance-date" class="block text-sm font-medium text-gray-700">Date</label>
+                    <input type="date" id="advance-date" required class="mt-1 w-full input-style">
+                </div>
+                <div>
+                    <label for="advance-note" class="block text-sm font-medium text-gray-700">Note (optionnel)</label>
+                    <input type="text" id="advance-note" class="mt-1 w-full input-style">
+                </div>
+            </div>
+            <button type="submit" class="btn-primary w-full mt-4">Enregistrer l'avance</button>
+        </form>
+        <div class="border-t pt-4">
+            <h4 class="font-semibold text-gray-800 mb-3">Avances</h4>
+            <div id="advances-list" class="space-y-2 max-h-60 overflow-y-auto">
+                <p class="text-sm text-gray-500 text-center py-4">Aucune avance enregistrée.</p>
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end">
+            <button type="button" class="btn-secondary" id="cancel-advances">Fermer</button>
+        </div>
+    </div>
+</div>
+        </div>
+    </div>
+</div>
 
 <!-- CSS Additionnel -->
     <!-- CSS Additionnel -->
@@ -2282,7 +2319,7 @@
 
         // --- COLLECTIONS REFS ---
         let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol, chargesCol;
-		let employeesCol, absencesCol, salaryPaymentsCol;
+		let employeesCol, absencesCol, salaryAdvancesCol, salaryPaymentsCol;
 		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol, googleReviewsRef, aiAnalysisLatestRef, marketingOpsCol, planningWeeksCol;
         let googleReviewsState = { rating: null, reviewCount: null, snapshots: [], recentReviews: [], url: 'https://share.google/GX15aEMbOqaVjxGMs', status: 'idle' };
         let latestAiAnalysis = null;
@@ -2297,6 +2334,7 @@
 		let allCharges = [];
 		let allEmployees = []; // AJOUTEZ CETTE LIGNE
 let allAbsences = []; // AJOUTEZ CETTE LIGNE
+let allSalaryAdvances = [];
 let allSalaryPayments = []; // AJOUTEZ CETTE LIGNE
 let allDailyPayments = [];
         let allMarketingOps = [];
@@ -2472,6 +2510,7 @@ let allDailyPayments = [];
             chargesCol = collection(db, `artifacts/${appId}/public/data/charges`);
             employeesCol = collection(db, `artifacts/${appId}/public/data/employees`);
             absencesCol = collection(db, `artifacts/${appId}/public/data/absences`);
+            salaryAdvancesCol = collection(db, `artifacts/${appId}/public/data/salaryAdvances`);
             salaryPaymentsCol = collection(db, `artifacts/${appId}/public/data/salaryPayments`);
             dailyPaymentsCol = collection(db, `artifacts/${appId}/public/data/dailyPayments`);
             usersCol = collection(db, `artifacts/${appId}/public/data/users`);
@@ -2787,6 +2826,13 @@ let allDailyPayments = [];
             });
             onSnapshot(absencesCol, snapshot => {
                 allAbsences = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            });
+            onSnapshot(salaryAdvancesCol, snapshot => {
+                allSalaryAdvances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                markDirty('employees');
+                const modal = document.getElementById('advances-modal');
+                const employeeId = document.getElementById('advance-employee-id')?.value;
+                if (employeeId && modal?.classList.contains('flex')) renderAdvancesForEmployee(employeeId);
             });
             onSnapshot(salaryPaymentsCol, snapshot => {
                 allSalaryPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -8922,8 +8968,12 @@ const renderEmployees = () => {
                         </div>
                         <p class="text-sm text-gray-600">Salaire: <span class="font-semibold">${employee.monthlySalary.toFixed(2)} Mad/mois</span></p>
                         <p class="text-xs text-gray-500">Embauché le: ${formattedStartDate}</p>
+                        ${outstandingAdvanceTotal(employee.id) > 0 ? `<p class="text-xs text-amber-700 mt-1">Avance en cours: ${outstandingAdvanceTotal(employee.id).toFixed(2)} Mad</p>` : ''}
                     </div>
                     <div class="flex gap-2">
+                        <button data-id="${employee.id}" class="manage-advances-btn text-amber-700 hover:text-amber-900" title="Avance sur salaire">
+                            <i class="fas fa-hand-holding-dollar"></i>
+                        </button>
                         <button data-id="${employee.id}" class="manage-absences-btn text-yellow-600 hover:text-yellow-800" title="Gérer absences">
                             <i class="fas fa-calendar-times"></i>
                         </button>
@@ -8960,7 +9010,7 @@ const renderSalaryPaymentsHistory = () => {
 
             const employeesHtml = payment.employees.map(emp => 
                 `<li class="flex justify-between text-sm">
-                    <span>${emp.name}${emp.absenceDays > 0 ? ` <span class="text-yellow-600">(${emp.absenceDays}j abs.)</span>` : ''}</span>
+                    <span>${emp.name}${emp.absenceDays > 0 ? ` <span class="text-yellow-600">(${emp.absenceDays}j abs.)</span>` : ''}${emp.advanceDeduction > 0 ? ` <span class="text-amber-700">(avance -${emp.advanceDeduction.toFixed(2)})</span>` : ''}</span>
                     <span class="font-semibold">${emp.finalSalary.toFixed(2)} Mad</span>
                 </li>`
             ).join('');
@@ -9572,6 +9622,69 @@ const renderAbsencesForEmployee = (employeeId) => {
     }
 };
 
+const advanceRemaining = (advance) => {
+    const remaining = advance?.remaining != null ? Number(advance.remaining) : Number(advance?.amount);
+    return Number.isFinite(remaining) && remaining > 0 ? remaining : 0;
+};
+
+const outstandingAdvances = (employeeId) => (allSalaryAdvances || [])
+    .filter((advance) => advance.employeeId === employeeId && advanceRemaining(advance) > 0)
+    .sort((a, b) => (toDate(a.date)?.getTime() || 0) - (toDate(b.date)?.getTime() || 0));
+
+const outstandingAdvanceTotal = (employeeId) => outstandingAdvances(employeeId)
+    .reduce((sum, advance) => sum + advanceRemaining(advance), 0);
+
+const consumeAdvances = (employeeId, available) => {
+    const applied = [];
+    let left = Math.max(0, available);
+    outstandingAdvances(employeeId).forEach((advance) => {
+        if (left <= 0) return;
+        const previousRemaining = advanceRemaining(advance);
+        const amount = Math.min(previousRemaining, left);
+        if (amount <= 0) return;
+        applied.push({
+            advanceId: advance.id,
+            amount,
+            previousRemaining,
+            nextRemaining: Math.round((previousRemaining - amount) * 100) / 100
+        });
+        left -= amount;
+    });
+    return applied;
+};
+
+const renderAdvancesForEmployee = (employeeId) => {
+    const container = document.getElementById('advances-list');
+    if (!container) return;
+    const advances = (allSalaryAdvances || [])
+        .filter((advance) => advance.employeeId === employeeId)
+        .sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
+    if (!advances.length) {
+        container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Aucune avance enregistrée.</p>';
+        return;
+    }
+    container.innerHTML = advances.map((advance) => {
+        const date = toDate(advance.date);
+        const label = date ? `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}` : '';
+        const remaining = advanceRemaining(advance);
+        const amount = Number(advance.amount) || 0;
+        const open = remaining > 0;
+        const note = String(advance.note || '').replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]));
+        const status = !open
+            ? 'Déduite du salaire'
+            : (remaining < amount - 0.001 ? `Reste ${remaining.toFixed(2)} Mad` : 'À déduire');
+        return `<div class="flex justify-between items-center bg-gray-50 p-2 rounded">
+            <div>
+                <span class="text-sm font-medium">${amount.toFixed(2)} Mad</span>
+                <span class="text-xs text-gray-600 ml-2">${label}</span>
+                ${note ? `<span class="text-xs text-gray-500 ml-2">${note}</span>` : ''}
+                <p class="text-xs ${open ? 'text-amber-700' : 'text-gray-400'}">${status}</p>
+            </div>
+            ${open && Math.abs(remaining - amount) < 0.001 ? `<button data-id="${advance.id}" class="delete-advance-btn text-red-500 hover:text-red-700" type="button"><i class="fas fa-times"></i></button>` : ''}
+        </div>`;
+    }).join('');
+};
+
 // --- Event Handlers ---
 
 // Ajouter un salarié
@@ -9617,6 +9730,7 @@ document.getElementById('employees-list').addEventListener('click', async (e) =>
     const deleteBtn = e.target.closest('.delete-employee-btn');
     const editBtn = e.target.closest('.edit-employee-btn');
     const absencesBtn = e.target.closest('.manage-absences-btn');
+    const advancesBtn = e.target.closest('.manage-advances-btn');
 
     if (deleteBtn) {
         const employeeId = deleteBtn.dataset.id;
@@ -9626,6 +9740,10 @@ document.getElementById('employees-list').addEventListener('click', async (e) =>
                 const employeeAbsences = allAbsences.filter(a => a.employeeId === employeeId);
                 for (const absence of employeeAbsences) {
                     await deleteDoc(doc(absencesCol, absence.id));
+                }
+                const employeeAdvances = allSalaryAdvances.filter(a => a.employeeId === employeeId);
+                for (const advance of employeeAdvances) {
+                    await deleteDoc(doc(salaryAdvancesCol, advance.id));
                 }
                 // Supprimer le salarié
                 await deleteDoc(doc(employeesCol, employeeId));
@@ -9670,6 +9788,18 @@ document.getElementById('employees-list').addEventListener('click', async (e) =>
             
             renderAbsencesForEmployee(employeeId);
             openModal('absences-modal');
+        }
+    } else if (advancesBtn) {
+        const employeeId = advancesBtn.dataset.id;
+        const employee = allEmployees.find(e => e.id === employeeId);
+        if (employee) {
+            document.getElementById('advance-employee-id').value = employee.id;
+            document.getElementById('advance-employee-name').textContent = employee.name;
+            document.getElementById('advance-form').reset();
+            document.getElementById('advance-employee-id').value = employee.id;
+            document.getElementById('advance-date').value = getTodayDateString();
+            renderAdvancesForEmployee(employeeId);
+            openModal('advances-modal');
         }
     }
 });
@@ -9738,6 +9868,55 @@ document.getElementById('absences-list').addEventListener('click', async (e) => 
     }
 });
 
+document.getElementById('cancel-advances').addEventListener('click', () => closeModal('advances-modal'));
+
+document.getElementById('advance-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const employeeId = document.getElementById('advance-employee-id').value;
+    const amount = parseFloat(document.getElementById('advance-amount').value);
+    const dateValue = document.getElementById('advance-date').value;
+    const note = document.getElementById('advance-note').value.trim();
+    if (!employeeId || !Number.isFinite(amount) || amount <= 0 || !dateValue) {
+        showToast('Indique un montant et une date.');
+        return;
+    }
+    const date = new Date(dateValue);
+    date.setHours(12, 0, 0, 0);
+    try {
+        await addDoc(salaryAdvancesCol, {
+            employeeId,
+            amount,
+            remaining: amount,
+            date,
+            note,
+            createdAt: serverTimestamp()
+        });
+        document.getElementById('advance-amount').value = '';
+        document.getElementById('advance-note').value = '';
+        showToast('Avance enregistrée. Elle sera retirée du prochain salaire.');
+        renderAdvancesForEmployee(employeeId);
+    } catch (error) {
+        console.error(error);
+        showToast("L'avance n'a pas pu être enregistrée.");
+    }
+});
+
+document.getElementById('advances-list').addEventListener('click', async (e) => {
+    const deleteBtn = e.target.closest('.delete-advance-btn');
+    if (!deleteBtn) return;
+    const advance = allSalaryAdvances.find((item) => item.id === deleteBtn.dataset.id);
+    if (!advance || Math.abs(advanceRemaining(advance) - (Number(advance.amount) || 0)) > 0.001) return;
+    if (!confirm('Supprimer cette avance ?')) return;
+    try {
+        await deleteDoc(doc(salaryAdvancesCol, advance.id));
+        showToast('Avance supprimée.');
+        renderAdvancesForEmployee(advance.employeeId);
+    } catch (error) {
+        console.error(error);
+        showToast("L'avance n'a pas pu être supprimée.");
+    }
+});
+
 // Calculer les salaires
 document.getElementById('calculate-salaries-btn').addEventListener('click', () => {
     const monthInput = document.getElementById('salary-month').value;
@@ -9767,7 +9946,10 @@ document.getElementById('calculate-salaries-btn').addEventListener('click', () =
         
         // Calculer le salaire final
         const deduction = dailySalary * absenceDays;
-        const finalSalary = monthlySalary - deduction;
+        const salaryDue = Math.max(0, monthlySalary - deduction);
+        const advancesApplied = consumeAdvances(employee.id, salaryDue);
+        const advanceDeduction = advancesApplied.reduce((sum, advance) => sum + advance.amount, 0);
+        const finalSalary = salaryDue - advanceDeduction;
         
         currentSalaryCalculations.push({
             employeeId: employee.id,
@@ -9775,6 +9957,9 @@ document.getElementById('calculate-salaries-btn').addEventListener('click', () =
             monthlySalary,
             absenceDays,
             deduction,
+            advanceDeduction,
+            advancesApplied,
+            salaryDue,
             finalSalary
         });
         
@@ -9799,6 +9984,7 @@ document.getElementById('calculate-salaries-btn').addEventListener('click', () =
                             ${calc.absenceDays} jour(s) d'absence (-${calc.deduction.toFixed(2)} Mad)
                         </p>
                     ` : '<p class="text-xs text-green-600"><i class="fas fa-check"></i> Aucune absence</p>'}
+                    ${calc.advanceDeduction > 0 ? `<p class="text-xs text-amber-700"><i class="fas fa-hand-holding-dollar"></i> Avance -${calc.advanceDeduction.toFixed(2)} Mad</p>` : ''}
                 </div>
                 <p class="text-lg font-bold text-gray-900">${calc.finalSalary.toFixed(2)} Mad</p>
             </div>
@@ -9825,25 +10011,37 @@ document.getElementById('pay-all-salaries-btn').addEventListener('click', async 
 
     try {
         const totalAmount = currentSalaryCalculations.reduce((sum, calc) => sum + calc.finalSalary, 0);
-        
-        // Enregistrer le paiement global
-        await addDoc(salaryPaymentsCol, {
-            month: monthInput,
-            employees: currentSalaryCalculations,
-            totalAmount,
-            paymentDate: new Date(),
-            createdAt: serverTimestamp()
-        });
+        const salaryCost = currentSalaryCalculations.reduce((sum, calc) => sum + (calc.salaryDue ?? calc.finalSalary), 0);
+        const appliedAdvances = currentSalaryCalculations.flatMap((calc) => calc.advancesApplied || []);
 
-        // Ajouter à la collection charges
-        await addDoc(chargesCol, {
-            name: `Salaires ${monthInput}`,
-            category: 'Salaires',
-            amount: totalAmount,
-            date: new Date(),
-            createdAt: serverTimestamp(),
-            type: 'salary' // Marqueur pour identifier les charges de salaires
-        });
+        for (const applied of appliedAdvances) {
+            await updateDoc(doc(salaryAdvancesCol, applied.advanceId), { remaining: applied.nextRemaining });
+        }
+
+        try {
+            await addDoc(salaryPaymentsCol, {
+                month: monthInput,
+                employees: currentSalaryCalculations,
+                totalAmount,
+                salaryCost,
+                paymentDate: new Date(),
+                createdAt: serverTimestamp()
+            });
+
+            await addDoc(chargesCol, {
+                name: `Salaires ${monthInput}`,
+                category: 'Salaires',
+                amount: salaryCost,
+                date: new Date(),
+                createdAt: serverTimestamp(),
+                type: 'salary'
+            });
+        } catch (paymentError) {
+            for (const applied of appliedAdvances) {
+                await updateDoc(doc(salaryAdvancesCol, applied.advanceId), { remaining: applied.previousRemaining });
+            }
+            throw paymentError;
+        }
 
         showToast(`Paiement de ${totalAmount.toFixed(2)} Mad enregistré !`);
         
@@ -9873,13 +10071,23 @@ document.getElementById('salary-payments-history').addEventListener('click', asy
             try {
                 // 1. Supprimer le paiement de salaire
                 await deleteDoc(doc(salaryPaymentsCol, paymentId));
+
+                for (const employee of payment.employees || []) {
+                    for (const applied of employee.advancesApplied || []) {
+                        const current = allSalaryAdvances.find((advance) => advance.id === applied.advanceId);
+                        if (!current) continue;
+                        const restored = Math.round((advanceRemaining(current) + Number(applied.amount || 0)) * 100) / 100;
+                        await updateDoc(doc(salaryAdvancesCol, applied.advanceId), { remaining: restored });
+                    }
+                }
                 
                 // 2. Trouver et supprimer la charge associée dans les charges
                 // On cherche une charge de type 'salary' avec le même montant et le même mois
+                const chargeAmount = payment.salaryCost ?? payment.totalAmount;
                 const associatedCharge = allCharges.find(charge => 
                     charge.type === 'salary' && 
                     charge.name === `Salaires ${payment.month}` &&
-                    Math.abs(charge.amount - payment.totalAmount) < 0.01 // Comparaison avec tolérance
+                    Math.abs(charge.amount - chargeAmount) < 0.01 // Comparaison avec tolérance
                 );
                 
                 if (associatedCharge) {
