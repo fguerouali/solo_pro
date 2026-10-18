@@ -5,6 +5,7 @@ const TIMEZONE = 'Africa/Casablanca';
 const RAMADAN_2026 = { start: '2026-02-19', end: '2026-03-19' };
 const MIN_TRAINING_DAYS = 21;
 const EXTERNAL_CACHE_MS = 24 * 60 * 60 * 1000;
+const SPORTSDB_KEY = '123';
 const FIXTURE_LEAGUES = [
     { id: '4520', seasons: null },
     { id: '4429', seasons: ['2025', '2026'] },
@@ -322,24 +323,29 @@ async function loadFixtures(today) {
     }
     const byDate = new Map();
     const clubSeasons = seasonsAround(today);
+    const sportsUrl = (path) => `https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/${path}`;
     const urls = [
-        'https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=133738',
-        'https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=133739',
-        'https://www.thesportsdb.com/api/v1/json/3/eventspastleague.php?id=4520',
-        'https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php?id=4520',
-        'https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=136139',
-        'https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=136139'
+        sportsUrl('eventsnext.php?id=136402'),
+        sportsUrl('eventslast.php?id=136402'),
+        sportsUrl('eventsnext.php?id=136404'),
+        sportsUrl('eventslast.php?id=136404'),
+        sportsUrl('eventsnext.php?id=133738'),
+        sportsUrl('eventsnext.php?id=133739'),
+        sportsUrl('eventspastleague.php?id=4520'),
+        sportsUrl('eventsnextleague.php?id=4520'),
+        sportsUrl('eventslast.php?id=136139'),
+        sportsUrl('eventsnext.php?id=136139')
     ];
     for (const league of FIXTURE_LEAGUES) {
         const seasons = league.seasons || clubSeasons;
         for (const season of seasons) {
-            urls.push(`https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=${league.id}&s=${encodeURIComponent(season)}`);
+            urls.push(sportsUrl(`eventsseason.php?id=${league.id}&s=${encodeURIComponent(season)}`));
         }
     }
     const championsRounds = ['1', '2', '3', '4', '5', '6', '7', '8', '125', '150', '160', '200'];
     for (const season of clubSeasons.slice(0, 2)) {
         for (const round of championsRounds) {
-            urls.push(`https://www.thesportsdb.com/api/v1/json/3/eventsround.php?id=4480&r=${round}&s=${encodeURIComponent(season)}`);
+            urls.push(sportsUrl(`eventsround.php?id=4480&r=${round}&s=${encodeURIComponent(season)}`));
         }
     }
     const payloads = await fetchFixturePayloads(urls);
