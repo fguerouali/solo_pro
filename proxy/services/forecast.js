@@ -290,18 +290,27 @@ function championsStage(event) {
     return '';
 }
 
+function isWydadCasa(name) {
+    const text = String(name || '');
+    return /wydad/i.test(text) && !/f[eè]s/i.test(text);
+}
+
+function isRajaCasa(name) {
+    return /raja/i.test(String(name || '')) && !/beni mellal/i.test(String(name || ''));
+}
+
 function eventLevel(event) {
     const home = event.strHomeTeam || '';
     const away = event.strAwayTeam || '';
-    const text = `${home} ${away}`.toLowerCase();
-    const wydad = text.includes('wydad');
-    const raja = text.includes('raja');
-    const morocco = /\bmorocco\b|\bmaroc\b/.test(text);
+    const morocco = /\bmorocco\b|\bmaroc\b/.test(`${home} ${away}`.toLowerCase());
     const champions = isChampionsLeague(event);
     const stage = champions ? championsStage(event) : '';
+    const wydadHome = isWydadCasa(home);
+    const rajaHome = isRajaCasa(home);
+    const derby = (wydadHome && isRajaCasa(away)) || (rajaHome && isWydadCasa(away));
     if (champions && (stage === 'final' || stage === 'semi' || isRealOrBarcelona(home, away))) return 2;
-    if ((wydad && raja) || morocco) return 2;
-    if (wydad || raja) return 1;
+    if (derby || morocco) return 2;
+    if (wydadHome || rajaHome) return 1;
     return 0;
 }
 
