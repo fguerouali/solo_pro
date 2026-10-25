@@ -283,6 +283,12 @@ function isRealOrBarcelona(home, away) {
     return text.includes('real madrid') || text.includes('barcelona');
 }
 
+function isClasico(home, away) {
+    const text = `${home} ${away}`.toLowerCase();
+    if (/women|femen|f[eé]minin/.test(text)) return false;
+    return text.includes('real madrid') && /\bbarcelona\b/.test(text);
+}
+
 function championsStage(event) {
     const round = String(event.intRound || '');
     if (round === '200') return 'final';
@@ -308,6 +314,7 @@ function eventLevel(event) {
     const wydadHome = isWydadCasa(home);
     const rajaHome = isRajaCasa(home);
     const derby = (wydadHome && isRajaCasa(away)) || (rajaHome && isWydadCasa(away));
+    if (isClasico(home, away)) return 2;
     if (champions && (stage === 'final' || stage === 'semi' || isRealOrBarcelona(home, away))) return 2;
     if (derby || morocco) return 2;
     if (wydadHome || rajaHome) return 1;
@@ -319,6 +326,7 @@ function matchLabel(event, level) {
     const away = event.strAwayTeam || '';
     const names = `${home} ${away}`;
     const stage = isChampionsLeague(event) ? championsStage(event) : '';
+    if (isClasico(home, away)) return `Clasico ${home} - ${away}`;
     if (stage === 'final') return `Finale ${home} - ${away}`;
     if (stage === 'semi') return `Demi-finale ${home} - ${away}`;
     if (isChampionsLeague(event) && isRealOrBarcelona(home, away)) return `Ligue des champions ${home} - ${away}`;
@@ -339,7 +347,9 @@ async function loadFixtures(today) {
         sportsUrl('eventsnext.php?id=136404'),
         sportsUrl('eventslast.php?id=136404'),
         sportsUrl('eventsnext.php?id=133738'),
+        sportsUrl('eventslast.php?id=133738'),
         sportsUrl('eventsnext.php?id=133739'),
+        sportsUrl('eventslast.php?id=133739'),
         sportsUrl('eventspastleague.php?id=4520'),
         sportsUrl('eventsnextleague.php?id=4520'),
         sportsUrl('eventslast.php?id=136139'),
