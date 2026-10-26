@@ -10293,6 +10293,8 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
             const total = currentPurchaseOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
              document.getElementById('po-total-cost-input').value = total.toFixed(2); // Met à jour l'input
         };
+
+        const poLineTotalText = (item) => ((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2);
         
         // --- MODIFICATION: renderCurrentPurchaseOrderItems (Pour inclure les inputs) ---
         const renderCurrentPurchaseOrderItems = () => { 
@@ -10303,10 +10305,11 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
             if (currentPurchaseOrderItems.length > 0) {
                  list.innerHTML = `
                     <div class="flex justify-between items-center text-sm font-medium text-gray-500 mb-1 px-2">
-                        <div class="flex-grow grid grid-cols-4 gap-2 items-center">
+                        <div class="flex-grow grid grid-cols-5 gap-2 items-center">
                             <span class="col-span-2">Article</span>
                             <span class="text-right">Quantité</span>
                             <span class="text-right">Prix/Unité</span>
+                            <span class="text-right">Prix total</span>
                         </div>
                         <span class="ml-2 w-6"></span> <!-- Espace pour le bouton supprimer -->
                     </div>
@@ -10318,7 +10321,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded'; 
                 
                 li.innerHTML = `
-                    <div class="flex-grow grid grid-cols-4 gap-2 items-center">
+                    <div class="flex-grow grid grid-cols-5 gap-2 items-center">
                         <span class="col-span-2 text-sm">${item.name} (${item.unit})</span>
                         
                         <label class="sr-only" for="po-item-qty-${index}">Quantité ${item.name}</label>
@@ -10330,6 +10333,8 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                         <input type="number" step="any" min="0" value="${(item.price || 0).toFixed(2)}" data-index="${index}" data-field="price"
                                id="po-item-price-${index}"
                                class="po-item-input w-full p-1 border border-gray-300 rounded-lg shadow-sm text-right">
+
+                        <span id="po-item-total-${index}" class="text-sm font-semibold text-right text-gray-900">${poLineTotalText(item)}</span>
                     </div>
                     <button type="button" data-index="${index}" class="remove-po-item-btn text-red-500 hover:text-red-700 ml-2 w-6 flex-shrink-0">
                         <i class="fas fa-times-circle"></i>
@@ -10388,7 +10393,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
         });
         
         // --- MODIFICATION: Listener pour les changements d'input dans la liste PO ---
-        document.getElementById('po-items-list').addEventListener('change', e => {
+        document.getElementById('po-items-list').addEventListener('input', e => {
             const input = e.target;
             // Vérifier si c'est un de nos nouveaux inputs
             if (input.classList.contains('po-item-input')) {
@@ -10399,6 +10404,8 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 if (index >= 0 && index < currentPurchaseOrderItems.length && field && !isNaN(value)) {
                     // Mettre à jour le tableau
                     currentPurchaseOrderItems[index][field] = value;
+                    const lineTotal = document.getElementById(`po-item-total-${index}`);
+                    if (lineTotal) lineTotal.textContent = poLineTotalText(currentPurchaseOrderItems[index]);
                     
                     // Mettre à jour le total
                     updatePurchaseOrderTotal();
