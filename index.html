@@ -10483,8 +10483,33 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                                 data.paidAt = existingPo.paidAt; // Preserve existing paidAt
                             }
                         }
-                        await updateDoc(doc(purchaseOrdersCol, poId), data);
-                        showToast('Commande fournisseur mise à jour');
+                        if (existingPo && existingPo.status === 'received') {
+                            const stockDelta = new Map();
+                            const addStockDelta = (id, qty) => {
+                                if (!id || !qty) return;
+                                stockDelta.set(id, (stockDelta.get(id) || 0) + qty);
+                            };
+                            (existingPo.items || []).forEach(item => addStockDelta(item.id, -(Number(item.quantity) || 0)));
+                            currentPurchaseOrderItems.forEach(item => addStockDelta(item.id, Number(item.quantity) || 0));
+                            const batch = writeBatch(db);
+                            const missingIngredients = [];
+                            stockDelta.forEach((qty, id) => {
+                                if (!qty) return;
+                                if (!allIngredients.some(ingredient => ingredient.id === id)) {
+                                    missingIngredients.push(id);
+                                    return;
+                                }
+                                batch.update(doc(ingredientsCol, id), { quantity: increment(qty) });
+                            });
+                            batch.update(doc(purchaseOrdersCol, poId), data);
+                            await batch.commit();
+                            showToast(missingIngredients.length
+                                ? 'Commande mise à jour. Un ingrédient supprimé du stock n’a pas été ajusté.'
+                                : 'Commande mise à jour, stock ajusté');
+                        } else {
+                            await updateDoc(doc(purchaseOrdersCol, poId), data);
+                            showToast('Commande fournisseur mise à jour');
+                        }
                     } else {
                         console.log("Adding new PO"); // Debug log 6b
                         data.status = 'pending';
@@ -10587,7 +10612,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
     const isReceived = purchaseOrder.status === 'received';
     
     document.getElementById('po-modal-title').textContent = isReceived 
-        ? 'Modifier montant / N° facture (Commande réceptionnée)' 
+        ? 'Modifier la commande réceptionnée' 
         : 'Modifier la Commande Fournisseur'; 
         
     document.getElementById('po-id').value = poId; 
@@ -10596,19 +10621,16 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
     // N° de facture toujours modifiable, même après réception
     document.getElementById('po-order-number').disabled = false;
     
-    // Désactiver les champs si réceptionné
+    // Le fournisseur reste fixé après réception. Les articles et quantités restent modifiables.
     document.getElementById('po-supplier-select').disabled = isReceived;
-    document.getElementById('po-ingredient-select').disabled = isReceived;
-    document.getElementById('po-quantity').disabled = isReceived;
-    document.getElementById('po-price').disabled = isReceived;
-    document.getElementById('add-po-item-btn').disabled = isReceived;
+    document.getElementById('po-ingredient-select').disabled = false;
+    document.getElementById('po-quantity').disabled = false;
+    document.getElementById('po-price').disabled = false;
+    document.getElementById('add-po-item-btn').disabled = false;
     
-    // Utiliser setTimeout pour les éléments générés dynamiquement
     setTimeout(() => {
-        const itemInputs = document.querySelectorAll('.po-item-input');
-        itemInputs.forEach(input => input.disabled = isReceived);
-        const removeButtons = document.querySelectorAll('.remove-po-item-btn');
-        removeButtons.forEach(btn => btn.style.display = isReceived ? 'none' : 'block');
+        document.querySelectorAll('.po-item-input').forEach(input => { input.disabled = false; });
+        document.querySelectorAll('.remove-po-item-btn').forEach(btn => { btn.style.display = 'block'; });
     }, 100);
     
     // Définir le statut de paiement
