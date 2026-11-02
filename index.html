@@ -1072,7 +1072,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock système</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inventaire saisi</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Écart</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-mois" title="Cliquer pour trier">Conso mois <i class="fas fa-sort ml-1 text-gray-400"></i></th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-mois" title="Consommation des 30 derniers jours">30 derniers jours <i class="fas fa-sort ml-1 text-gray-400"></i></th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-moyenne" title="Cliquer pour trier">Conso moy. <i class="fas fa-sort ml-1 text-gray-400"></i></th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coût / Unité</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-cout-moyen" title="Cliquer pour trier">Coût moy. <i class="fas fa-sort ml-1 text-gray-400"></i></th>
@@ -7889,7 +7889,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
         const resetSortIcons = (activeColumn) => {
             document.getElementById('th-conso-moyenne').innerHTML = `Conso mensuelle moyenne <i class="fas fa-sort${activeColumn === 'consoMoyenne' ? '-' + (ingredientsSortState.dir === 1 ? 'up' : 'down') : ''} ml-1 ${activeColumn === 'consoMoyenne' ? 'text-gray-600' : 'text-gray-400'}"></i>`;
-            document.getElementById('th-conso-mois').innerHTML = `Conso mois en cours <i class="fas fa-sort${activeColumn === 'consoMois' ? '-' + (ingredientsSortState.dir === 1 ? 'up' : 'down') : ''} ml-1 ${activeColumn === 'consoMois' ? 'text-gray-600' : 'text-gray-400'}"></i>`;
+            document.getElementById('th-conso-mois').innerHTML = `30 derniers jours <i class="fas fa-sort${activeColumn === 'consoMois' ? '-' + (ingredientsSortState.dir === 1 ? 'up' : 'down') : ''} ml-1 ${activeColumn === 'consoMois' ? 'text-gray-600' : 'text-gray-400'}"></i>`;
             document.getElementById('th-conso-cout-moyen').innerHTML = `Coût mensuel moyen <i class="fas fa-sort${activeColumn === 'coutMensuelMoyen' ? '-' + (ingredientsSortState.dir === 1 ? 'up' : 'down') : ''} ml-1 ${activeColumn === 'coutMensuelMoyen' ? 'text-gray-600' : 'text-gray-400'}"></i>`;
         };
         document.getElementById('th-conso-moyenne')?.addEventListener('click', () => {
