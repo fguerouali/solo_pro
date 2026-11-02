@@ -1719,6 +1719,7 @@
             <p class="text-sm text-gray-500">Planning des opérations, et historique utilisé par la prévision.</p>
         </div>
     </div>
+    <div id="marketing-budget" class="mb-6 bg-white p-6 rounded-2xl shadow-lg"></div>
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <div class="xl:col-span-1 space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-lg">
@@ -2806,7 +2807,7 @@ let allDailyPayments = [];
                 orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0));
                 invalidateConsumptionStatsCache();
-                markDirty('orders', 'kpis', 'ingredients');
+                markDirty('orders', 'kpis', 'ingredients', 'marketing');
             });
             onSnapshot(lossesCol, snapshot => {
                 allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -5959,7 +5960,67 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             renderMarketing();
         };
 
+        const marketingSpendDate = (op) => {
+            if (op?.type === 'collab') return op.publishDate || op.shootDate || '';
+            return op?.startDate || '';
+        };
+
+        const renderMarketingBudget = () => {
+            const root = document.getElementById('marketing-budget');
+            if (!root) return;
+            const now = new Date();
+            const currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const previousEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+            const currentKey = marketingIso(currentStart).slice(0, 7);
+            let previousSales = 0;
+            orderHistory.forEach((order) => {
+                if (!isWithinDateRange(order.saleDate || order.createdAt, previousStart, previousEnd)) return;
+                previousSales += Number(order.totalPrice) || 0;
+            });
+            let spent = 0;
+            allMarketingOps.forEach((op) => {
+                const iso = marketingSpendDate(op);
+                if (!iso.startsWith(currentKey)) return;
+                spent += Number(op.amount) || 0;
+            });
+            const cap = previousSales * 0.05;
+            const remaining = cap - spent;
+            const over = remaining < -0.004;
+            const monthLabel = currentStart.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+            const previousLabel = previousStart.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+            const share = previousSales > 0 ? (spent / previousSales) * 100 : 0;
+            const remainingClass = over ? 'text-red-600' : 'text-green-700';
+            const remainingTitle = over ? 'Dépassement du plafond' : 'Reste avant le plafond';
+            const remainingValue = over ? -remaining : remaining;
+            root.innerHTML = `
+                <div class="flex flex-wrap items-end justify-between gap-2 mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800">Budget marketing · ${monthLabel}</h3>
+                        <p class="text-sm text-gray-500">Plafond de 5 % du CA de ${previousLabel}. L'objectif est de ne pas le dépasser.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="rounded-xl bg-gray-50 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-400">Plafond</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1">${formatKpiMoney(cap)}</p>
+                        <p class="text-xs text-gray-500 mt-1">5 % du CA de ${previousLabel} · ${formatKpiMoney(previousSales)}</p>
+                    </div>
+                    <div class="rounded-xl bg-gray-50 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-400">Dépensé ce mois</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1">${formatKpiMoney(spent)}</p>
+                        <p class="text-xs text-gray-500 mt-1">${previousSales > 0 ? `${share.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} % du CA de ${previousLabel}` : 'CA du mois précédent à 0'}</p>
+                    </div>
+                    <div class="rounded-xl bg-gray-50 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-widest text-gray-400">${remainingTitle}</p>
+                        <p class="text-2xl font-bold mt-1 ${remainingClass}">${formatKpiMoney(remainingValue)}</p>
+                        <p class="text-xs text-gray-500 mt-1">Vidéo comptée à sa date de début, collaboration à sa publication, y compris les opérations à venir.</p>
+                    </div>
+                </div>`;
+        };
+
         const renderMarketing = () => {
+            renderMarketingBudget();
             const calendar = document.getElementById('marketing-calendar');
             const history = document.getElementById('marketing-history');
             const label = document.getElementById('marketing-month-label');
