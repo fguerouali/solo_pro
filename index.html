@@ -1074,6 +1074,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Écart</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-mois" title="Consommation des 30 derniers jours">30 derniers jours <i class="fas fa-sort ml-1 text-gray-400"></i></th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-moyenne" title="Cliquer pour trier">Conso moy. <i class="fas fa-sort ml-1 text-gray-400"></i></th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rendement</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coût / Unité</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none" id="th-conso-cout-moyen" title="Cliquer pour trier">Coût moy. <i class="fas fa-sort ml-1 text-gray-400"></i></th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -1917,7 +1918,12 @@
                     <div><label for="ingredient-name" class="block text-sm font-medium text-gray-700">Nom</label><input type="text" id="ingredient-name" required class="mt-1 w-full input-style"></div>
                     <div><label for="ingredient-quantity" class="block text-sm font-medium text-gray-700">Quantité</label><input type="number" id="ingredient-quantity" min="0" step="any" required class="mt-1 w-full input-style"></div>
                     <div><label for="ingredient-unit" class="block text-sm font-medium text-gray-700">Unité (kg, L, pièces...)</label><input type="text" id="ingredient-unit" required class="mt-1 w-full input-style"></div>
-                    <div><label for="ingredient-cost" class="block text-sm font-medium text-gray-700">Coût par unité (Mad)</label><input type="number" id="ingredient-cost" min="0" step="0.0001" placeholder="0.0000" class="mt-1 w-full input-style"></div>
+                    <div><label for="ingredient-cost" class="block text-sm font-medium text-gray-700">Coût par unité achetée (Mad)</label><input type="number" id="ingredient-cost" min="0" step="0.0001" placeholder="0.0000" class="mt-1 w-full input-style"></div>
+                    <div>
+                        <label for="ingredient-yield" class="block text-sm font-medium text-gray-700">Rendement utile (%)</label>
+                        <input type="number" id="ingredient-yield" min="0.01" max="100" step="0.01" value="100" required class="mt-1 w-full input-style">
+                        <p class="text-xs text-gray-500 mt-1">100 % par défaut. Exemple mozzarella : 250 g dont 20 g d'eau = 92. Le stock et le coût de revient passent au poids utile. Si seule cette valeur change, le stock actuel est converti.</p>
+                    </div>
                 </div>
                 <div class="mt-6 flex justify-end space-x-3"><button type="button" class="btn-secondary" id="cancel-ingredient">Annuler</button><button type="submit" class="btn-primary">Sauvegarder</button></div>
             </form>
@@ -5223,24 +5229,50 @@ let allDailyPayments = [];
             .sort((a, b) => b.count - a.count)
             .slice(0, limit);
 
+        const ingredientYieldPercent = (ingredient) => {
+            const value = Number(ingredient?.yieldPercent);
+            if (!Number.isFinite(value) || value <= 0) return 100;
+            return Math.min(100, value);
+        };
+
+        const ingredientYieldRatio = (ingredient) => ingredientYieldPercent(ingredient) / 100;
+
+        const usableUnitCost = (ingredient) => {
+            const cost = Number(ingredient?.cost) || 0;
+            const ratio = ingredientYieldRatio(ingredient);
+            return ratio > 0 ? cost / ratio : cost;
+        };
+
+        const roundStockQty = (value) => Math.round((Number(value) || 0) * 10000) / 10000;
+
+        const purchaseStockQuantity = (ingredientId, purchasedQty) => {
+            const ingredient = allIngredients.find(ing => ing.id === ingredientId);
+            return roundStockQty((Number(purchasedQty) || 0) * ingredientYieldRatio(ingredient));
+        };
+
+        const historicalStockQuantity = (item) => {
+            const stored = Number(item?.stockQuantity);
+            if (Number.isFinite(stored)) return stored;
+            return Number(item?.quantity) || 0;
+        };
+
         const calculateProductCostWithMaps = (product, ingredientById) => {
             if (!product) return 0;
             if (product.recipe && product.recipe.length > 0) {
                 return product.recipe.reduce((total, recipeItem) => {
                     const ingredient = ingredientById.get(recipeItem.id);
-                    const ingredientCost = ingredient ? (ingredient.cost || 0) : 0;
-                    return total + (ingredientCost * recipeItem.quantity);
+                    return total + (usableUnitCost(ingredient) * recipeItem.quantity);
                 }, 0);
             }
             if (product.linkedIngredientId) {
                 const linkedIngredient = ingredientById.get(product.linkedIngredientId);
-                return linkedIngredient ? (linkedIngredient.cost || 0) : 0;
+                return linkedIngredient ? usableUnitCost(linkedIngredient) : 0;
             }
             return 0;
         };
 
         const getProductCostCache = (ingredientById) => {
-            const cacheKey = `${allProducts.length}-${allIngredients.length}`;
+            const cacheKey = `${allProducts.length}-${allIngredients.map(ing => `${ing.id}:${ing.cost}:${ingredientYieldPercent(ing)}`).join(',')}`;
             if (!productCostCache || productCostCacheKey !== cacheKey) {
                 productCostCache = new Map();
                 productCostCacheKey = cacheKey;
@@ -5297,7 +5329,7 @@ let allDailyPayments = [];
                     if (product) lossCost = getCachedProductCost(product, ingredientById) * loss.quantity;
                 } else {
                     const ingredient = ingredientById.get(loss.itemId);
-                    if (ingredient) lossCost = (ingredient.cost || 0) * loss.quantity;
+                    if (ingredient) lossCost = usableUnitCost(ingredient) * loss.quantity;
                 }
                 return sum + lossCost;
             }, 0);
@@ -6599,7 +6631,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     if (product) lossCost = getCachedProductCost(product, ingredientById) * loss.quantity;
                 } else {
                     const ingredient = ingredientById.get(loss.itemId);
-                    if (ingredient) lossCost = (ingredient.cost || 0) * loss.quantity;
+                    if (ingredient) lossCost = usableUnitCost(ingredient) * loss.quantity;
                 }
                 return sum + lossCost;
             }, 0);
@@ -7491,6 +7523,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         <div class="inventaire-item-info">
                             <div class="inventaire-item-name">${ing.name}</div>
                             <div class="inventaire-item-system">Stock système : ${ing.quantity} ${ing.unit}</div>
+                            ${ingredientYieldPercent(ing) < 99.995 ? `<div class="inventaire-item-system">Poids utile, rendement ${ingredientYieldPercent(ing).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} %. Une pièce fermée se compte au poids utile.</div>` : ''}
                             ${outOfTolerance ? '<div class="inventory-variance-badge mt-1">Écart &gt; 15%</div>' : ''}
                         </div>
                         <input type="number" inputmode="decimal" step="any" min="0"
@@ -7935,7 +7968,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     ...ing,
                     consoMoyenne: stats.consoMoyenneMensuelle.get(ing.id) || 0,
                     consoMois: stats.consoMoisEnCours.get(ing.id) || 0,
-                    coutMensuelMoyen: (stats.consoMoyenneMensuelle.get(ing.id) || 0) * (ing.cost || 0)
+                    coutMensuelMoyen: (stats.consoMoyenneMensuelle.get(ing.id) || 0) * usableUnitCost(ing)
                 }));
                 if (ingredientsSortState.column === 'consoMoyenne') {
                     ingredientsToRender.sort((a, b) => (a.consoMoyenne - b.consoMoyenne) * ingredientsSortState.dir);
@@ -7954,7 +7987,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     const costDisplay = (ing.cost && ing.cost > 0) ? `${Number(ing.cost).toFixed(4)} Mad` : 'N/A';
                     const consoMoisDisplay = ing.consoMois > 0 ? `${ing.consoMois.toFixed(2)} ${ing.unit}` : '-';
                     const consoMoyenneDisplay = ing.consoMoyenne > 0 ? `${ing.consoMoyenne.toFixed(2)} ${ing.unit}` : '-';
-                    const coutMensuelMoyen = ing.consoMoyenne > 0 && (ing.cost || 0) > 0 ? (ing.consoMoyenne * (ing.cost || 0)).toFixed(2) + ' Mad' : '-';
+                    const coutMensuelMoyen = ing.consoMoyenne > 0 && usableUnitCost(ing) > 0 ? (ing.consoMoyenne * usableUnitCost(ing)).toFixed(2) + ' Mad' : '-';
+                    const yieldDisplay = `${ingredientYieldPercent(ing).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} %`;
                     const inventoryCell = hasInventory
                         ? `<span class="${outOfTolerance ? 'low-stock-text' : 'font-semibold'}">${invItem.countedQuantity}</span> <span class="text-gray-500">${ing.unit}</span>`
                         : '<span class="text-gray-400">—</span>';
@@ -7973,6 +8007,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         <td class="px-4 py-4 whitespace-nowrap">${varianceCell}</td>
                         <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${consoMoisDisplay}</td>
                         <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${consoMoyenneDisplay}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${yieldDisplay}</td>
                         <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${costDisplay}</td>
                         <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${coutMensuelMoyen}</td>
                         <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
@@ -8554,11 +8589,29 @@ const renderOrderHistory = (history) => {
         document.getElementById('ingredient-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('ingredient-id').value;
+            const yieldPercent = parseFloat(document.getElementById('ingredient-yield').value);
+            if (!Number.isFinite(yieldPercent) || yieldPercent <= 0 || yieldPercent > 100) {
+                return showToast('Le rendement doit être compris entre 0 et 100 %.');
+            }
+            const roundedYield = Math.round(yieldPercent * 100) / 100;
+            const existing = id ? allIngredients.find(ing => ing.id === id) : null;
+            let quantity = parseFloat(document.getElementById('ingredient-quantity').value);
+            let yieldConverted = false;
+            if (existing) {
+                const oldYield = ingredientYieldPercent(existing);
+                const storedQty = Number(existing.quantity) || 0;
+                const quantityUntouched = Math.abs(quantity - storedQty) < 0.0001;
+                if (quantityUntouched && Math.abs(roundedYield - oldYield) > 0.001) {
+                    quantity = roundStockQty(storedQty * roundedYield / oldYield);
+                    yieldConverted = true;
+                }
+            }
             const data = {
                 name: document.getElementById('ingredient-name').value,
-                quantity: parseFloat(document.getElementById('ingredient-quantity').value),
+                quantity,
                 unit: document.getElementById('ingredient-unit').value,
-                cost: roundUnitPrice(document.getElementById('ingredient-cost').value)
+                cost: roundUnitPrice(document.getElementById('ingredient-cost').value),
+                yieldPercent: roundedYield
             };
             try {
                 if (id) {
@@ -8566,7 +8619,7 @@ const renderOrderHistory = (history) => {
                     const inventoryResolved = await resolvePendingInventoryAfterIngredientEdit(id, data.quantity);
                     showToast(inventoryResolved
                         ? 'Stock corrigé et ligne d\'inventaire validée.'
-                        : 'Ingrédient mis à jour !');
+                        : (yieldConverted ? 'Rendement enregistré, stock converti au poids utile.' : 'Ingrédient mis à jour !'));
                 } else {
                     await addDoc(ingredientsCol, { ...data, createdAt: serverTimestamp() });
                     showToast('Ingrédient ajouté !');
@@ -8595,6 +8648,7 @@ const renderOrderHistory = (history) => {
                 document.getElementById('ingredient-quantity').value = data.quantity;
                 document.getElementById('ingredient-unit').value = data.unit;
                 document.getElementById('ingredient-cost').value = Number.isFinite(Number(data.cost)) ? Number(data.cost).toFixed(4) : '';
+                document.getElementById('ingredient-yield').value = ingredientYieldPercent(data).toFixed(2);
                 openModal('ingredient-modal');
             }
         });
@@ -8631,7 +8685,7 @@ const renderOrderHistory = (history) => {
         const updateRecipeCost = () => {
              const cost = currentRecipe.reduce((total, recipeItem) => {
                 const ingredient = allIngredients.find(ing => ing.id === recipeItem.id);
-                return total + ((ingredient?.cost || 0) * recipeItem.quantity);
+                return total + (usableUnitCost(ingredient) * recipeItem.quantity);
              }, 0);
             document.getElementById('current-recipe-cost').textContent = `${cost.toFixed(2)} Mad`;
         };
@@ -10592,13 +10646,21 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                             }
                         }
                         if (existingPo && existingPo.status === 'received') {
+                            const oldLines = existingPo.items || [];
+                            data.items = currentPurchaseOrderItems.map(item => {
+                                const previous = oldLines.find(line => line.id === item.id && Number(line.quantity) === Number(item.quantity));
+                                const stockQuantity = previous
+                                    ? historicalStockQuantity(previous)
+                                    : purchaseStockQuantity(item.id, item.quantity);
+                                return { ...item, stockQuantity };
+                            });
                             const stockDelta = new Map();
                             const addStockDelta = (id, qty) => {
                                 if (!id || !qty) return;
                                 stockDelta.set(id, (stockDelta.get(id) || 0) + qty);
                             };
-                            (existingPo.items || []).forEach(item => addStockDelta(item.id, -(Number(item.quantity) || 0)));
-                            currentPurchaseOrderItems.forEach(item => addStockDelta(item.id, Number(item.quantity) || 0));
+                            oldLines.forEach(item => addStockDelta(item.id, -historicalStockQuantity(item)));
+                            data.items.forEach(item => addStockDelta(item.id, item.stockQuantity));
                             const batch = writeBatch(db);
                             const missingIngredients = [];
                             stockDelta.forEach((qty, id) => {
@@ -10678,17 +10740,20 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 const poDoc = await getDoc(doc(purchaseOrdersCol, poId)); 
                 const purchaseOrder = poDoc.data(); 
                 const batch = writeBatch(db); 
-                purchaseOrder.items.forEach(item => { 
-                    const ingRef = doc(ingredientsCol, item.id); 
-                    // Make sure quantity and price are numbers before incrementing
-                    const quantityToAdd = Number(item.quantity) || 0; 
+                const receivedItems = (purchaseOrder.items || []).map(item => ({
+                    ...item,
+                    stockQuantity: purchaseStockQuantity(item.id, item.quantity)
+                }));
+                receivedItems.forEach(item => {
+                    const ingRef = doc(ingredientsCol, item.id);
+                    const quantityToAdd = Number(item.stockQuantity) || 0;
                     if (quantityToAdd > 0) {
-                        batch.update(ingRef, { quantity: increment(quantityToAdd) }); 
+                        batch.update(ingRef, { quantity: increment(quantityToAdd) });
                     } else {
                         console.warn(`Invalid quantity found for item ${item.name} in PO ${poId}. Skipping stock update for this item.`);
                     }
-                }); 
-                batch.update(doc(purchaseOrdersCol, poId), { status: 'received', receivedAt: serverTimestamp() }); 
+                });
+                batch.update(doc(purchaseOrdersCol, poId), { status: 'received', receivedAt: serverTimestamp(), items: receivedItems }); 
                 await batch.commit(); 
                 showToast('Stock mis à jour !'); 
             
