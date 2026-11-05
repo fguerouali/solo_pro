@@ -808,11 +808,14 @@
                     <div class="flex flex-wrap justify-between items-start gap-3">
                         <div>
                             <h3 class="text-lg font-semibold text-gray-800">Prévision</h3>
-                            <p id="forecast-date" class="text-sm text-gray-500">Chargement…</p>
+                            <p id="forecast-date" class="text-sm text-gray-500">Pas encore calculée</p>
                         </div>
-                        <div id="forecast-badges" class="flex flex-wrap gap-2"></div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div id="forecast-badges" class="flex flex-wrap gap-2"></div>
+                            <button type="button" id="forecast-run-btn" class="btn-primary py-1 px-3 text-sm">Calculer la prévision</button>
+                        </div>
                     </div>
-                    <div id="forecast-body" class="mt-4 text-sm text-gray-500">Préparation de l'historique…</div>
+                    <div id="forecast-body" class="mt-4 text-sm text-gray-500">La prévision se lance uniquement avec le bouton.</div>
                     <p id="forecast-note" class="text-xs text-gray-400 mt-3"></p>
                 </div>
 
@@ -2366,6 +2369,8 @@ let allDailyPayments = [];
         let currentRecipe = [];
         let currentOrder = [];
         let currentPurchaseOrderItems = [];
+        let purchaseOrderSaveLock = false;
+        let productSaveLock = false;
         let showOperatingChargesBreakdown = false;
         let legacyChargesMigrationRunning = false;
         let legacyChargesMigrationDone = false;
@@ -3058,59 +3063,68 @@ let allDailyPayments = [];
             });
         };
 
+        const activeModuleId = () => document.querySelector('.tab-link.active')?.dataset.tab || '';
+
         const flushAppRefresh = () => {
+            const active = activeModuleId();
             if (renderPending.suppliers) {
-                renderSuppliers();
                 populateSupplierSelects();
-                renderPending.suppliers = false;
+                if (active === 'purchases') {
+                    renderSuppliers();
+                    renderPending.suppliers = false;
+                }
             }
-            if (renderPending.purchaseOrders) {
+            if (renderPending.purchaseOrders && active === 'purchases') {
                 applyPurchaseOrderFilters();
                 renderPending.purchaseOrders = false;
             }
-            if (renderPending.orders) {
+            if (renderPending.orders && active === 'orders') {
                 renderOrderHistory(orderHistory);
                 renderPending.orders = false;
             }
-            if (renderPending.losses) {
+            if (renderPending.losses && active === 'orders') {
                 renderLossHistory();
                 renderPending.losses = false;
             }
-            if (renderPending.charges) {
+            if (renderPending.charges && active === 'charges') {
                 refreshChargesList();
                 renderPending.charges = false;
             }
-            if (renderPending.employees) {
+            if (renderPending.employees && active === 'rh') {
                 renderEmployees();
                 renderPending.employees = false;
             }
-            if (renderPending.salaryPayments) {
+            if (renderPending.salaryPayments && active === 'rh') {
                 renderSalaryPaymentsHistory();
                 renderPending.salaryPayments = false;
             }
-            if (renderPending.dailyPayments) {
+            if (renderPending.dailyPayments && active === 'finance') {
                 renderDailyPayments();
                 renderPending.dailyPayments = false;
             }
             if (renderPending.products) {
-                renderProducts();
                 populateProductSelects();
-                renderPending.products = false;
+                if (active === 'products') {
+                    renderProducts();
+                    renderPending.products = false;
+                }
             }
             if (renderPending.ingredients) {
-                renderIngredients();
                 populateIngredientSelects();
-                renderPending.ingredients = false;
+                if (active === 'ingredients') {
+                    renderIngredients();
+                    renderPending.ingredients = false;
+                }
             }
-            if (renderPending.marketing) {
+            if (renderPending.marketing && active === 'marketing') {
                 try { renderMarketing(); } catch (error) { console.error(error); }
                 renderPending.marketing = false;
             }
-            if (renderPending.planning) {
+            if (renderPending.planning && active === 'planning') {
                 try { renderPlanning(); } catch (error) { console.error(error); }
                 renderPending.planning = false;
             }
-            if (renderPending.kpis) {
+            if (renderPending.kpis && active === 'dashboard') {
                 updateAndRenderKPIs();
                 renderPending.kpis = false;
             }
@@ -4919,6 +4933,7 @@ let allDailyPayments = [];
                 if (moduleId === 'inventaire') renderInventaire();
                 if (moduleId === 'marketing') renderMarketing();
                 if (moduleId === 'planning') renderPlanning();
+                flushAppRefresh();
             });
         });
         
@@ -5245,6 +5260,19 @@ let allDailyPayments = [];
 
         const roundStockQty = (value) => Math.round((Number(value) || 0) * 10000) / 10000;
 
+        const grossFromUsable = (ingredient, usableQty) => {
+            const ratio = ingredientYieldRatio(ingredient);
+            if (!(ratio > 0)) return roundStockQty(usableQty);
+            return roundStockQty((Number(usableQty) || 0) / ratio);
+        };
+
+        const inventoryCountToStock = (item) => {
+            const counted = Number(item?.countedQuantity) || 0;
+            const yieldPercent = Number(item?.yieldPercent);
+            if (!Number.isFinite(yieldPercent) || yieldPercent <= 0) return counted;
+            return roundStockQty(counted * (yieldPercent / 100));
+        };
+
         const purchaseStockQuantity = (ingredientId, purchasedQty) => {
             const ingredient = allIngredients.find(ing => ing.id === ingredientId);
             return roundStockQty((Number(purchasedQty) || 0) * ingredientYieldRatio(ingredient));
@@ -5482,7 +5510,6 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             renderPredictedPizzas();
             const aiPeriodHint = document.getElementById('ai-analysis-period-hint');
             if (aiPeriodHint) aiPeriodHint.textContent = `Période analysée : ${filterLabel.replace(/^Période\s*:\s*/i, '')}`;
-            scheduleForecastRefresh();
         };
 
         const forecastRangeText = (slot) => {
@@ -5572,7 +5599,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             if (!el) return;
             const series = forecastSnapshot && forecastSnapshot.pizzasByDate;
             if (!series || !Object.keys(series).length) {
-                el.textContent = forecastSnapshot === false ? 'Prévues —' : 'Prévues …';
+                el.textContent = 'Prévues —';
                 return;
             }
             const isoOf = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -5782,13 +5809,18 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             noteEl.textContent = `Calculé sur ${data.trainedDays} jours ouverts, hors lundis et hors Ramadan 2026.${limits.length ? ` ${limits.join(', ')}.` : ''}`;
         };
 
-        let forecastTimer = null;
-        const scheduleForecastRefresh = () => {
-            clearTimeout(forecastTimer);
-            forecastTimer = setTimeout(refreshForecast, 800);
+        let forecastRunning = false;
+        const showCachedForecast = () => {
+            try {
+                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v10') || 'null');
+                if (cached && cached.data) renderForecast(cached.data);
+            } catch (error) {
+                console.warn('Cache prévision illisible', error);
+            }
         };
 
         const refreshForecast = async () => {
+            if (forecastRunning) return;
             const days = buildForecastHistory();
             const campaigns = buildForecastCampaigns();
             if (!days.length || !PROXY_URL) {
@@ -5796,17 +5828,14 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 return;
             }
             const signature = forecastSignature(days, campaigns);
-            try {
-                const cached = JSON.parse(sessionStorage.getItem('solo-forecast-cache-v10') || 'null');
-                if (cached && cached.signature === signature && cached.data) {
-                    renderForecast(cached.data);
-                    return;
-                }
-            } catch (error) {
-                console.warn('Cache prévision illisible', error);
-            }
+            const runBtn = document.getElementById('forecast-run-btn');
             const dateEl = document.getElementById('forecast-date');
-            if (dateEl && dateEl.textContent === 'Chargement…') dateEl.textContent = 'Analyse de l\'historique…';
+            forecastRunning = true;
+            if (runBtn) {
+                runBtn.disabled = true;
+                runBtn.textContent = 'Calcul…';
+            }
+            if (dateEl) dateEl.textContent = 'Analyse de l\'historique…';
             try {
                 const response = await fetch(`${PROXY_URL}/api/forecast`, {
                     method: 'POST',
@@ -5824,8 +5853,19 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             } catch (error) {
                 console.error('Forecast failed:', error);
                 renderForecast(null, error.message || 'Erreur de prévision');
+            } finally {
+                forecastRunning = false;
+                if (runBtn) {
+                    runBtn.disabled = false;
+                    runBtn.textContent = 'Calculer la prévision';
+                }
             }
         };
+
+        document.getElementById('forecast-run-btn')?.addEventListener('click', () => {
+            refreshForecast();
+        });
+        showCachedForecast();
 
         const roundAi = (value, digits = 2) => {
             const n = Number(value);
@@ -7465,8 +7505,9 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 ingredientId: ing.id,
                 name: ing.name,
                 unit: ing.unit,
-                systemQuantity: Number(ing.quantity) || 0,
+                systemQuantity: grossFromUsable(ing, ing.quantity),
                 countedQuantity: parseFloat(inventaireLocalCounts[ing.id]),
+                yieldPercent: ingredientYieldPercent(ing),
                 validated: false
             }));
 
@@ -7516,14 +7557,16 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             container.innerHTML = ingredients.map(ing => {
                 const value = inventaireLocalCounts[ing.id] ?? '';
                 const counted = value === '' ? null : parseFloat(value);
+                const systemGross = grossFromUsable(ing, ing.quantity);
                 const hasValue = counted !== null && !Number.isNaN(counted);
-                const outOfTolerance = hasValue && isInventoryOutOfTolerance(ing.quantity, counted);
+                const outOfTolerance = hasValue && isInventoryOutOfTolerance(systemGross, counted);
+                const yieldPct = ingredientYieldPercent(ing);
                 return `
                     <div class="inventaire-item ${outOfTolerance ? 'is-variance' : ''}" data-id="${ing.id}">
                         <div class="inventaire-item-info">
                             <div class="inventaire-item-name">${ing.name}</div>
-                            <div class="inventaire-item-system">Stock système : ${ing.quantity} ${ing.unit}</div>
-                            ${ingredientYieldPercent(ing) < 99.995 ? `<div class="inventaire-item-system">Poids utile, rendement ${ingredientYieldPercent(ing).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} %. Une pièce fermée se compte au poids utile.</div>` : ''}
+                            <div class="inventaire-item-system">Stock système : ${systemGross} ${ing.unit} brut</div>
+                            ${yieldPct < 99.995 ? `<div class="inventaire-item-system">Saisir le poids brut. ${systemGross} ${ing.unit} brut = ${roundStockQty(ing.quantity)} ${ing.unit} utiles, rendement ${yieldPct.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} %.</div>` : ''}
                             ${outOfTolerance ? '<div class="inventory-variance-badge mt-1">Écart &gt; 15%</div>' : ''}
                         </div>
                         <input type="number" inputmode="decimal" step="any" min="0"
@@ -7558,7 +7601,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
         const INVENTORY_EXPORT_HEADERS = [
             'Date inventaire', 'Saisi le', 'Statut', 'Saisi par', 'Validé le', 'Validé par',
-            'Ingrédient', 'Unité', 'Stock système', 'Stock réel', 'Écart', 'Écart %',
+            'Ingrédient', 'Unité', 'Stock système brut', 'Inventaire brut', 'Écart', 'Écart %', 'Poids utile',
             'Hors tolérance (>15%)', 'Ligne validée'
         ];
 
@@ -7574,6 +7617,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     const pct = hasNumbers
                         ? Math.round(getInventoryVariancePercent(system, counted) * 10) / 10
                         : '';
+                    const useful = hasNumbers ? inventoryCountToStock(item) : '';
                     rows.push([
                         formatInventoryExportDate(submission.date),
                         submission.submittedAt ? formatDateToDDMMYYYY(submission.submittedAt) : '',
@@ -7587,6 +7631,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         hasNumbers ? counted : (item.countedQuantity ?? ''),
                         diff,
                         pct,
+                        useful,
                         hasNumbers && isInventoryOutOfTolerance(system, counted) ? 'Oui' : 'Non',
                         item.validated ? 'Oui' : 'Non'
                     ]);
@@ -7725,7 +7770,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
             try {
                 const batch = writeBatch(db);
-                batch.update(doc(ingredientsCol, ingredientId), { quantity: item.countedQuantity });
+                batch.update(doc(ingredientsCol, ingredientId), { quantity: inventoryCountToStock(item) });
                 const updatedItems = (submission.items || []).map(i =>
                     i.ingredientId === ingredientId ? { ...i, validated: true } : i
                 );
@@ -7889,7 +7934,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     const batch = writeBatch(db);
                     chunk.forEach(item => {
                         batch.update(doc(ingredientsCol, item.ingredientId), {
-                            quantity: Number(item.countedQuantity) || 0
+                            quantity: inventoryCountToStock(item)
                         });
                     });
                     await batch.commit();
@@ -7981,7 +8026,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     const isLow = ing.quantity < LOW_STOCK_THRESHOLD;
                     const invItem = pendingMap.get(ing.id);
                     const hasInventory = !!invItem;
-                    const outOfTolerance = hasInventory && isInventoryOutOfTolerance(ing.quantity, invItem.countedQuantity);
+                    const inventorySystemQty = !invItem || invItem.yieldPercent == null ? ing.quantity : grossFromUsable(ing, ing.quantity);
+                    const outOfTolerance = hasInventory && isInventoryOutOfTolerance(inventorySystemQty, invItem.countedQuantity);
                     const row = document.createElement('tr');
                     row.className = [isLow ? 'low-stock' : '', outOfTolerance ? 'inventory-variance-high' : ''].filter(Boolean).join(' ');
                     const costDisplay = (ing.cost && ing.cost > 0) ? `${Number(ing.cost).toFixed(4)} Mad` : 'N/A';
@@ -7993,7 +8039,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         ? `<span class="${outOfTolerance ? 'low-stock-text' : 'font-semibold'}">${invItem.countedQuantity}</span> <span class="text-gray-500">${ing.unit}</span>`
                         : '<span class="text-gray-400">—</span>';
                     const varianceCell = hasInventory
-                        ? `<span class="${outOfTolerance ? 'inventory-variance-badge' : 'text-sm text-gray-600'}">${formatInventoryVariance(ing.quantity, invItem.countedQuantity)}</span>`
+                        ? `<span class="${outOfTolerance ? 'inventory-variance-badge' : 'text-sm text-gray-600'}">${formatInventoryVariance(inventorySystemQty, invItem.countedQuantity)}</span>`
                         : '<span class="text-gray-400">—</span>';
                     const validateBtn = hasInventory && !invItem.validated && canWrite('ingredients')
                         ? `<button type="button" class="validate-inventory-btn text-green-700 hover:text-green-900 font-semibold mr-3" data-submission-id="${pending.id}" data-ingredient-id="${ing.id}">Valider</button>`
@@ -8725,7 +8771,16 @@ const renderOrderHistory = (history) => {
         }); 
         
         document.getElementById('product-form').addEventListener('submit', async e => { 
-            e.preventDefault(); 
+            e.preventDefault();
+            if (productSaveLock) return;
+            productSaveLock = true;
+            const submitBtn = e.currentTarget.querySelector('button[type="submit"]');
+            const submitLabel = submitBtn ? submitBtn.textContent : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Enregistrement...';
+            }
+            try {
             const id = document.getElementById('product-id').value; 
             const type = document.getElementById('product-type').value; 
             const data = { name: document.getElementById('product-name').value, price: parseFloat(document.getElementById('product-price').value), type: type }; 
@@ -8764,7 +8819,6 @@ const renderOrderHistory = (history) => {
                 }
             }
 
-            try { 
                 if (id) {
                     await updateDoc(doc(productsCol, id), data);
                 } else {
@@ -8775,7 +8829,13 @@ const renderOrderHistory = (history) => {
             } catch(error) { 
                 console.error(error); 
                 showToast("Erreur lors de l'opération."); 
-            } 
+            } finally {
+                productSaveLock = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = submitLabel;
+                }
+            }
         }); 
         
         document.getElementById('products-list').addEventListener('click', async e => { 
@@ -9482,7 +9542,7 @@ document.getElementById('inventaire-items')?.addEventListener('input', (e) => {
     const ing = allIngredients.find(i => i.id === input.dataset.id);
     if (item && ing) {
         const counted = input.value === '' ? null : parseFloat(input.value);
-        const outOfTolerance = counted !== null && !Number.isNaN(counted) && isInventoryOutOfTolerance(ing.quantity, counted);
+        const outOfTolerance = counted !== null && !Number.isNaN(counted) && isInventoryOutOfTolerance(grossFromUsable(ing, ing.quantity), counted);
         item.classList.toggle('is-variance', outOfTolerance);
         const badge = item.querySelector('.inventory-variance-badge');
         if (outOfTolerance && !badge) {
@@ -10581,6 +10641,15 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
         // --- Corrected Purchase Order Form Submission ---
         document.getElementById('purchase-order-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (purchaseOrderSaveLock) return;
+            purchaseOrderSaveLock = true;
+            const submitBtn = e.currentTarget.querySelector('button[type="submit"]');
+            const submitLabel = submitBtn ? submitBtn.textContent : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Enregistrement...';
+            }
+            try {
             console.log("Form submitted"); // Debug log 1
             const poId = document.getElementById('po-id').value;
             const supplierId = document.getElementById('po-supplier-select').value;
@@ -10722,6 +10791,13 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                  console.log("No file to upload, saving data directly."); // Debug log 10
                 await saveOrderData(invoiceUrl);
             }
+            } finally {
+                purchaseOrderSaveLock = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = submitLabel;
+                }
+            }
         });
         
         document.getElementById('purchase-orders-list').addEventListener('click', async e => { 
@@ -10736,7 +10812,11 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 return;
             }
             
-            if (target.classList.contains('receive-po-btn')) { 
+            if (target.classList.contains('receive-po-btn')) {
+                if (target.dataset.busy === '1') return;
+                target.dataset.busy = '1';
+                target.disabled = true;
+                try {
                 const poDoc = await getDoc(doc(purchaseOrdersCol, poId)); 
                 const purchaseOrder = poDoc.data(); 
                 const batch = writeBatch(db); 
@@ -10755,7 +10835,13 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 });
                 batch.update(doc(purchaseOrdersCol, poId), { status: 'received', receivedAt: serverTimestamp(), items: receivedItems }); 
                 await batch.commit(); 
-                showToast('Stock mis à jour !'); 
+                showToast('Stock mis à jour !');
+                } catch (error) {
+                    console.error(error);
+                    showToast('Erreur lors de la réception.');
+                    target.dataset.busy = '0';
+                    target.disabled = false;
+                }
             
     } else if (target.classList.contains('delete-po-btn')) { 
     const poToDelete = allPurchaseOrders.find(po => po.id === poId);
