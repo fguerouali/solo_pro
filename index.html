@@ -969,11 +969,11 @@
         </div>
     </div>
 
-    <!-- Top 10 Boissons -->
+    <!-- Top 15 Boissons -->
     <div class="bg-white p-6 rounded-2xl shadow-lg">
         <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <i class="fas fa-wine-bottle text-blue-500 mr-2"></i>
-            Top 10 Boissons
+            Top 15 Boissons
         </h3>
         <div id="top-drinks-list" class="space-y-3">
             <p class="text-center text-gray-500 py-4">Aucune donnée disponible</p>
@@ -5664,7 +5664,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             document.getElementById('kpi-net-profit-rate').textContent = pctOfSales(netProfit);
   // --- TOP 10 PIZZAS ET TOP 5 BOISSONS ---
             const topPizzas = getTopFromBucket(topBuckets.Pizza, 15);
-            const topDrinks = getTopFromBucket(topBuckets.Boisson, 10);
+            const topDrinks = getTopFromBucket(topBuckets.Boisson, 15);
             const topPanuozzo = getTopFromBucket(topBuckets.Panuozzo, 10);
             const topDesserts = getTopFromBucket(topBuckets.Dessert, 10);
 
