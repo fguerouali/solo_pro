@@ -765,6 +765,7 @@
 					<button class="tab-link" data-tab="tasklist"><i class="fas fa-clipboard-check mr-2"></i>Task List</button>
 					<button class="tab-link" data-tab="inventaire"><i class="fas fa-clipboard-list mr-2"></i>Inventaire</button>
 					<button class="tab-link" data-tab="marketing"><i class="fas fa-bullhorn mr-2"></i>Marketing</button>
+					<button class="tab-link" data-tab="logs"><i class="fas fa-history mr-2"></i>Logs</button>
 					<button class="tab-link hidden" data-tab="admin" id="admin-tab-link"><i class="fas fa-user-shield mr-2"></i>Administration</button>
 
                 </nav>
@@ -1812,6 +1813,45 @@
     </div>
 </div>
 
+<div id="logs-content" class="tab-content">
+    <div class="flex flex-wrap justify-between items-end gap-4 mb-6">
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-800">Logs</h2>
+            <p class="text-sm text-gray-500">Qui a enregistré une vente, un achat, un stock, une caisse, un salaire. Les 400 dernières actions.</p>
+        </div>
+        <p id="logs-count" class="text-sm text-gray-500"></p>
+    </div>
+    <div class="bg-white p-4 rounded-2xl shadow-lg mb-6" data-readonly-allowed="true">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div>
+                <label for="logs-user-filter" class="block text-xs font-medium text-gray-500 mb-1">Utilisateur</label>
+                <select id="logs-user-filter" class="w-full input-style">
+                    <option value="">Tous les utilisateurs</option>
+                </select>
+            </div>
+            <div>
+                <label for="logs-area-filter" class="block text-xs font-medium text-gray-500 mb-1">Domaine</label>
+                <select id="logs-area-filter" class="w-full input-style">
+                    <option value="">Tous les domaines</option>
+                </select>
+            </div>
+            <div>
+                <label for="logs-date-filter" class="block text-xs font-medium text-gray-500 mb-1">Jour</label>
+                <input type="date" id="logs-date-filter" class="w-full input-style">
+            </div>
+            <div>
+                <label for="logs-search" class="block text-xs font-medium text-gray-500 mb-1">Recherche</label>
+                <input type="search" id="logs-search" class="w-full input-style" placeholder="Détail, action…">
+            </div>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <div id="logs-list">
+            <p class="text-center text-gray-500 py-8 text-sm">Aucune action enregistrée pour le moment.</p>
+        </div>
+    </div>
+</div>
+
 <!-- ONGLET ADMINISTRATION -->
 <div id="admin-content" class="tab-content">
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -2283,7 +2323,7 @@
         // --- IMPORTS FIREBASE ---
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, getDocs, serverTimestamp, writeBatch, increment, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, getDocs, serverTimestamp, writeBatch, increment, deleteField, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // --- CONFIGURATION ---
@@ -2312,7 +2352,8 @@
             { id: 'finance', label: 'Finance' },
             { id: 'tasklist', label: 'Task List' },
             { id: 'inventaire', label: 'Inventaire' },
-            { id: 'marketing', label: 'Marketing' }
+            { id: 'marketing', label: 'Marketing' },
+            { id: 'logs', label: 'Logs' }
         ];
 
         const INVENTORY_TOLERANCE_PERCENT = 15;
@@ -2334,7 +2375,7 @@
         // --- COLLECTIONS REFS ---
         let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol, chargesCol;
 		let employeesCol, absencesCol, salaryAdvancesCol, salaryPaymentsCol;
-		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol, googleReviewsRef, aiAnalysisLatestRef, marketingOpsCol, planningWeeksCol;
+		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol, googleReviewsRef, aiAnalysisLatestRef, marketingOpsCol, planningWeeksCol, activityLogsCol;
         let googleReviewsState = { rating: null, reviewCount: null, snapshots: [], recentReviews: [], url: 'https://share.google/GX15aEMbOqaVjxGMs', status: 'idle' };
         let latestAiAnalysis = null;
         let aiChatHistory = [];
@@ -2362,6 +2403,9 @@ let allDailyPayments = [];
         let planningDirty = false;
         let planningRenderQueued = false;
         let allAppUsers = [];
+        let allActivityLogs = [];
+        let activityLogsListenerStarted = false;
+        const logsFilterState = { user: '', area: '', date: '', query: '' };
         let currentUserProfile = null;
         let selectedPermissionsUserId = null;
         let collectionsInitialized = false;
@@ -2379,7 +2423,7 @@ let allDailyPayments = [];
         const renderPending = {
             kpis: false, ingredients: false, products: false, orders: false,
             charges: false, losses: false, purchaseOrders: false, suppliers: false,
-            employees: false, salaryPayments: false, dailyPayments: false, tasklist: false, inventaire: false, marketing: false, planning: false
+            employees: false, salaryPayments: false, dailyPayments: false, tasklist: false, inventaire: false, marketing: false, planning: false, logs: false
         };
         let productByIdMap = null;
         let ingredientByIdMap = null;
@@ -2537,6 +2581,7 @@ let allDailyPayments = [];
             inventorySubmissionsCol = collection(db, `artifacts/${appId}/public/data/inventorySubmissions`);
             marketingOpsCol = collection(db, `artifacts/${appId}/public/data/marketingOps`);
             planningWeeksCol = collection(db, `artifacts/${appId}/public/data/planningWeeks`);
+            activityLogsCol = collection(db, `artifacts/${appId}/public/data/activityLogs`);
             collectionsInitialized = true;
         };
 
@@ -2656,10 +2701,13 @@ let allDailyPayments = [];
                 const perms = user.permissions?.[module.id] || { read: false, write: false };
                 const row = document.createElement('tr');
                 row.className = 'border-b';
+                const writeCell = module.id === 'logs'
+                    ? '<td class="py-2 px-2 text-center text-xs text-gray-400">—</td>'
+                    : `<td class="py-2 px-2 text-center"><input type="checkbox" data-module="${module.id}" data-perm="write" ${perms.write ? 'checked' : ''}></td>`;
                 row.innerHTML = `
                     <td class="py-2 pr-4 font-medium">${module.label}</td>
                     <td class="py-2 px-2 text-center"><input type="checkbox" data-module="${module.id}" data-perm="read" ${perms.read ? 'checked' : ''}></td>
-                    <td class="py-2 px-2 text-center"><input type="checkbox" data-module="${module.id}" data-perm="write" ${perms.write ? 'checked' : ''}></td>`;
+                    ${writeCell}`;
                 tbody.appendChild(row);
             });
             tbody.querySelectorAll('input[data-perm="write"]').forEach(writeCb => {
@@ -2687,6 +2735,8 @@ let allDailyPayments = [];
                 permissions[cb.dataset.module][cb.dataset.perm] = cb.checked;
             });
             await updateDoc(doc(db, `artifacts/${appId}/public/data/users`, selectedPermissionsUserId), { permissions });
+            const permissionsTarget = allAppUsers.find((user) => user.id === selectedPermissionsUserId);
+            logActivity('Administration', 'Droits', `Droits de ${permissionsTarget?.username || 'utilisateur'} mis à jour`);
             showToast('Droits enregistrés.');
         };
 
@@ -2695,6 +2745,7 @@ let allDailyPayments = [];
             const user = allAppUsers.find(u => u.id === userId);
             if (!user) return;
             await updateDoc(doc(db, `artifacts/${appId}/public/data/users`, userId), { active: user.active === false ? true : false });
+            logActivity('Administration', user.active === false ? 'Activation' : 'Désactivation', user.username || '');
             showToast(user.active === false ? 'Utilisateur activé.' : 'Utilisateur désactivé.');
         };
 
@@ -2745,6 +2796,7 @@ let allDailyPayments = [];
             try {
                 await createUserAccount(username, password, role);
                 e.target.reset();
+                logActivity('Administration', 'Création', `Utilisateur ${username} · ${role === 'superadmin' ? 'super admin' : 'utilisateur'}`);
                 showToast(`Utilisateur "${username}" créé.`);
             } catch (error) {
                 showToast(formatAuthError(error));
@@ -2752,6 +2804,27 @@ let allDailyPayments = [];
         });
 
         document.getElementById('save-permissions-btn')?.addEventListener('click', savePermissionsEditor);
+
+        document.getElementById('logs-user-filter')?.addEventListener('change', (event) => {
+            logsFilterState.user = event.target.value;
+            resetListPaginationPage('logs');
+            renderActivityLogs();
+        });
+        document.getElementById('logs-area-filter')?.addEventListener('change', (event) => {
+            logsFilterState.area = event.target.value;
+            resetListPaginationPage('logs');
+            renderActivityLogs();
+        });
+        document.getElementById('logs-date-filter')?.addEventListener('change', (event) => {
+            logsFilterState.date = event.target.value;
+            resetListPaginationPage('logs');
+            renderActivityLogs();
+        });
+        document.getElementById('logs-search')?.addEventListener('input', (event) => {
+            logsFilterState.query = event.target.value.trim().toLowerCase();
+            resetListPaginationPage('logs');
+            renderActivityLogs();
+        });
 
         document.addEventListener('submit', (e) => {
             const tab = e.target.closest('.tab-content');
@@ -2937,6 +3010,7 @@ let allDailyPayments = [];
                     applyStoredAiAnalysis(snapshot.data());
                 });
             }
+            listenToActivityLogs();
         }
 
         const debounce = (fn, delayMs) => {
@@ -2956,7 +3030,8 @@ let allDailyPayments = [];
             salaryPayments: { page: 1, size: 50 },
             dailyPayments: { page: 1, size: 50 },
             checklists: { page: 1, size: 50 },
-            inventories: { page: 1, size: 50 }
+            inventories: { page: 1, size: 50 },
+            logs: { page: 1, size: 50 }
         };
         const listPaginationRerenders = {};
 
@@ -3128,6 +3203,10 @@ let allDailyPayments = [];
                 updateAndRenderKPIs();
                 renderPending.kpis = false;
             }
+            if (renderPending.logs && active === 'logs') {
+                renderActivityLogs();
+                renderPending.logs = false;
+            }
             if (renderPending.tasklist) {
                 syncTasklistUiFromData(true);
                 renderPending.tasklist = false;
@@ -3180,6 +3259,86 @@ let allDailyPayments = [];
         
         // --- HELPERS ---
         const showToast = (message) => { const toast = document.getElementById('toast'); document.getElementById('toast-message').textContent = message; toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), 3000); };
+
+        const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+        const logActivity = (area, action, detail) => {
+            if (!activityLogsCol || !currentUserProfile) return;
+            addDoc(activityLogsCol, {
+                username: currentUserProfile.username || '',
+                userId: currentUserProfile.id || '',
+                area,
+                action,
+                detail: String(detail || '').slice(0, 400),
+                createdAt: serverTimestamp()
+            }).catch((error) => console.error('Log non enregistré', error));
+        };
+
+        const renderActivityLogs = () => {
+            const list = document.getElementById('logs-list');
+            if (!list) return;
+            const count = document.getElementById('logs-count');
+            if (count) count.textContent = allActivityLogs.length ? `${allActivityLogs.length} action(s) chargée(s)` : '';
+            const userSelect = document.getElementById('logs-user-filter');
+            if (userSelect) {
+                const current = logsFilterState.user;
+                const names = [...new Set(allActivityLogs.map((entry) => entry.username).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+                userSelect.innerHTML = `<option value="">Tous les utilisateurs</option>${names.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
+                if (names.includes(current)) userSelect.value = current;
+            }
+            const areaSelect = document.getElementById('logs-area-filter');
+            if (areaSelect && areaSelect.options.length <= 1) {
+                const areas = ['Stock', 'Produits', 'Achats', 'Ventes', 'Pertes', 'Charges', 'RH', 'Finance', 'Inventaire', 'Marketing', 'Task List', 'Administration'];
+                areaSelect.innerHTML = `<option value="">Tous les domaines</option>${areas.map((area) => `<option value="${area}">${area}</option>`).join('')}`;
+                if (logsFilterState.area) areaSelect.value = logsFilterState.area;
+            }
+            const filtered = allActivityLogs.filter((entry) => {
+                if (logsFilterState.user && entry.username !== logsFilterState.user) return false;
+                if (logsFilterState.area && entry.area !== logsFilterState.area) return false;
+                if (logsFilterState.date) {
+                    const when = toDate(entry.createdAt);
+                    if (!when) return false;
+                    const key = `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, '0')}-${String(when.getDate()).padStart(2, '0')}`;
+                    if (key !== logsFilterState.date) return false;
+                }
+                if (logsFilterState.query) {
+                    const hay = `${entry.username || ''} ${entry.area || ''} ${entry.action || ''} ${entry.detail || ''}`.toLowerCase();
+                    if (!hay.includes(logsFilterState.query)) return false;
+                }
+                return true;
+            });
+            const page = getPaginatedSlice('logs', filtered);
+            if (!page.total) {
+                list.innerHTML = '<p class="text-center text-gray-500 py-8 text-sm">Aucune action pour ce filtre.</p>';
+            } else {
+                list.innerHTML = `<div class="overflow-x-auto"><table class="min-w-full text-sm">
+                    <thead><tr class="text-left text-xs uppercase tracking-wide text-gray-400 border-b">
+                        <th class="py-2 pr-3">Quand</th>
+                        <th class="py-2 pr-3">Utilisateur</th>
+                        <th class="py-2 pr-3">Domaine</th>
+                        <th class="py-2 pr-3">Action</th>
+                        <th class="py-2">Détail</th>
+                    </tr></thead>
+                    <tbody>${page.items.map((entry) => `<tr class="border-b border-gray-100 align-top">
+                        <td class="py-2 pr-3 whitespace-nowrap text-gray-500">${escapeHtml(formatDateToDDMMYYYY(entry.createdAt))}</td>
+                        <td class="py-2 pr-3 font-semibold text-gray-900 whitespace-nowrap">${escapeHtml(entry.username || '—')}</td>
+                        <td class="py-2 pr-3 whitespace-nowrap">${escapeHtml(entry.area || '')}</td>
+                        <td class="py-2 pr-3 whitespace-nowrap">${escapeHtml(entry.action || '')}</td>
+                        <td class="py-2 text-gray-700">${escapeHtml(entry.detail || '')}</td>
+                    </tr>`).join('')}</tbody>
+                </table></div>`;
+            }
+            mountPaginationBar('logs-list', 'logs', page, () => renderActivityLogs());
+        };
+
+        const listenToActivityLogs = () => {
+            if (activityLogsListenerStarted || !activityLogsCol || !canRead('logs')) return;
+            activityLogsListenerStarted = true;
+            onSnapshot(query(activityLogsCol, orderBy('createdAt', 'desc'), limit(400)), (snapshot) => {
+                allActivityLogs = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+                markDirty('logs');
+            }, (error) => console.error('Logs illisibles', error));
+        };
 
         const PLANNING_ROLES = [
 
@@ -4823,7 +4982,9 @@ let allDailyPayments = [];
             if (!isSuperadmin()) return showToast('Accès réservé au super administrateur.');
             if (!confirm('Supprimer cet enregistrement d\'historique ?')) return;
             try {
+                const removedChecklist = allChecklistSubmissions.find((entry) => entry.id === submissionId);
                 await deleteDoc(doc(checklistSubmissionsCol, submissionId));
+                logActivity('Task List', 'Suppression', `Checklist ${removedChecklist?.date || ''} · ${removedChecklist?.username || ''}`.trim());
                 showToast('Historique supprimé.');
             } catch (error) {
                 console.error('Erreur suppression historique checklist:', error);
@@ -4874,6 +5035,7 @@ let allDailyPayments = [];
                     username: currentUserProfile?.username || '',
                     completedAt: serverTimestamp()
                 });
+                logActivity('Task List', 'Validation', `${tasklistActiveType === 'opening' ? 'Ouverture' : 'Fermeture'} · ${checkedCount}/${items.length}${uncheckedCount ? ' · incomplète' : ''}`);
                 showToast(uncheckedCount === 0 ? 'Checklist validée avec succès !' : 'Checklist validée en KO (tâches incomplètes).');
                 tasklistLocalJustification[tasklistActiveType] = '';
                 tasklistHistoryDomKey = '';
@@ -4906,6 +5068,7 @@ let allDailyPayments = [];
                 const itemsContainer = document.getElementById('tasklist-items');
                 if (itemsContainer) itemsContainer.dataset.domKey = '';
                 scheduleTasklistDataSync();
+                logActivity('Task List', 'Modification', 'Modèle des checklists enregistré');
                 showToast('Checklists enregistrées.');
             } catch (error) {
                 console.error('Erreur sauvegarde checklists:', error);
@@ -4933,6 +5096,10 @@ let allDailyPayments = [];
                 if (moduleId === 'inventaire') renderInventaire();
                 if (moduleId === 'marketing') renderMarketing();
                 if (moduleId === 'planning') renderPlanning();
+                if (moduleId === 'logs') {
+                    listenToActivityLogs();
+                    renderActivityLogs();
+                }
                 flushAppRefresh();
             });
         });
@@ -6233,9 +6400,11 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         payload.publishDate = deleteField();
                     }
                     await updateDoc(doc(marketingOpsCol, marketingEditingId), payload);
+                    logActivity('Marketing', 'Modification', `${name} · ${roundedAmount.toFixed(2)} Mad`);
                     showToast('Opération modifiée.');
                 } else {
                     await addDoc(marketingOpsCol, { ...fields, createdAt: serverTimestamp() });
+                    logActivity('Marketing', 'Création', `${name} · ${roundedAmount.toFixed(2)} Mad`);
                     showToast('Opération ajoutée au planning.');
                 }
                 upsertLocalMarketingOp(fields);
@@ -6281,7 +6450,9 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             if (!confirm('Supprimer cette opération ?')) return;
             try {
                 if (marketingEditingId === button.dataset.id) resetMarketingForm();
+                const removedOp = allMarketingOps.find((op) => op.id === button.dataset.id);
                 await deleteDoc(doc(marketingOpsCol, button.dataset.id));
+                logActivity('Marketing', 'Suppression', removedOp ? `${removedOp.name} · ${Number(removedOp.amount || 0).toFixed(2)} Mad` : 'Opération');
                 showToast('Opération supprimée.');
             } catch (error) {
                 console.error(error);
@@ -7748,9 +7919,11 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             try {
                 if (pending) {
                     await updateDoc(doc(inventorySubmissionsCol, pending.id), payload);
+                    logActivity('Inventaire', 'Modification', `${newItems.length} ligne(s) envoyée(s)`);
                     showToast(`Inventaire mis à jour (${newItems.length} ligne(s) envoyée(s)).`);
                 } else {
                     await addDoc(inventorySubmissionsCol, payload);
+                    logActivity('Inventaire', 'Création', `${newItems.length} ligne(s) envoyée(s)`);
                     showToast(`Inventaire envoyé (${newItems.length} ligne(s)).`);
                 }
                 inventaireLocalCounts = {};
@@ -7801,6 +7974,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     return `${s.id}:${s.status}:${items.length}:${vCount}`;
                 }).join('|');
                 renderIngredients();
+                logActivity('Inventaire', 'Validation', `${item.name || 'Ingrédient'} · compté ${item.countedQuantity} ${item.unit || ''}`.trim());
                 showToast(allValidated ? 'Inventaire entièrement validé.' : 'Ligne validée, stock mis à jour.');
             } catch (error) {
                 console.error('Erreur validation inventaire:', error);
@@ -7913,6 +8087,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             if (pendingItems.length === 0) {
                 try {
                     await closeInventorySubmission(submission);
+                    logActivity('Inventaire', 'Validation', 'Inventaire clôturé');
                     showToast('Inventaire cloturé.');
                 } catch (error) {
                     showToast(`Erreur : ${error.message || 'échec Firestore'}`);
@@ -7945,6 +8120,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 await closeInventorySubmission(submission);
 
                 const skipMsg = skipped > 0 ? ` (${skipped} ligne(s) sans stock ignorée(s))` : '';
+                logActivity('Inventaire', 'Validation', `${toApply.length} ligne(s), stocks mis à jour`);
                 showToast(`Inventaire validé, stocks mis à jour.${skipMsg}`);
             } catch (error) {
                 console.error('Erreur validation inventaire:', error);
@@ -8185,7 +8361,11 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             contentHtml = `<div class="mt-2"><h4 class="font-semibold text-sm text-gray-600">Article en stock:</h4><p class="text-gray-500 text-sm">${linkedIngredient ? linkedIngredient.name : 'Non lié'}</p></div>`;
         }
         
-        const productCost = calculateProductCost(product); card.innerHTML = `<div class="p-6"><div class="flex justify-between items-start"><div><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p></div><span class="text-gray-400 text-xl">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div><p class="text-gray-800 font-bold text-2xl text-right mt-4">${product.price.toFixed(2)} Mad</p></div><div class="bg-gray-50 px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
+        const productCost = calculateProductCost(product);
+        const salePrice = Number(product.price) || 0;
+        const foodCostPct = salePrice > 0 ? (productCost / salePrice) * 100 : null;
+        const foodCostText = foodCostPct == null ? 'Food cost —' : `Food cost ${foodCostPct.toFixed(1)} %`;
+        card.innerHTML = `<div class="p-6"><div class="flex justify-between items-start"><div><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p><p class="text-sm font-semibold text-gray-800">${foodCostText}</p></div><span class="text-gray-400 text-xl">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div><p class="text-gray-800 font-bold text-2xl text-right mt-4">${product.price.toFixed(2)} Mad</p></div><div class="bg-gray-50 px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
 let lastRenderedOrderHistory = [];
 let lastRenderedPurchaseOrders = [];
 let lastRenderedCharges = [];
@@ -8664,11 +8844,13 @@ const renderOrderHistory = (history) => {
                 if (id) {
                     await updateDoc(doc(ingredientsCol, id), data);
                     const inventoryResolved = await resolvePendingInventoryAfterIngredientEdit(id, data.quantity);
+                    logActivity('Stock', 'Modification', `${data.name} · ${data.quantity} ${data.unit} · rendement ${data.yieldPercent} %`);
                     showToast(inventoryResolved
                         ? 'Stock corrigé et ligne d\'inventaire validée.'
                         : (yieldConverted ? 'Rendement enregistré, stock converti au poids utile.' : 'Ingrédient mis à jour !'));
                 } else {
                     await addDoc(ingredientsCol, { ...data, createdAt: serverTimestamp() });
+                    logActivity('Stock', 'Création', `${data.name} · ${data.quantity} ${data.unit} · rendement ${data.yieldPercent} %`);
                     showToast('Ingrédient ajouté !');
                 }
                 closeModal('ingredient-modal');
@@ -8683,7 +8865,9 @@ const renderOrderHistory = (history) => {
             const id = target.dataset.id;
             if (target.classList.contains('delete-ingredient-btn')) {
                 if (confirm('Voulez-vous vraiment supprimer cet ingrédient ?')) {
+                    const removedIngredient = allIngredients.find((ingredient) => ingredient.id === id);
                     await deleteDoc(doc(ingredientsCol, id));
+                    logActivity('Stock', 'Suppression', removedIngredient?.name || 'Ingrédient');
                     showToast('Ingrédient supprimé.');
                 }
             } else if (target.classList.contains('edit-ingredient-btn')) {
@@ -8825,6 +9009,7 @@ const renderOrderHistory = (history) => {
                 } else {
                     await addDoc(productsCol, {...data, createdAt: serverTimestamp()});
                 }
+                logActivity('Produits', id ? 'Modification' : 'Création', `${data.name} · ${Number(data.price).toFixed(2)} Mad`);
                 showToast(id ? 'Produit mis à jour !' : 'Produit créé !'); 
                 closeModal('product-modal'); 
             } catch(error) { 
@@ -8845,7 +9030,9 @@ const renderOrderHistory = (history) => {
             const target = e.target; 
             if (target.closest('.delete-product-btn')) { 
                 if(confirm('Voulez-vous vraiment supprimer ce produit ?')) { 
-                    await deleteDoc(doc(productsCol, id)); 
+                    const removedProduct = allProducts.find((product) => product.id === id);
+                    await deleteDoc(doc(productsCol, id));
+                    logActivity('Produits', 'Suppression', removedProduct?.name || 'Produit');
                     showToast('Produit supprimé.'); 
                 } 
             } else if (target.closest('.edit-product-btn')) { 
@@ -8969,7 +9156,9 @@ document.getElementById('current-order-list').addEventListener('click', e => { c
             }); 
             
             try { 
-                await batch.commit(); 
+                await batch.commit();
+                const saleSummary = currentOrder.map((item) => `${item.quantity}× ${item.name}`).join(', ');
+                logActivity('Ventes', 'Création', `${saleSummary} · ${totalPrice.toFixed(2)} Mad`);
                 showToast('Vente validée, stock mis à jour !'); 
                 currentOrder = []; 
                 renderCurrentOrder(); 
@@ -9006,7 +9195,8 @@ document.getElementById('current-order-list').addEventListener('click', e => { c
                     } 
                     batch.delete(doc(ordersCol, orderId)); 
                     try { 
-                        await batch.commit(); 
+                        await batch.commit();
+                        logActivity('Ventes', 'Suppression', `Vente ${Number(order.totalPrice || 0).toFixed(2)} Mad · ${formatDateToDDMMYYYY(order.saleDate || order.createdAt).split(' à ')[0]}`);
                         showToast("Vente supprimée et stock restauré."); 
                     } catch (error) { 
                         console.error("Error restoring stock:", error); 
@@ -9110,7 +9300,8 @@ document.getElementById('current-order-list').addEventListener('click', e => { c
             if (success) { 
                 batch.set(doc(lossesCol), lossData); 
                 try { 
-                    await batch.commit(); 
+                    await batch.commit();
+                    logActivity('Pertes', 'Création', `${lossData.itemName || 'Perte'} · ${quantity}${lossData.unit ? ' ' + lossData.unit : ''} · ${reason || ''}`.trim());
                     showToast('Perte enregistrée et stock mis à jour !'); 
                     closeModal('loss-modal'); 
                 } catch (error) { 
@@ -9150,7 +9341,8 @@ document.getElementById('current-order-list').addEventListener('click', e => { c
                     batch.delete(doc(lossesCol, lossId)); 
                     
                     try { 
-                        await batch.commit(); 
+                        await batch.commit();
+                        logActivity('Pertes', 'Suppression', `${loss.itemName || 'Perte'} · ${loss.quantity}`);
                         showToast("Perte annulée et stock restauré."); 
                     } catch (error) { 
                         console.error("Error restoring stock from loss:", error); 
@@ -9709,9 +9901,11 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
         
         if (existingPayment) {
             await updateDoc(doc(dailyPaymentsCol, existingPayment.id), data);
+            logActivity('Finance', 'Modification', `Déclaration du ${dateValue.split('-').reverse().join('/')} · ventes ${totalSales.toFixed(2)} Mad`);
             showToast('Déclaration mise à jour !');
         } else {
             await addDoc(dailyPaymentsCol, data);
+            logActivity('Finance', 'Création', `Déclaration du ${dateValue.split('-').reverse().join('/')} · ventes ${totalSales.toFixed(2)} Mad`);
             showToast('Déclaration enregistrée !');
         }
         
@@ -9744,7 +9938,10 @@ document.getElementById('daily-payments-list').addEventListener('click', async (
         const paymentId = deleteBtn.dataset.id;
         if (confirm('Supprimer cette déclaration ?')) {
             try {
+                const removedPayment = allDailyPayments.find((payment) => payment.id === paymentId);
+                const removedPaymentDate = toDate(removedPayment?.date);
                 await deleteDoc(doc(dailyPaymentsCol, paymentId));
+                logActivity('Finance', 'Suppression', `Déclaration du ${removedPaymentDate ? formatDateToDDMMYYYY(removedPaymentDate).split(' à ')[0] : ''}`);
                 showToast('Déclaration supprimée.');
             } catch (error) {
                 console.error("Erreur suppression:", error);
@@ -9937,9 +10134,11 @@ document.getElementById('employee-form').addEventListener('submit', async (e) =>
     try {
         if (id) {
             await updateDoc(doc(employeesCol, id), data);
+            logActivity('RH', 'Modification', `${data.name} · ${Number(data.monthlySalary).toFixed(2)} Mad`);
             showToast('Salarié mis à jour !');
         } else {
             await addDoc(employeesCol, { ...data, createdAt: serverTimestamp() });
+            logActivity('RH', 'Création', `${data.name} · ${Number(data.monthlySalary).toFixed(2)} Mad`);
             showToast('Salarié ajouté !');
         }
         closeModal('employee-modal');
@@ -9970,7 +10169,9 @@ document.getElementById('employees-list').addEventListener('click', async (e) =>
                     await deleteDoc(doc(salaryAdvancesCol, advance.id));
                 }
                 // Supprimer le salarié
+                const removedEmployee = allEmployees.find((employee) => employee.id === employeeId);
                 await deleteDoc(doc(employeesCol, employeeId));
+                logActivity('RH', 'Suppression', removedEmployee?.name || 'Salarié');
                 showToast('Salarié supprimé.');
             } catch (error) {
                 console.error("Erreur suppression salarié:", error);
@@ -10047,9 +10248,11 @@ document.getElementById('absence-form').addEventListener('submit', async (e) => 
     const existingAbsence = allAbsences.find(a => a.employeeId === employeeId && a.month === month);
 
     try {
+        const absenceEmployee = allEmployees.find((employee) => employee.id === employeeId);
         if (existingAbsence) {
             // Mettre à jour l'absence existante
             await updateDoc(doc(absencesCol, existingAbsence.id), { days });
+            logActivity('RH', 'Modification', `Absence ${absenceEmployee?.name || ''} · ${month} · ${days} j`);
             showToast('Absence mise à jour !');
         } else {
             // Créer une nouvelle absence
@@ -10059,6 +10262,7 @@ document.getElementById('absence-form').addEventListener('submit', async (e) => 
                 days,
                 createdAt: serverTimestamp()
             });
+            logActivity('RH', 'Création', `Absence ${absenceEmployee?.name || ''} · ${month} · ${days} j`);
             showToast('Absence enregistrée !');
         }
         
@@ -10080,7 +10284,10 @@ document.getElementById('absences-list').addEventListener('click', async (e) => 
         const absenceId = deleteBtn.dataset.id;
         if (confirm('Supprimer cette absence ?')) {
             try {
+                const removedAbsence = allAbsences.find((absence) => absence.id === absenceId);
+                const absenceOwner = allEmployees.find((employee) => employee.id === removedAbsence?.employeeId);
                 await deleteDoc(doc(absencesCol, absenceId));
+                logActivity('RH', 'Suppression', `Absence ${absenceOwner?.name || ''} · ${removedAbsence?.month || ''}`);
                 showToast('Absence supprimée.');
                 const employeeId = document.getElementById('absence-employee-id').value;
                 renderAbsencesForEmployee(employeeId);
@@ -10117,6 +10324,8 @@ document.getElementById('advance-form').addEventListener('submit', async (e) => 
         });
         document.getElementById('advance-amount').value = '';
         document.getElementById('advance-note').value = '';
+        const advanceEmployee = allEmployees.find((employee) => employee.id === employeeId);
+        logActivity('RH', 'Création', `Avance ${advanceEmployee?.name || ''} · ${amount.toFixed(2)} Mad`);
         showToast('Avance enregistrée. Elle sera retirée du prochain salaire.');
         renderAdvancesForEmployee(employeeId);
     } catch (error) {
@@ -10133,6 +10342,8 @@ document.getElementById('advances-list').addEventListener('click', async (e) => 
     if (!confirm('Supprimer cette avance ?')) return;
     try {
         await deleteDoc(doc(salaryAdvancesCol, advance.id));
+        const advanceOwner = allEmployees.find((employee) => employee.id === advance.employeeId);
+        logActivity('RH', 'Suppression', `Avance ${advanceOwner?.name || ''} · ${Number(advance.amount || 0).toFixed(2)} Mad`);
         showToast('Avance supprimée.');
         renderAdvancesForEmployee(advance.employeeId);
     } catch (error) {
@@ -10267,6 +10478,7 @@ document.getElementById('pay-all-salaries-btn').addEventListener('click', async 
             throw paymentError;
         }
 
+        logActivity('RH', 'Paiement', `Salaires ${monthInput} · ${totalAmount.toFixed(2)} Mad · ${currentSalaryCalculations.length} personne(s)`);
         showToast(`Paiement de ${totalAmount.toFixed(2)} Mad enregistré !`);
         
         // Réinitialiser
@@ -10295,6 +10507,7 @@ document.getElementById('salary-payments-history').addEventListener('click', asy
             try {
                 // 1. Supprimer le paiement de salaire
                 await deleteDoc(doc(salaryPaymentsCol, paymentId));
+                logActivity('RH', 'Suppression', `Paiement salaires ${payment.month} · ${Number(payment.totalAmount || 0).toFixed(2)} Mad`);
 
                 for (const employee of payment.employees || []) {
                     for (const applied of employee.advancesApplied || []) {
@@ -10369,6 +10582,7 @@ document.getElementById('charge-form').addEventListener('submit', async (e) => {
             createdAt: serverTimestamp()
         });
 
+        logActivity('Charges', 'Création', `${name} · ${amount.toFixed(2)} Mad`);
         showToast('Charge enregistrée !');
         document.getElementById('charge-form').reset();
         resetChargeFormDefaults();
@@ -10444,6 +10658,7 @@ document.getElementById('charge-tag-form').addEventListener('submit', async (e) 
             tagged: true,
             autoTagged: false
         });
+        logActivity('Charges', 'Modification', `${name} · ${Number(charge.amount || 0).toFixed(2)} Mad`);
         showToast('Charge étiquetée !');
         closeModal('charge-tag-modal');
     } catch (error) {
@@ -10466,7 +10681,9 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
         const chargeId = deleteBtn.dataset.id;
         if (confirm("Voulez-vous vraiment supprimer cette charge ?")) {
             try {
+                const removedCharge = allCharges.find((charge) => charge.id === chargeId);
                 await deleteDoc(doc(chargesCol, chargeId));
+                logActivity('Charges', 'Suppression', `${removedCharge?.name || 'Charge'} · ${Number(removedCharge?.amount || 0).toFixed(2)} Mad`);
                 showToast("Charge supprimée.");
             } catch (error) {
                 console.error("Erreur suppression charge: ", error);
@@ -10477,7 +10694,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
 });
 // ^ ^ ^ **FIN DE L'AJOUT** ^ ^ ^
         // --- FOURNISSEURS & ACHATS ---
-        document.getElementById('add-supplier-btn').addEventListener('click', () => { document.getElementById('supplier-modal-title').textContent = 'Ajouter un Fournisseur'; document.getElementById('supplier-form').reset(); document.getElementById('supplier-id').value = ''; openModal('supplier-modal'); }); document.getElementById('cancel-supplier').addEventListener('click', () => closeModal('supplier-modal')); document.getElementById('supplier-form').addEventListener('submit', async e => { e.preventDefault(); const id = document.getElementById('supplier-id').value; const data = { name: document.getElementById('supplier-name').value, contact: document.getElementById('supplier-contact').value }; try { if (id) await updateDoc(doc(suppliersCol, id), data); else await addDoc(suppliersCol, data); showToast(id ? 'Fournisseur mis à jour' : 'Fournisseur ajouté'); closeModal('supplier-modal'); } catch(error) { showToast('Erreur'); } }); document.getElementById('suppliers-list').addEventListener('click', async e => { const target = e.target.closest('button'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-supplier-btn')) { if (confirm('Supprimer ce fournisseur ?')) await deleteDoc(doc(suppliersCol, id)); } else if (target.classList.contains('edit-supplier-btn')) { const sup = allSuppliers.find(s => s.id === id); document.getElementById('supplier-id').value = id; document.getElementById('supplier-name').value = sup.name; document.getElementById('supplier-contact').value = sup.contact; openModal('supplier-modal'); } });
+        document.getElementById('add-supplier-btn').addEventListener('click', () => { document.getElementById('supplier-modal-title').textContent = 'Ajouter un Fournisseur'; document.getElementById('supplier-form').reset(); document.getElementById('supplier-id').value = ''; openModal('supplier-modal'); }); document.getElementById('cancel-supplier').addEventListener('click', () => closeModal('supplier-modal')); document.getElementById('supplier-form').addEventListener('submit', async e => { e.preventDefault(); const id = document.getElementById('supplier-id').value; const data = { name: document.getElementById('supplier-name').value, contact: document.getElementById('supplier-contact').value }; try { if (id) await updateDoc(doc(suppliersCol, id), data); else await addDoc(suppliersCol, data); logActivity('Achats', id ? 'Modification' : 'Création', `Fournisseur ${data.name}`); showToast(id ? 'Fournisseur mis à jour' : 'Fournisseur ajouté'); closeModal('supplier-modal'); } catch(error) { showToast('Erreur'); } }); document.getElementById('suppliers-list').addEventListener('click', async e => { const target = e.target.closest('button'); if (!target) return; const id = target.dataset.id; if (target.classList.contains('delete-supplier-btn')) { if (confirm('Supprimer ce fournisseur ?')) { const supplier = allSuppliers.find(s => s.id === id); await deleteDoc(doc(suppliersCol, id)); logActivity('Achats', 'Suppression', `Fournisseur ${supplier?.name || ''}`); } } else if (target.classList.contains('edit-supplier-btn')) { const sup = allSuppliers.find(s => s.id === id); document.getElementById('supplier-id').value = id; document.getElementById('supplier-name').value = sup.name; document.getElementById('supplier-contact').value = sup.contact; openModal('supplier-modal'); } });
         const populateSupplierSelects = () => { 
             const select = document.getElementById('po-supplier-select'); 
             select.innerHTML = '<option value="">Choisir...</option>'; 
@@ -10743,11 +10960,15 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                             });
                             batch.update(doc(purchaseOrdersCol, poId), data);
                             await batch.commit();
+                            const supplierName = allSuppliers.find(s => s.id === supplierId)?.name || '';
+                            logActivity('Achats', 'Modification', `Commande reçue ${orderNumber || ''} ${supplierName} · ${totalCost.toFixed(2)} Mad · stock ajusté`.replace(/\s+/g, ' ').trim());
                             showToast(missingIngredients.length
                                 ? 'Commande mise à jour. Un ingrédient supprimé du stock n’a pas été ajusté.'
                                 : 'Commande mise à jour, stock ajusté');
                         } else {
                             await updateDoc(doc(purchaseOrdersCol, poId), data);
+                            const supplierName = allSuppliers.find(s => s.id === supplierId)?.name || '';
+                            logActivity('Achats', 'Modification', `Commande ${orderNumber || ''} ${supplierName} · ${totalCost.toFixed(2)} Mad`.replace(/\s+/g, ' ').trim());
                             showToast('Commande fournisseur mise à jour');
                         }
                     } else {
@@ -10758,6 +10979,8 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                              data.paidAt = serverTimestamp(); // Add paidAt timestamp if created as paid
                         }
                         await addDoc(purchaseOrdersCol, data);
+                        const supplierName = allSuppliers.find(s => s.id === supplierId)?.name || '';
+                        logActivity('Achats', 'Création', `Commande ${orderNumber || ''} ${supplierName} · ${totalCost.toFixed(2)} Mad`.replace(/\s+/g, ' ').trim());
                         showToast('Commande fournisseur créée');
                     }
                     console.log("Database operation successful"); // Debug log 7
@@ -10835,7 +11058,9 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                     }
                 });
                 batch.update(doc(purchaseOrdersCol, poId), { status: 'received', receivedAt: serverTimestamp(), items: receivedItems }); 
-                await batch.commit(); 
+                await batch.commit();
+                const receivedSupplier = allSuppliers.find(s => s.id === purchaseOrder.supplierId)?.name || '';
+                logActivity('Achats', 'Réception', `Commande ${purchaseOrder.orderNumber || ''} ${receivedSupplier} · ${Number(purchaseOrder.totalCost || 0).toFixed(2)} Mad`.replace(/\s+/g, ' ').trim());
                 showToast('Stock mis à jour !');
                 } catch (error) {
                     console.error(error);
@@ -10858,7 +11083,9 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                     showToast("Erreur lors de la suppression de la facture associée, mais la commande sera supprimée.");
                 }
             }
-            await deleteDoc(doc(purchaseOrdersCol, poId)); 
+            await deleteDoc(doc(purchaseOrdersCol, poId));
+            const deletedSupplier = allSuppliers.find(s => s.id === poToDelete?.supplierId)?.name || '';
+            logActivity('Achats', 'Suppression', `Commande ${poToDelete?.orderNumber || ''} ${deletedSupplier} · ${Number(poToDelete?.totalCost || 0).toFixed(2)} Mad`.replace(/\s+/g, ' ').trim());
             showToast('Commande fournisseur supprimée.'); 
         } catch (error) { 
             console.error("Error deleting purchase order:", error); 
@@ -10947,6 +11174,9 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                             paymentStatus: 'paid',
                             paidAt: serverTimestamp() // Optional: add a paid timestamp
                         });
+                        const paidOrder = allPurchaseOrders.find(po => po.id === poId);
+                        const paidSupplier = allSuppliers.find(s => s.id === paidOrder?.supplierId)?.name || '';
+                        logActivity('Achats', 'Paiement', `Commande ${paidOrder?.orderNumber || ''} ${paidSupplier} · ${Number(paidOrder?.totalCost || 0).toFixed(2)} Mad`.replace(/\s+/g, ' ').trim());
                         showToast('Commande marquée comme payée !');
                     } catch (error) {
                         console.error("Erreur lors de la mise à jour du paiement:", error);
@@ -11261,6 +11491,7 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
 
         if (salesImportedCount > 0) {
              await batch.commit();
+             logActivity('Ventes', 'Import', `${salesImportedCount} vente(s) importée(s) depuis la caisse`);
              showToast(`${salesImportedCount} ventes importées.`);
         } else {
              showToast(skippedCount > 0 ? "Tout est déjà à jour." : "Aucune donnée.");
@@ -11340,7 +11571,8 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
                      throw new Error(`Erreur à la ligne ${index + 2} (ingrédients) : ${e.message}`);
                 }
             }); 
-            await batch.commit(); 
+            await batch.commit();
+            logActivity('Stock', 'Import', `${lines.length} ligne(s) d'ingrédients`);
         }
 
         async function importProducts(lines) { 
@@ -11387,7 +11619,8 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
                      throw new Error(`Erreur à la ligne ${index + 2} (produits) : ${e.message}`);
                  }
             }); 
-            await batch.commit(); 
+            await batch.commit();
+            logActivity('Produits', 'Import', `${lines.length} ligne(s) de produits`);
         }
         
         async function importOrders(lines) { 
@@ -11455,7 +11688,8 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
                      throw new Error(`Erreur à la ligne ${index + 2} (ventes) : ${e.message}`);
                  }
             } 
-            await batch.commit(); 
+            await batch.commit();
+            logActivity('Ventes', 'Import', `${lines.length} ligne(s) de ventes`);
         }
 
 
@@ -11595,7 +11829,7 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
                 }
 
                 await batch.commit();
-                
+                logActivity('Ventes', 'Suppression', `${selectedIds.length} ventes supprimées, stock restauré`);
                 showToast(`${selectedIds.length} ventes supprimées et stock restauré avec succès.`);
                 
                 // Reset UI
