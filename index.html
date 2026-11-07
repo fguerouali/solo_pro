@@ -5717,6 +5717,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     if (day.weather?.rain) addBadge(badges, 'Pluie', 'bg-blue-100 text-blue-800');
                     else if (day.weather?.hot) addBadge(badges, `Chaud${day.weather.tempMax ? ` ${Math.round(day.weather.tempMax)}°` : ''}`, 'bg-orange-100 text-orange-800');
                     else addBadge(badges, 'Météo calme', 'bg-gray-100 text-gray-700');
+                    if (day.holiday) addBadge(badges, day.holiday, 'bg-rose-100 text-rose-800');
                     if (day.match) addBadge(badges, day.match.text, 'bg-emerald-100 text-emerald-800');
                     (day.marketing || []).forEach((item) => {
                         const tone = item.role === 'publish' ? 'bg-orange-100 text-orange-800' : (item.key === 'video' ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800');
@@ -5806,7 +5807,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             if (!data.weatherOk) limits.push('météo indisponible');
             if (!data.footballOk) limits.push('calendrier des matchs indisponible');
             if (data.marketingDays) limits.push(`${data.marketingDays} jours marketing écartés du jour normal`);
-            noteEl.textContent = `Calculé sur ${data.trainedDays} jours ouverts, hors lundis et hors Ramadan 2026.${limits.length ? ` ${limits.join(', ')}.` : ''}`;
+            noteEl.textContent = `Calculé sur ${data.trainedDays} jours ouverts, hors lundis et hors Ramadan 2026. Les jours fériés marocains sont pris en compte.${limits.length ? ` ${limits.join(', ')}.` : ''}`;
         };
 
         let forecastRunning = false;

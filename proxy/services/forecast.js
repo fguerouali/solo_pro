@@ -44,6 +44,46 @@ function isRamadan2026(dateStr) {
     return dateStr >= RAMADAN_2026.start && dateStr <= RAMADAN_2026.end;
 }
 
+const FIXED_HOLIDAYS = {
+    '01-01': 'Nouvel An',
+    '01-11': 'Manifeste de l\'Indépendance',
+    '01-14': 'Nouvel An amazigh',
+    '05-01': 'Fête du Travail',
+    '07-30': 'Fête du Trône',
+    '08-14': 'Oued Ed-Dahab',
+    '08-20': 'Révolution du Roi et du Peuple',
+    '08-21': 'Fête de la Jeunesse',
+    '10-31': 'Fête de l\'Unité',
+    '11-06': 'Marche verte',
+    '11-18': 'Fête de l\'Indépendance'
+};
+
+// Dates annoncées pour le Maroc. Les fêtes religieuses bougent chaque année.
+const RELIGIOUS_HOLIDAYS = {
+    '2025-03-31': 'Aïd el-Fitr',
+    '2025-04-01': 'Aïd el-Fitr',
+    '2025-06-07': 'Aïd el-Adha',
+    '2025-06-08': 'Aïd el-Adha',
+    '2025-06-27': '1er Moharram',
+    '2025-09-05': 'Aïd el-Mawlid',
+    '2025-09-06': 'Aïd el-Mawlid',
+    '2026-03-20': 'Aïd el-Fitr',
+    '2026-03-21': 'Aïd el-Fitr',
+    '2026-05-27': 'Aïd el-Adha',
+    '2026-05-28': 'Aïd el-Adha',
+    '2026-06-17': '1er Moharram',
+    '2026-08-25': 'Aïd el-Mawlid',
+    '2026-08-26': 'Aïd el-Mawlid'
+};
+
+function holidayName(dateStr) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) return '';
+    if (RELIGIOUS_HOLIDAYS[dateStr]) return RELIGIOUS_HOLIDAYS[dateStr];
+    const monthDay = dateStr.slice(5);
+    if (monthDay === '10-31' && dateStr < '2026-10-31') return '';
+    return FIXED_HOLIDAYS[monthDay] || '';
+}
+
 function casablancaToday() {
     return new Intl.DateTimeFormat('en-CA', {
         timeZone: TIMEZONE,
@@ -472,7 +512,8 @@ function enrichDays(days, weatherByDate, fixturesByDate, campaigns = []) {
             matchMidi: matchSlot(matches, 'midi'),
             matchSoir: matchSlot(matches, 'soir'),
             marketingVideo: campaignOnDate(campaigns, day.date, 'video'),
-            marketingCollab: campaignOnDate(campaigns, day.date, 'collab')
+            marketingCollab: campaignOnDate(campaigns, day.date, 'collab'),
+            holiday: holidayName(day.date)
         };
     });
 }
@@ -516,9 +557,9 @@ function marketingPredicate(tomorrow) {
 
 function predictTarget(training, target, tomorrow) {
     const sameDow = training.filter((row) => row.dow === tomorrow.dow);
-    const ordinary = sameDow.filter((row) => marketingLevel(row) === 0);
+    const ordinary = sameDow.filter((row) => marketingLevel(row) === 0 && !row.holiday);
     const poolSource = ordinary.length >= 4 ? ordinary : sameDow;
-    const calm = poolSource.filter((row) => !row.rain && !row.hot && slotLevel(row, target) === 0 && marketingLevel(row) === 0);
+    const calm = poolSource.filter((row) => !row.rain && !row.hot && slotLevel(row, target) === 0 && marketingLevel(row) === 0 && !row.holiday);
     const normalTraining = training.filter((row) => marketingLevel(row) === 0);
     const pool = calm.length >= 4 ? calm : (poolSource.length >= 4 ? poolSource : (normalTraining.length >= 4 ? normalTraining : training));
     const baseline = median(pool.map((row) => row[target]));
@@ -531,6 +572,10 @@ function predictTarget(training, target, tomorrow) {
         adjustment += conditionalDelta(compareSet, target, (row) => slotLevel(row, target) >= 2);
     } else if (level === 1) {
         adjustment += conditionalDelta(compareSet, target, (row) => slotLevel(row, target) === 1);
+    }
+    if (tomorrow.holiday) {
+        const holidaySet = sameDow.filter((row) => row.holiday).length >= 2 ? sameDow : training;
+        adjustment += conditionalDelta(holidaySet, target, (row) => Boolean(row.holiday));
     }
     const marketingMatch = marketingPredicate(tomorrow);
     if (marketingMatch) {
@@ -586,7 +631,8 @@ function forecastOneDay(date, horizon, training, context) {
         matchMidi: matchSlot(matches, 'midi'),
         matchSoir: matchSlot(matches, 'soir'),
         marketingVideo: campaignOnDate(campaigns, date, 'video'),
-        marketingCollab: campaignOnDate(campaigns, date, 'collab')
+        marketingCollab: campaignOnDate(campaigns, date, 'collab'),
+        holiday: holidayName(date)
     };
     const slots = {};
     for (const target of TARGETS) slots[target] = predictTarget(training, target, dayContext);
@@ -599,6 +645,7 @@ function forecastOneDay(date, horizon, training, context) {
             precipitation: weather.precipitation
         },
         match: describeMatch(matches),
+        holiday: dayContext.holiday || '',
         marketing: marketingBadges(date, dayContext, campaigns),
         surPlace: { midi: slots.surPlaceMidi, soir: slots.surPlaceSoir },
         livraison: { midi: slots.livraisonMidi, soir: slots.livraisonSoir },
