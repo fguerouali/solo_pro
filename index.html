@@ -8366,8 +8366,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 laborPct: pctOfTtc(work),
                 vatPct: pctOfTtc(vat),
                 marginPct: pctOfTtc(margin),
-                foodCostHt: ht > 0 ? (mat / ht) * 100 : 0,
-                marginHt: ht > 0 ? (margin / ht) * 100 : 0
+                foodCostHt: ht > 0 ? (mat / ht) * 100 : 0
             };
         };
 
@@ -8419,8 +8418,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         <p class="text-xs font-bold text-gray-900 tabular-nums whitespace-nowrap">${pct(split.foodCostHt)}</p>
                     </div>
                     <div class="min-w-0 border-l border-gray-200 pl-2">
-                        <p class="text-[10px] leading-tight text-gray-500">Marge<span class="block">sur HT</span></p>
-                        <p class="text-xs font-bold ${marginClass} tabular-nums whitespace-nowrap">${pct(split.marginHt)}</p>
+                        <p class="text-[10px] leading-tight text-gray-500">Marge après<span class="block">coûts directs</span></p>
+                        <p class="text-xs font-bold ${marginClass} tabular-nums whitespace-nowrap">${money(split.margin)}</p>
                     </div>
                 </div>
             </div>`;
