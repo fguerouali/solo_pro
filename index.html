@@ -2018,6 +2018,19 @@
                 </div>
                 <!-- FIN MODIFICATION -->
 
+                <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="product-packaging-cost" class="block text-sm font-medium text-gray-700">Emballage (Mad) <span class="text-gray-400 font-normal">optionnel</span></label>
+                        <input type="number" id="product-packaging-cost" min="0" step="0.01" placeholder="0.00" class="mt-1 w-full input-style">
+                    </div>
+                    <div>
+                        <label for="product-labor-cost" class="block text-sm font-medium text-gray-700">Main-d'œuvre (Mad) <span class="text-gray-400 font-normal">optionnel</span></label>
+                        <input type="number" id="product-labor-cost" min="0" step="0.01" placeholder="0.00" class="mt-1 w-full input-style">
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">La TVA est de 10 % du prix TTC. Laisse vide si ce produit n'a pas d'emballage ou de main-d'œuvre.</p>
+                <div id="product-price-preview" class="mt-4"></div>
+
                 <div class="mt-6 flex justify-end space-x-3"><button type="button" class="btn-secondary" id="cancel-product">Annuler</button><button type="submit" class="btn-primary">Sauvegarder Produit</button></div>
             </form>
         </div>
@@ -8334,6 +8347,107 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             return getCachedProductCost(product, getIngredientByIdMap());
         };
 
+        const PRODUCT_VAT_RATE = 0.10;
+        const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
+        const productPriceBreakdown = (priceTtc, materials, packaging, labor) => {
+            const ttc = roundMoney(priceTtc);
+            const ht = ttc > 0 ? roundMoney(ttc / (1 + PRODUCT_VAT_RATE)) : 0;
+            const vat = roundMoney(ttc - ht);
+            const mat = Math.max(0, roundMoney(materials));
+            const pack = Math.max(0, roundMoney(packaging));
+            const work = Math.max(0, roundMoney(labor));
+            const margin = roundMoney(ht - mat - pack - work);
+            const pctOfTtc = (amount) => ttc > 0 ? (amount / ttc) * 100 : 0;
+            return {
+                ttc, ht, vat, materials: mat, packaging: pack, labor: work, margin,
+                materialsPct: pctOfTtc(mat),
+                packagingPct: pctOfTtc(pack),
+                laborPct: pctOfTtc(work),
+                vatPct: pctOfTtc(vat),
+                marginPct: pctOfTtc(margin),
+                foodCostHt: ht > 0 ? (mat / ht) * 100 : 0,
+                marginHt: ht > 0 ? (margin / ht) * 100 : 0
+            };
+        };
+
+        const renderPriceSplit = (priceTtc, materials, packaging, labor) => {
+            const split = productPriceBreakdown(priceTtc, materials, packaging, labor);
+            if (!(split.ttc > 0)) {
+                return '<div class="mt-4 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">La répartition s\'affiche dès qu\'un prix de vente est saisi.</div>';
+            }
+            const money = (amount) => `${amount.toFixed(2)} Mad`;
+            const pct = (amount) => `${amount.toFixed(1)} %`;
+            const rows = [
+                { label: 'Matières', amount: split.materials, share: split.materialsPct, dot: '#e7a08c', text: '#3f2a24', show: true },
+                { label: 'Emballage', amount: split.packaging, share: split.packagingPct, dot: '#e8c547', text: '#3f3210', show: split.packaging > 0 },
+                { label: 'Main-d\'œuvre', amount: split.labor, share: split.laborPct, dot: '#8eaddb', text: '#1e2a44', show: split.labor > 0 },
+                { label: 'TVA collectée (10 %)', amount: split.vat, share: split.vatPct, dot: '#c5c8ce', text: '#1f2937', show: true },
+                { label: 'Marge après coûts directs', amount: split.margin, share: split.marginPct, dot: '#0f9d78', text: '#ffffff', show: true, emphasis: true }
+            ].filter((row) => row.show);
+            const barRows = rows.filter((row) => row.amount > 0);
+            const barTotal = barRows.reduce((sum, row) => sum + row.amount, 0) || 1;
+            const balanced = split.margin >= 0;
+            const bar = barRows.map((row) => {
+                const width = (row.amount / barTotal) * 100;
+                const label = balanced && width >= 12 ? pct(row.share) : '';
+                return `<div class="flex items-center justify-center overflow-hidden whitespace-nowrap px-1" style="width:${width}%;background:${row.dot};color:${row.text}" title="${row.label} · ${money(row.amount)} · ${pct(row.share)}">${label}</div>`;
+            }).join('');
+            const legend = rows.map((row) => {
+                const negative = row.amount < 0;
+                const amountClass = negative ? 'text-red-600' : 'text-gray-900';
+                const shareClass = negative ? 'text-red-600' : 'text-gray-500';
+                return `<li class="flex items-center gap-2 text-sm">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${row.dot}"></span>
+                    <span class="min-w-0 flex-1 leading-tight text-gray-700">${row.label}</span>
+                    <span class="${amountClass} shrink-0 font-semibold tabular-nums whitespace-nowrap">${money(row.amount)}</span>
+                    <span class="${shareClass} shrink-0 w-12 text-right tabular-nums whitespace-nowrap">${pct(row.share)}</span>
+                </li>`;
+            }).join('');
+            const marginClass = split.margin < 0 ? 'text-red-600' : 'text-gray-900';
+            return `<div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <p class="text-sm font-semibold leading-snug text-gray-900 mb-3">Répartition des ${money(split.ttc)} TTC</p>
+                <div class="flex h-8 w-full overflow-hidden rounded-full text-[10px] font-semibold" role="img" aria-label="Répartition du prix de vente">${bar}</div>
+                <ul class="mt-3 space-y-1.5">${legend}</ul>
+                <div class="mt-3 grid grid-cols-3 gap-2 border-t border-gray-200 pt-3">
+                    <div class="min-w-0">
+                        <p class="text-[10px] leading-tight text-gray-500">Prix HT</p>
+                        <p class="text-xs font-bold text-gray-900 tabular-nums whitespace-nowrap">${money(split.ht)}</p>
+                    </div>
+                    <div class="min-w-0 border-l border-gray-200 pl-2">
+                        <p class="text-[10px] leading-tight text-gray-500">Food cost<span class="block">sur HT</span></p>
+                        <p class="text-xs font-bold text-gray-900 tabular-nums whitespace-nowrap">${pct(split.foodCostHt)}</p>
+                    </div>
+                    <div class="min-w-0 border-l border-gray-200 pl-2">
+                        <p class="text-[10px] leading-tight text-gray-500">Marge<span class="block">sur HT</span></p>
+                        <p class="text-xs font-bold ${marginClass} tabular-nums whitespace-nowrap">${pct(split.marginHt)}</p>
+                    </div>
+                </div>
+            </div>`;
+        };
+
+        const previewProductMaterials = () => {
+            const type = document.getElementById('product-type')?.value || '';
+            const hasRecipe = ['Pizza', 'Panuozzo', 'Dessert', 'Entrée'].includes(type);
+            if (hasRecipe) {
+                return currentRecipe.reduce((total, recipeItem) => {
+                    const ingredient = allIngredients.find((item) => item.id === recipeItem.id);
+                    return total + (usableUnitCost(ingredient) * recipeItem.quantity);
+                }, 0);
+            }
+            const linked = allIngredients.find((item) => item.id === document.getElementById('linked-ingredient-select')?.value);
+            return linked ? usableUnitCost(linked) : 0;
+        };
+
+        const refreshProductPricePreview = () => {
+            const host = document.getElementById('product-price-preview');
+            if (!host) return;
+            const price = parseFloat(document.getElementById('product-price')?.value);
+            const packaging = parseFloat(document.getElementById('product-packaging-cost')?.value);
+            const labor = parseFloat(document.getElementById('product-labor-cost')?.value);
+            host.innerHTML = renderPriceSplit(price, previewProductMaterials(), packaging, labor);
+        };
+
         const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); const typeFilter = document.getElementById('product-type-filter')?.value || ''; container.innerHTML = ''; const filteredProducts = typeFilter ? allProducts.filter(p => p.type === typeFilter) : allProducts; if(filteredProducts.length === 0) { const pEl = placeholder?.querySelector('p'); if(pEl) pEl.textContent = typeFilter ? 'Aucun produit pour ce type.' : 'Aucun produit créé. Créez votre premier produit !'; container.appendChild(placeholder); } else { filteredProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Entrée: '<i class="fas fa-concierge-bell"></i>', Pizza: '<i class="fas fa-pizza-slice"></i>', Panuozzo: '<i class="fas fa-bread-slice"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Autre: '<i class="fas fa-box"></i>' }; 
         
         let contentHtml = '';
@@ -8363,9 +8477,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
         
         const productCost = calculateProductCost(product);
         const salePrice = Number(product.price) || 0;
-        const foodCostPct = salePrice > 0 ? (productCost / salePrice) * 100 : null;
-        const foodCostText = foodCostPct == null ? 'Food cost —' : `Food cost ${foodCostPct.toFixed(1)} %`;
-        card.innerHTML = `<div class="p-6"><div class="flex justify-between items-start"><div><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p><p class="text-sm font-semibold text-gray-800">${foodCostText}</p></div><span class="text-gray-400 text-xl">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div><p class="text-gray-800 font-bold text-2xl text-right mt-4">${product.price.toFixed(2)} Mad</p></div><div class="bg-gray-50 px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
+        const priceSplitHtml = renderPriceSplit(salePrice, productCost, product.packagingCost, product.laborCost);
+        card.innerHTML = `<div class="p-4 sm:p-6"><div class="flex justify-between items-start gap-3"><div class="min-w-0"><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p></div><span class="text-gray-400 text-xl shrink-0">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div>${priceSplitHtml}</div><div class="bg-gray-50 px-4 sm:px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
 let lastRenderedOrderHistory = [];
 let lastRenderedPurchaseOrders = [];
 let lastRenderedCharges = [];
@@ -8903,12 +9016,18 @@ const renderOrderHistory = (history) => {
             document.getElementById('linked-ingredient-quantity').value = 1;
             populateIngredientSelects();
             syncProductTypeSections(document.getElementById('product-type').value);
-            openModal('product-modal'); 
+            openModal('product-modal');
+            refreshProductPricePreview();
         });
         document.getElementById('cancel-product').addEventListener('click', () => closeModal('product-modal')); 
         
         document.getElementById('product-type').addEventListener('change', (e) => { 
             syncProductTypeSections(e.target.value);
+            refreshProductPricePreview();
+        });
+        ['product-price', 'product-packaging-cost', 'product-labor-cost', 'linked-ingredient-select', 'linked-ingredient-quantity'].forEach((id) => {
+            document.getElementById(id)?.addEventListener('input', refreshProductPricePreview);
+            document.getElementById(id)?.addEventListener('change', refreshProductPricePreview);
         }); 
         
         document.getElementById('add-recipe-ingredient-btn').addEventListener('click', () => { const select = document.getElementById('recipe-ingredient-select'); const ingredientId = select.value; const quantity = parseFloat(document.getElementById('recipe-quantity').value); if (!ingredientId || isNaN(quantity) || quantity <= 0) return showToast("Veuillez sélectionner un ingrédient et une quantité valide."); const ingredient = allIngredients.find(ing => ing.id === ingredientId); currentRecipe.push({ id: ingredient.id, name: ingredient.name, quantity: quantity, unit: ingredient.unit }); renderCurrentRecipe(); document.getElementById('recipe-quantity').value = ''; select.value = ''; });
@@ -8919,6 +9038,7 @@ const renderOrderHistory = (history) => {
                 return total + (usableUnitCost(ingredient) * recipeItem.quantity);
              }, 0);
             document.getElementById('current-recipe-cost').textContent = `${cost.toFixed(2)} Mad`;
+            refreshProductPricePreview();
         };
         
         const renderCurrentRecipe = () => {
@@ -8968,7 +9088,15 @@ const renderOrderHistory = (history) => {
             try {
             const id = document.getElementById('product-id').value; 
             const type = document.getElementById('product-type').value; 
-            const data = { name: document.getElementById('product-name').value, price: parseFloat(document.getElementById('product-price').value), type: type }; 
+            const packagingRaw = parseFloat(document.getElementById('product-packaging-cost').value);
+            const laborRaw = parseFloat(document.getElementById('product-labor-cost').value);
+            const data = {
+                name: document.getElementById('product-name').value,
+                price: parseFloat(document.getElementById('product-price').value),
+                type: type,
+                packagingCost: Number.isFinite(packagingRaw) && packagingRaw > 0 ? roundMoney(packagingRaw) : 0,
+                laborCost: Number.isFinite(laborRaw) && laborRaw > 0 ? roundMoney(laborRaw) : 0
+            }; 
             
             const hasRecipe = ['Pizza', 'Panuozzo', 'Dessert', 'Entrée'].includes(type);
 
@@ -9040,7 +9168,9 @@ const renderOrderHistory = (history) => {
                 document.getElementById('product-modal-title').textContent = 'Modifier un Produit'; 
                 document.getElementById('product-id').value = id; 
                 document.getElementById('product-name').value = product.name; 
-                document.getElementById('product-price').value = product.price; 
+                document.getElementById('product-price').value = product.price;
+                document.getElementById('product-packaging-cost').value = Number(product.packagingCost) > 0 ? Number(product.packagingCost).toFixed(2) : '';
+                document.getElementById('product-labor-cost').value = Number(product.laborCost) > 0 ? Number(product.laborCost).toFixed(2) : '';
                 document.getElementById('product-type').value = product.type; 
                 populateIngredientSelects();
                 syncProductTypeSections(product.type);
@@ -9058,7 +9188,8 @@ const renderOrderHistory = (history) => {
                         document.getElementById('linked-ingredient-quantity').value = product.linkedIngredientQuantity || 1;
                     }
                 } 
-                openModal('product-modal'); 
+                openModal('product-modal');
+                refreshProductPricePreview();
             } 
         });
         
