@@ -1113,10 +1113,10 @@
                             <label for="product-sort" class="text-sm font-medium text-gray-700">Tri:</label>
                             <select id="product-sort" class="input-style py-1.5 px-3 text-sm">
                                 <option value="">Par défaut</option>
-                                <option value="food-asc">Food cost croissant</option>
-                                <option value="food-desc">Food cost décroissant</option>
-                                <option value="margin-asc">Marge croissante</option>
-                                <option value="margin-desc">Marge décroissante</option>
+                                <option value="food-asc">Food cost % croissant</option>
+                                <option value="food-desc">Food cost % décroissant</option>
+                                <option value="margin-asc">Marge % croissante</option>
+                                <option value="margin-desc">Marge % décroissante</option>
                                 <option value="price-asc">Prix de vente croissant</option>
                                 <option value="price-desc">Prix de vente décroissant</option>
                             </select>
@@ -8457,7 +8457,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const salePrice = Number(product.price) || 0;
             if (metric === 'price') return salePrice;
             const split = productPriceBreakdown(salePrice, calculateProductCost(product), product.packagingCost, product.laborCost);
-            return metric === 'food' ? split.materialsPct : split.margin;
+            return metric === 'food' ? split.materialsPct : split.marginPct;
         };
 
         const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); const typeFilter = document.getElementById('product-type-filter')?.value || ''; const sortValue = document.getElementById('product-sort')?.value || ''; container.innerHTML = ''; let filteredProducts = typeFilter ? allProducts.filter(p => p.type === typeFilter) : allProducts.slice(); if (sortValue) { const [metric, direction] = sortValue.split('-'); const sign = direction === 'desc' ? -1 : 1; filteredProducts.sort((a, b) => { const diff = productSortValue(a, metric) - productSortValue(b, metric); return diff !== 0 ? diff * sign : String(a.name || '').localeCompare(String(b.name || ''), 'fr'); }); } if(filteredProducts.length === 0) { const pEl = placeholder?.querySelector('p'); if(pEl) pEl.textContent = typeFilter ? 'Aucun produit pour ce type.' : 'Aucun produit créé. Créez votre premier produit !'; container.appendChild(placeholder); } else { filteredProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Entrée: '<i class="fas fa-concierge-bell"></i>', Pizza: '<i class="fas fa-pizza-slice"></i>', Panuozzo: '<i class="fas fa-bread-slice"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Autre: '<i class="fas fa-box"></i>' }; 
