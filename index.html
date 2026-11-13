@@ -1662,7 +1662,35 @@
     <div class="inventaire-shell">
         <div class="mb-5">
             <h2 class="text-2xl font-bold text-gray-800">Inventaire</h2>
-            <p id="inventaire-date-label" class="text-base text-gray-500 mt-1"></p>
+            <div class="mt-3 flex rounded-xl bg-gray-100 p-1 w-full sm:w-max">
+                <button type="button" data-inventaire-mode="daily" class="inventaire-mode-btn flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-semibold bg-white shadow text-gray-900">Quotidien</button>
+                <button type="button" data-inventaire-mode="full" class="inventaire-mode-btn flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-semibold text-gray-500">Bimensuel</button>
+            </div>
+        </div>
+
+        <div id="inventaire-daily-panel">
+            <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+                <p class="text-sm text-gray-500 max-w-xl">Mozzarella, stracciatella, parmesan, jambon et chorizo. Saisir le poids brut à l'ouverture, puis après la fermeture. L'écart se calcule avec les ventes importées de la journée.</p>
+                <label class="text-sm font-medium text-gray-700">Date
+                    <input type="date" id="daily-inventory-date" class="input-style mt-1 block py-2">
+                </label>
+            </div>
+            <div id="daily-inventory-missing" class="hidden mb-4 p-4 rounded-2xl text-sm bg-amber-50 border border-amber-200 text-amber-900"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <section id="daily-inventory-opening"></section>
+                <section id="daily-inventory-closing"></section>
+            </div>
+            <section id="daily-inventory-gap" class="mb-6"></section>
+            <section class="mt-2 pt-6 border-t border-gray-200">
+                <h3 class="text-lg font-bold text-gray-800 mb-3">Historique quotidien</h3>
+                <div id="daily-inventory-history" class="space-y-3"></div>
+            </section>
+        </div>
+
+        <div id="inventaire-full-panel" class="hidden">
+        <div class="mb-5">
+            <p id="inventaire-date-label" class="text-base text-gray-500"></p>
+            <p class="text-sm text-gray-500 mt-1">Tous les ingrédients. La validation dans Stock met à jour le stock.</p>
         </div>
 
         <div id="inventaire-pending-info" class="hidden mb-4 p-4 rounded-2xl text-sm bg-amber-50 border border-amber-200 text-amber-900"></div>
@@ -1701,6 +1729,7 @@
                 <p class="text-center text-gray-500 py-6 text-sm">Aucun inventaire enregistré.</p>
             </div>
         </section>
+        </div>
     </div>
 </div>
 
@@ -2400,7 +2429,7 @@
         // --- COLLECTIONS REFS ---
         let ingredientsCol, productsCol, ordersCol, suppliersCol, purchaseOrdersCol, lossesCol, chargesCol;
 		let employeesCol, absencesCol, salaryAdvancesCol, salaryPaymentsCol;
-		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol, googleReviewsRef, aiAnalysisLatestRef, marketingOpsCol, planningWeeksCol, activityLogsCol;
+		let dailyPaymentsCol, usersCol, checklistSubmissionsCol, checklistConfigRef, inventorySubmissionsCol, dailyInventoryCol, googleReviewsRef, aiAnalysisLatestRef, marketingOpsCol, planningWeeksCol, activityLogsCol;
         let googleReviewsState = { rating: null, reviewCount: null, snapshots: [], recentReviews: [], url: 'https://share.google/GX15aEMbOqaVjxGMs', status: 'idle' };
         let latestAiAnalysis = null;
         let aiChatHistory = [];
@@ -2471,6 +2500,10 @@ let allDailyPayments = [];
         let allInventorySubmissions = [];
         let inventorySubmissionsKey = '';
         let inventaireLocalCounts = {};
+        let inventaireMode = 'daily';
+        let allDailyInventory = [];
+        let dailyInventoryDraftDate = '';
+        let dailyInventoryDraft = { opening: {}, closing: {} };
         let inventaireSearchQuery = '';
         let inventaireHistoryFilter = { start: '', end: '' };
         let tasklistSyncTimer = null;
@@ -2604,6 +2637,7 @@ let allDailyPayments = [];
             googleReviewsRef = doc(db, `artifacts/${appId}/public/data/settings/googleReviews`);
             aiAnalysisLatestRef = doc(db, `artifacts/${appId}/public/data/settings/aiAnalysisLatest`);
             inventorySubmissionsCol = collection(db, `artifacts/${appId}/public/data/inventorySubmissions`);
+            dailyInventoryCol = collection(db, `artifacts/${appId}/public/data/dailyInventoryCounts`);
             marketingOpsCol = collection(db, `artifacts/${appId}/public/data/marketingOps`);
             planningWeeksCol = collection(db, `artifacts/${appId}/public/data/planningWeeks`);
             activityLogsCol = collection(db, `artifacts/${appId}/public/data/activityLogs`);
@@ -2920,7 +2954,7 @@ let allDailyPayments = [];
                 orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0));
                 invalidateConsumptionStatsCache();
-                markDirty('orders', 'kpis', 'ingredients', 'marketing');
+                markDirty('orders', 'kpis', 'ingredients', 'marketing', 'inventaire');
             });
             onSnapshot(lossesCol, snapshot => {
                 allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -2988,6 +3022,11 @@ let allDailyPayments = [];
                 });
                 markDirty('ingredients', 'inventaire');
             });
+            onSnapshot(dailyInventoryCol, snapshot => {
+                allDailyInventory = snapshot.docs.map(entry => ({ id: entry.id, ...entry.data() }));
+                allDailyInventory.sort((a, b) => (b.date || b.id || '').localeCompare(a.date || a.id || ''));
+                markDirty('inventaire');
+            }, (error) => console.error('Inventaire quotidien:', error));
             onSnapshot(marketingOpsCol, snapshot => {
                 allMarketingOps = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 allMarketingOps.sort((a, b) => marketingSortKey(b).localeCompare(marketingSortKey(a)));
@@ -7892,8 +7931,236 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             mountPaginationBar('inventaire-history-list', 'inventories', page, renderInventaireHistory);
         };
 
+        const DAILY_INVENTORY_MATCHERS = [
+            { label: 'Mozzarella', test: (name) => name.includes('mozza') && !name.includes('strac') },
+            { label: 'Stracciatella', test: (name) => name.includes('strac') },
+            { label: 'Parmesan', test: (name) => name.includes('parmesan') || name.includes('parmigiano') },
+            { label: 'Jambon', test: (name) => name.includes('jambon') },
+            { label: 'Chorizo', test: (name) => name.includes('chorizo') }
+        ];
+
+        const normalizeInventoryName = (name) => String(name || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase();
+
+        const getDailyInventoryIngredients = () => {
+            const used = new Set();
+            const found = [];
+            DAILY_INVENTORY_MATCHERS.forEach((matcher) => {
+                allIngredients.forEach((ingredient) => {
+                    if (used.has(ingredient.id)) return;
+                    if (!matcher.test(normalizeInventoryName(ingredient.name))) return;
+                    used.add(ingredient.id);
+                    found.push(ingredient);
+                });
+            });
+            return found;
+        };
+
+        const localDateKey = (value) => {
+            const date = toDate(value);
+            if (!date) return '';
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${date.getFullYear()}-${month}-${day}`;
+        };
+
+        const getDailyInventoryRecord = (date) =>
+            allDailyInventory.find((entry) => (entry.date || entry.id) === date) || null;
+
+        const loadDailyInventoryDraft = (date) => {
+            const saved = getDailyInventoryRecord(date);
+            const readShift = (shift) => {
+                const values = {};
+                Object.entries(saved?.[shift] || {}).forEach(([id, item]) => {
+                    const quantity = item?.quantity;
+                    values[id] = quantity === 0 || quantity ? String(quantity) : '';
+                });
+                return values;
+            };
+            dailyInventoryDraftDate = date;
+            dailyInventoryDraft = { opening: readShift('opening'), closing: readShift('closing') };
+        };
+
+        const ensureDailyInventoryDraft = (date) => {
+            if (dailyInventoryDraftDate !== date) loadDailyInventoryDraft(date);
+        };
+
+        const ordersForInventoryDate = (date) => orderHistory.filter((order) =>
+            localDateKey(order.saleDate || order.createdAt) === date
+        );
+
+        const formatInventoryQty = (value, unit) => {
+            const number = Number(value);
+            if (!Number.isFinite(number)) return '—';
+            const text = number.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+            return unit ? `${text} ${unit}` : text;
+        };
+
+        const dailyInventoryLine = (ingredient, openingRaw, closingRaw, consumptionUsable) => {
+            const opening = openingRaw === '' || openingRaw == null ? null : Number(openingRaw);
+            const closing = closingRaw === '' || closingRaw == null ? null : Number(closingRaw);
+            const hasOpening = Number.isFinite(opening);
+            const hasClosing = Number.isFinite(closing);
+            const consoGross = grossFromUsable(ingredient, consumptionUsable || 0);
+            const theoretical = hasOpening ? roundStockQty(opening - consoGross) : null;
+            const gap = hasOpening && hasClosing ? roundStockQty(closing - theoretical) : null;
+            const base = theoretical == null ? 0 : Math.abs(theoretical);
+            const gapPct = gap == null ? null : (base === 0 ? (gap === 0 ? 0 : 100) : Math.abs(gap) / base * 100);
+            return { opening: hasOpening ? opening : null, closing: hasClosing ? closing : null, consoGross, theoretical, gap, gapPct };
+        };
+
+        const renderDailyShiftCard = (shift, ingredients, saved) => {
+            const title = shift === 'opening' ? 'Ouverture' : 'Fermeture';
+            const hint = shift === 'opening' ? 'Le matin, à l\'ouverture' : 'Après la fermeture';
+            const username = saved?.[`${shift}Username`] || '';
+            const when = saved?.[`${shift}At`] ? formatDateToDDMMYYYY(saved[`${shift}At`]) : '';
+            const meta = username ? `Saisi par ${escapeHtml(username)}${when ? ` — ${escapeHtml(when)}` : ''}` : 'Pas encore saisi';
+            const rows = ingredients.map((ingredient) => {
+                const value = dailyInventoryDraft[shift][ingredient.id] ?? '';
+                return `<label class="inventaire-item">
+                    <span class="inventaire-item-info">
+                        <span class="inventaire-item-name block">${escapeHtml(ingredient.name)}</span>
+                        <span class="inventaire-item-system block">${escapeHtml(ingredient.unit || '')} brut</span>
+                    </span>
+                    <input type="number" inputmode="decimal" step="any" min="0"
+                        class="inventaire-item-input daily-inventory-input"
+                        data-shift="${shift}" data-id="${ingredient.id}" placeholder="0" value="${escapeHtml(value)}"
+                        ${canWrite('inventaire') ? '' : 'disabled'}>
+                </label>`;
+            }).join('');
+            return `<div class="bg-white rounded-2xl shadow-lg p-4">
+                <h3 class="text-lg font-bold text-gray-900">${title}</h3>
+                <p class="text-sm text-gray-500 mt-1">${hint}</p>
+                <p class="text-xs text-gray-400 mt-1">${meta}</p>
+                <div class="space-y-3 mt-4">${rows || '<p class="text-sm text-gray-500">Aucun ingrédient correspondant.</p>'}</div>
+                <button type="button" class="inventaire-submit-btn mt-4" data-daily-save="${shift}" ${ingredients.length ? '' : 'disabled'}>
+                    Enregistrer ${title.toLowerCase()}
+                </button>
+            </div>`;
+        };
+
+        const renderDailyInventory = () => {
+            const dateInput = document.getElementById('daily-inventory-date');
+            if (!dateInput) return;
+            if (!dateInput.value) dateInput.value = getTodayDateString();
+            const date = dateInput.value;
+            ensureDailyInventoryDraft(date);
+            const ingredients = getDailyInventoryIngredients();
+            const missing = DAILY_INVENTORY_MATCHERS
+                .filter((matcher) => !ingredients.some((ingredient) => matcher.test(normalizeInventoryName(ingredient.name))))
+                .map((matcher) => matcher.label);
+            const missingBox = document.getElementById('daily-inventory-missing');
+            if (missingBox) {
+                missingBox.classList.toggle('hidden', missing.length === 0);
+                missingBox.textContent = missing.length
+                    ? `Introuvable dans le stock : ${missing.join(', ')}. Le nom de l'ingrédient doit contenir ce mot.`
+                    : '';
+            }
+            const saved = getDailyInventoryRecord(date);
+            const openingHost = document.getElementById('daily-inventory-opening');
+            const closingHost = document.getElementById('daily-inventory-closing');
+            const focused = document.activeElement;
+            const keepForms = focused && focused.classList.contains('daily-inventory-input');
+            if (!keepForms) {
+                if (openingHost) openingHost.innerHTML = renderDailyShiftCard('opening', ingredients, saved);
+                if (closingHost) closingHost.innerHTML = renderDailyShiftCard('closing', ingredients, saved);
+            }
+            const orders = ordersForInventoryDate(date);
+            const consumption = calculateIngredientConsumptionFromOrders(orders);
+            const gapHost = document.getElementById('daily-inventory-gap');
+            if (gapHost) {
+                const cards = ingredients.map((ingredient) => {
+                    const line = dailyInventoryLine(
+                        ingredient,
+                        dailyInventoryDraft.opening[ingredient.id],
+                        dailyInventoryDraft.closing[ingredient.id],
+                        consumption.get(ingredient.id) || 0
+                    );
+                    const gapText = line.gap == null
+                        ? 'Écart après les deux saisies'
+                        : `Écart ${line.gap > 0 ? '+' : ''}${formatInventoryQty(line.gap, ingredient.unit)} (${line.gapPct.toFixed(0)} %)`;
+                    const gapClass = line.gap == null
+                        ? 'text-gray-500'
+                        : (line.gapPct > INVENTORY_TOLERANCE_PERCENT ? 'text-red-600' : 'text-emerald-700');
+                    return `<article class="bg-white rounded-2xl shadow-lg p-4">
+                        <h3 class="font-bold text-gray-900">${escapeHtml(ingredient.name)}</h3>
+                        <div class="grid grid-cols-2 gap-3 text-sm mt-3">
+                            <div><p class="text-gray-500">Ouverture</p><p class="font-semibold">${formatInventoryQty(line.opening, ingredient.unit)}</p></div>
+                            <div><p class="text-gray-500">Ventes</p><p class="font-semibold">${formatInventoryQty(line.consoGross, ingredient.unit)}</p></div>
+                            <div><p class="text-gray-500">Théorique</p><p class="font-semibold">${formatInventoryQty(line.theoretical, ingredient.unit)}</p></div>
+                            <div><p class="text-gray-500">Réel</p><p class="font-semibold">${formatInventoryQty(line.closing, ingredient.unit)}</p></div>
+                        </div>
+                        <p class="mt-3 text-sm font-semibold ${gapClass}">${gapText}</p>
+                    </article>`;
+                }).join('');
+                const salesNote = orders.length
+                    ? `${orders.length} vente(s) importée(s) pour cette date.`
+                    : 'Aucune vente importée pour cette date. La consommation est à 0.';
+                gapHost.innerHTML = `<div class="mb-3">
+                    <h3 class="text-lg font-bold text-gray-900">Écart théorique / réel</h3>
+                    <p class="text-sm text-gray-500 mt-1">Théorique = ouverture − consommation des ventes, en poids brut. ${salesNote} Ce comptage ne modifie pas le stock.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">${cards}</div>`;
+            }
+            const historyHost = document.getElementById('daily-inventory-history');
+            if (historyHost && !keepForms) {
+                const rows = allDailyInventory.slice(0, 21);
+                historyHost.innerHTML = rows.length ? rows.map((entry) => {
+                    const day = entry.date || entry.id;
+                    const label = day ? day.split('-').reverse().join('/') : '—';
+                    const openingCount = Object.keys(entry.opening || {}).length;
+                    const closingCount = Object.keys(entry.closing || {}).length;
+                    return `<button type="button" class="w-full text-left bg-white rounded-2xl shadow p-4" data-daily-date="${escapeHtml(day)}">
+                        <span class="font-semibold text-gray-900">${label}</span>
+                        <span class="block text-sm text-gray-500 mt-1">Ouverture ${openingCount ? 'saisie' : 'manquante'} · Fermeture ${closingCount ? 'saisie' : 'manquante'}</span>
+                    </button>`;
+                }).join('') : '<p class="text-center text-gray-500 py-6 text-sm">Aucun comptage quotidien.</p>';
+            }
+        };
+
+        const submitDailyInventory = async (shift) => {
+            if (!canWrite('inventaire')) return showToast('Permission refusée (lecture seule).');
+            if (shift !== 'opening' && shift !== 'closing') return;
+            const date = document.getElementById('daily-inventory-date')?.value || getTodayDateString();
+            ensureDailyInventoryDraft(date);
+            const ingredients = getDailyInventoryIngredients();
+            if (!ingredients.length) return showToast('Aucun des cinq ingrédients n\'est dans le stock.');
+            const counts = {};
+            for (const ingredient of ingredients) {
+                const raw = dailyInventoryDraft[shift][ingredient.id];
+                const quantity = parseFloat(raw);
+                if (raw === undefined || raw === '' || Number.isNaN(quantity) || quantity < 0) {
+                    return showToast(`Renseignez ${ingredient.name}.`);
+                }
+                counts[ingredient.id] = {
+                    quantity: roundStockQty(quantity),
+                    name: ingredient.name,
+                    unit: ingredient.unit || '',
+                    yieldPercent: ingredientYieldPercent(ingredient)
+                };
+            }
+            try {
+                await setDoc(doc(dailyInventoryCol, date), {
+                    date,
+                    [shift]: counts,
+                    [`${shift}At`]: serverTimestamp(),
+                    [`${shift}By`]: currentUserProfile?.id || '',
+                    [`${shift}Username`]: currentUserProfile?.username || ''
+                }, { merge: true });
+                const existed = Boolean(getDailyInventoryRecord(date)?.[shift]);
+                logActivity('Inventaire', existed ? 'Modification' : 'Création', `Quotidien ${shift === 'opening' ? 'ouverture' : 'fermeture'} · ${date.split('-').reverse().join('/')}`);
+                showToast(shift === 'opening' ? 'Ouverture enregistrée.' : 'Fermeture enregistrée.');
+            } catch (error) {
+                console.error('Inventaire quotidien:', error);
+                showToast('Erreur lors de l\'enregistrement.');
+            }
+        };
+
         const renderInventaire = () => {
             if (!document.getElementById('inventaire-content')?.classList.contains('active')) return;
+            renderDailyInventory();
             const today = new Date();
             const dateLabel = document.getElementById('inventaire-date-label');
             if (dateLabel) dateLabel.textContent = `Aujourd'hui : ${formatDateToDDMMYYYY(today).split(' à ')[0]}`;
@@ -9867,6 +10134,45 @@ document.getElementById('tasklist-justification')?.addEventListener('input', (e)
 document.getElementById('tasklist-submit-btn').addEventListener('click', submitTasklist);
 
 document.getElementById('inventaire-submit-btn')?.addEventListener('click', submitInventaire);
+document.querySelectorAll('.inventaire-mode-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+        inventaireMode = button.dataset.inventaireMode === 'full' ? 'full' : 'daily';
+        document.getElementById('inventaire-daily-panel')?.classList.toggle('hidden', inventaireMode !== 'daily');
+        document.getElementById('inventaire-full-panel')?.classList.toggle('hidden', inventaireMode !== 'full');
+        document.querySelectorAll('.inventaire-mode-btn').forEach((item) => {
+            const active = item.dataset.inventaireMode === inventaireMode;
+            item.classList.toggle('bg-white', active);
+            item.classList.toggle('shadow', active);
+            item.classList.toggle('text-gray-900', active);
+            item.classList.toggle('text-gray-500', !active);
+        });
+        renderInventaire();
+    });
+});
+document.getElementById('daily-inventory-date')?.addEventListener('change', () => {
+    dailyInventoryDraftDate = '';
+    renderDailyInventory();
+});
+document.getElementById('inventaire-daily-panel')?.addEventListener('input', (event) => {
+    const input = event.target.closest('.daily-inventory-input');
+    if (!input) return;
+    const shift = input.dataset.shift === 'closing' ? 'closing' : 'opening';
+    dailyInventoryDraft[shift][input.dataset.id] = input.value;
+    renderDailyInventory();
+});
+document.getElementById('inventaire-daily-panel')?.addEventListener('click', (event) => {
+    const save = event.target.closest('[data-daily-save]');
+    if (save) {
+        submitDailyInventory(save.dataset.dailySave);
+        return;
+    }
+    const history = event.target.closest('[data-daily-date]');
+    if (!history) return;
+    const dateInput = document.getElementById('daily-inventory-date');
+    if (dateInput) dateInput.value = history.dataset.dailyDate || '';
+    dailyInventoryDraftDate = '';
+    renderDailyInventory();
+});
 document.getElementById('inventaire-search')?.addEventListener('input', (e) => {
     inventaireSearchQuery = e.target.value;
     renderInventaireItems();
