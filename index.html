@@ -1670,7 +1670,7 @@
 
         <div id="inventaire-daily-panel">
             <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
-                <p class="text-sm text-gray-500 max-w-xl">Mozzarella, stracciatella, parmesan, jambon et chorizo. Saisir le poids brut à l'ouverture, puis après la fermeture. L'écart se calcule avec les ventes importées de la journée.</p>
+                <p class="text-sm text-gray-500 max-w-xl">Mozzarella, stracciatella, parmesan, jambon, chorizo et bresaola. Saisir le poids brut à l'ouverture, puis après la fermeture. L'écart se calcule avec les ventes importées de la journée.</p>
                 <label class="text-sm font-medium text-gray-700">Date
                     <input type="date" id="daily-inventory-date" class="input-style mt-1 block py-2">
                 </label>
@@ -7936,7 +7936,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             { label: 'Stracciatella', test: (name) => name.includes('strac') },
             { label: 'Parmesan', test: (name) => name.includes('parmesan') || name.includes('parmigiano') },
             { label: 'Jambon', test: (name) => name.includes('jambon') },
-            { label: 'Chorizo', test: (name) => name.includes('chorizo') }
+            { label: 'Chorizo', test: (name) => name.includes('chorizo') },
+            { label: 'Bresaola', test: (name) => name.includes('bresaola') }
         ];
 
         const normalizeInventoryName = (name) => String(name || '')
