@@ -2438,7 +2438,7 @@
         // --- IMPORTS FIREBASE ---
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, getDocs, serverTimestamp, writeBatch, increment, deleteField, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc, getDocs, serverTimestamp, writeBatch, increment, deleteField, query, orderBy, limit, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // --- CONFIGURATION ---
@@ -3265,6 +3265,7 @@ let allDailyPayments = [];
                 });
             }
             listenToActivityLogs();
+            pruneOldActivityLogs();
         }
 
         const debounce = (fn, delayMs) => {
@@ -3583,6 +3584,30 @@ let allDailyPayments = [];
                 </table></div>`;
             }
             mountPaginationBar('logs-list', 'logs', page, () => renderActivityLogs());
+        };
+
+        // Les logs ne sont gardés qu'un mois : suppression des plus anciens, une fois par session (superadmin).
+        let activityLogsPruned = false;
+        const pruneOldActivityLogs = async () => {
+            if (activityLogsPruned || !activityLogsCol || !isSuperadmin()) return;
+            activityLogsPruned = true;
+            const cutoff = new Date();
+            cutoff.setMonth(cutoff.getMonth() - 1);
+            try {
+                let deleted = 0;
+                for (let round = 0; round < 50; round++) {
+                    const snapshot = await getDocs(query(activityLogsCol, where('createdAt', '<', cutoff), limit(400)));
+                    if (snapshot.empty) break;
+                    const batch = writeBatch(db);
+                    snapshot.docs.forEach((entry) => batch.delete(entry.ref));
+                    await batch.commit();
+                    deleted += snapshot.size;
+                    if (snapshot.size < 400) break;
+                }
+                if (deleted) console.info(`Logs de plus d'un mois supprimés : ${deleted}`);
+            } catch (error) {
+                console.error('Nettoyage des logs:', error);
+            }
         };
 
         const listenToActivityLogs = () => {
