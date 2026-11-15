@@ -1682,7 +1682,7 @@
             </div>
             <section id="daily-inventory-gap" class="mb-6"></section>
             <section class="mt-2 pt-6 border-t border-gray-200">
-                <h3 class="text-lg font-bold text-gray-800 mb-3">Historique quotidien</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-3">Historique quotidien <span class="text-sm font-normal text-gray-500">(7 derniers jours)</span></h3>
                 <div id="daily-inventory-history" class="space-y-3"></div>
             </section>
         </div>
@@ -2936,7 +2936,7 @@ let allDailyPayments = [];
             onSnapshot(purchaseOrdersCol, snapshot => {
                 allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-                markDirty('purchaseOrders', 'kpis');
+                markDirty('purchaseOrders', 'kpis', 'inventaire');
             });
             onSnapshot(ingredientsCol, snapshot => {
                 allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -2959,7 +2959,7 @@ let allDailyPayments = [];
             onSnapshot(lossesCol, snapshot => {
                 allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-                markDirty('losses', 'kpis');
+                markDirty('losses', 'kpis', 'inventaire');
             });
             onSnapshot(chargesCol, snapshot => {
                 allCharges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -3026,6 +3026,7 @@ let allDailyPayments = [];
                 allDailyInventory = snapshot.docs.map(entry => ({ id: entry.id, ...entry.data() }));
                 allDailyInventory.sort((a, b) => (b.date || b.id || '').localeCompare(a.date || a.id || ''));
                 markDirty('inventaire');
+                pruneOldDailyInventory();
             }, (error) => console.error('Inventaire quotidien:', error));
             onSnapshot(marketingOpsCol, snapshot => {
                 allMarketingOps = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -7992,6 +7993,36 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             localDateKey(order.saleDate || order.createdAt) === date
         );
 
+        // Réceptions du jour en poids brut : quantité achetée, avant rendement.
+        const receptionsForInventoryDate = (date) => {
+            const received = new Map();
+            allPurchaseOrders.forEach((purchaseOrder) => {
+                if (purchaseOrder.status !== 'received') return;
+                if (localDateKey(purchaseOrder.receivedAt) !== date) return;
+                (purchaseOrder.items || []).forEach((item) => {
+                    const quantity = Number(item.quantity) || 0;
+                    if (!item.id || quantity <= 0) return;
+                    received.set(item.id, (received.get(item.id) || 0) + quantity);
+                });
+            });
+            return received;
+        };
+
+        // Pertes déclarées du jour, en poids utile (pertes produit via la recette, pertes ingrédient telles que saisies).
+        const lossesForInventoryDate = (date) => {
+            const dayLosses = allLosses.filter((loss) => localDateKey(loss.createdAt) === date);
+            const productLosses = dayLosses
+                .filter((loss) => loss.type === 'product')
+                .map((loss) => ({ items: [{ id: loss.itemId, quantity: Number(loss.quantity) || 0 }] }));
+            const lost = calculateIngredientConsumptionFromOrders(productLosses);
+            dayLosses.forEach((loss) => {
+                if (loss.type === 'product' || !loss.itemId) return;
+                const quantity = Number(loss.quantity) || 0;
+                if (quantity > 0) lost.set(loss.itemId, (lost.get(loss.itemId) || 0) + quantity);
+            });
+            return lost;
+        };
+
         const formatInventoryQty = (value, unit) => {
             const number = Number(value);
             if (!Number.isFinite(number)) return '—';
@@ -7999,22 +8030,24 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             return unit ? `${text} ${unit}` : text;
         };
 
-        const dailyInventoryLine = (ingredient, openingRaw, closingRaw, consumptionUsable) => {
+        const dailyInventoryLine = (ingredient, openingRaw, closingRaw, consumptionUsable, receivedGross = 0, lossUsable = 0) => {
             const opening = openingRaw === '' || openingRaw == null ? null : Number(openingRaw);
             const closing = closingRaw === '' || closingRaw == null ? null : Number(closingRaw);
             const hasOpening = Number.isFinite(opening);
             const hasClosing = Number.isFinite(closing);
             const consoGross = grossFromUsable(ingredient, consumptionUsable || 0);
-            const theoretical = hasOpening ? roundStockQty(opening - consoGross) : null;
+            const received = Number(receivedGross) || 0;
+            const lossGross = grossFromUsable(ingredient, lossUsable || 0);
+            const theoretical = hasOpening ? roundStockQty(opening + received - consoGross - lossGross) : null;
             const gap = hasOpening && hasClosing ? roundStockQty(closing - theoretical) : null;
             const base = theoretical == null ? 0 : Math.abs(theoretical);
             const gapPct = gap == null ? null : (base === 0 ? (gap === 0 ? 0 : 100) : Math.abs(gap) / base * 100);
-            return { opening: hasOpening ? opening : null, closing: hasClosing ? closing : null, consoGross, theoretical, gap, gapPct };
+            return { opening: hasOpening ? opening : null, closing: hasClosing ? closing : null, received, consoGross, lossGross, theoretical, gap, gapPct };
         };
 
         const renderDailyShiftCard = (shift, ingredients, saved) => {
             const title = shift === 'opening' ? 'Ouverture' : 'Fermeture';
-            const hint = shift === 'opening' ? 'Le matin, à l\'ouverture' : 'Après la fermeture';
+            const hint = shift === 'opening' ? 'Le matin, à l\'ouverture. Met le stock système à jour.' : 'Après la fermeture. Sert à calculer l\'écart.';
             const username = saved?.[`${shift}Username`] || '';
             const when = saved?.[`${shift}At`] ? formatDateToDDMMYYYY(saved[`${shift}At`]) : '';
             const meta = username ? `Saisi par ${escapeHtml(username)}${when ? ` — ${escapeHtml(when)}` : ''}` : 'Pas encore saisi';
@@ -8070,6 +8103,8 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             }
             const orders = ordersForInventoryDate(date);
             const consumption = calculateIngredientConsumptionFromOrders(orders);
+            const receptions = receptionsForInventoryDate(date);
+            const dayLosses = lossesForInventoryDate(date);
             const gapHost = document.getElementById('daily-inventory-gap');
             if (gapHost) {
                 const cards = ingredients.map((ingredient) => {
@@ -8077,7 +8112,9 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         ingredient,
                         dailyInventoryDraft.opening[ingredient.id],
                         dailyInventoryDraft.closing[ingredient.id],
-                        consumption.get(ingredient.id) || 0
+                        consumption.get(ingredient.id) || 0,
+                        receptions.get(ingredient.id) || 0,
+                        dayLosses.get(ingredient.id) || 0
                     );
                     const gapText = line.gap == null
                         ? 'Écart après les deux saisies'
@@ -8089,7 +8126,9 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         <h3 class="font-bold text-gray-900">${escapeHtml(ingredient.name)}</h3>
                         <div class="grid grid-cols-2 gap-3 text-sm mt-3">
                             <div><p class="text-gray-500">Ouverture</p><p class="font-semibold">${formatInventoryQty(line.opening, ingredient.unit)}</p></div>
+                            <div><p class="text-gray-500">Réceptions</p><p class="font-semibold">${line.received > 0 ? '+' : ''}${formatInventoryQty(line.received, ingredient.unit)}</p></div>
                             <div><p class="text-gray-500">Ventes</p><p class="font-semibold">${formatInventoryQty(line.consoGross, ingredient.unit)}</p></div>
+                            <div><p class="text-gray-500">Pertes</p><p class="font-semibold">${formatInventoryQty(line.lossGross, ingredient.unit)}</p></div>
                             <div><p class="text-gray-500">Théorique</p><p class="font-semibold">${formatInventoryQty(line.theoretical, ingredient.unit)}</p></div>
                             <div><p class="text-gray-500">Réel</p><p class="font-semibold">${formatInventoryQty(line.closing, ingredient.unit)}</p></div>
                         </div>
@@ -8101,13 +8140,13 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                     : 'Aucune vente importée pour cette date. La consommation est à 0.';
                 gapHost.innerHTML = `<div class="mb-3">
                     <h3 class="text-lg font-bold text-gray-900">Écart théorique / réel</h3>
-                    <p class="text-sm text-gray-500 mt-1">Théorique = ouverture − consommation des ventes, en poids brut. ${salesNote} Ce comptage ne modifie pas le stock.</p>
+                    <p class="text-sm text-gray-500 mt-1">Théorique = ouverture + réceptions du jour − consommation des ventes − pertes déclarées, en poids brut. ${salesNote} Le comptage d'ouverture met le stock système à jour, la fermeture ne le modifie pas.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">${cards}</div>`;
             }
             const historyHost = document.getElementById('daily-inventory-history');
             if (historyHost && !keepForms) {
-                const rows = allDailyInventory.slice(0, 21);
+                const rows = allDailyInventory.slice(0, 7);
                 historyHost.innerHTML = rows.length ? rows.map((entry) => {
                     const day = entry.date || entry.id;
                     const label = day ? day.split('-').reverse().join('/') : '—';
@@ -8118,6 +8157,33 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         <span class="block text-sm text-gray-500 mt-1">Ouverture ${openingCount ? 'saisie' : 'manquante'} · Fermeture ${closingCount ? 'saisie' : 'manquante'}</span>
                     </button>`;
                 }).join('') : '<p class="text-center text-gray-500 py-6 text-sm">Aucun comptage quotidien.</p>';
+            }
+        };
+
+        // On ne garde que 7 jours de comptage quotidien (aujourd'hui + 6 jours précédents).
+        const DAILY_INVENTORY_KEEP_DAYS = 7;
+        let dailyInventoryPruning = false;
+        const pruneOldDailyInventory = async () => {
+            if (dailyInventoryPruning || !dailyInventoryCol || !canWrite('inventaire')) return;
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - (DAILY_INVENTORY_KEEP_DAYS - 1));
+            const cutoff = localDateKey(cutoffDate);
+            const expired = allDailyInventory
+                .map((entry) => entry.id)
+                .filter((id) => /^\d{4}-\d{2}-\d{2}$/.test(id) && id < cutoff);
+            if (!expired.length) return;
+            dailyInventoryPruning = true;
+            try {
+                for (let index = 0; index < expired.length; index += 400) {
+                    const batch = writeBatch(db);
+                    expired.slice(index, index + 400).forEach((id) => batch.delete(doc(dailyInventoryCol, id)));
+                    await batch.commit();
+                }
+                logActivity('Inventaire', 'Nettoyage', `${expired.length} comptage(s) quotidien(s) de plus de ${DAILY_INVENTORY_KEEP_DAYS} jours supprimé(s)`);
+            } catch (error) {
+                console.error('Nettoyage inventaire quotidien:', error);
+            } finally {
+                dailyInventoryPruning = false;
             }
         };
 
@@ -8143,16 +8209,39 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 };
             }
             try {
-                await setDoc(doc(dailyInventoryCol, date), {
+                const previousShift = getDailyInventoryRecord(date)?.[shift];
+                const existed = Boolean(previousShift);
+                const batch = writeBatch(db);
+                batch.set(doc(dailyInventoryCol, date), {
                     date,
                     [shift]: counts,
                     [`${shift}At`]: serverTimestamp(),
                     [`${shift}By`]: currentUserProfile?.id || '',
                     [`${shift}Username`]: currentUserProfile?.username || ''
                 }, { merge: true });
-                const existed = Boolean(getDailyInventoryRecord(date)?.[shift]);
+                // Le comptage d'ouverture remet le stock système au poids réellement compté (converti en poids utile).
+                // La fermeture ne touche pas au stock : les ventes du jour sont importées après, elles seraient déduites deux fois.
+                if (shift === 'opening') {
+                    ingredients.forEach((ingredient) => {
+                        const next = counts[ingredient.id];
+                        const nextStock = inventoryCountToStock({ countedQuantity: next.quantity, yieldPercent: next.yieldPercent });
+                        if (existed && previousShift[ingredient.id]) {
+                            // Correction d'une saisie déjà enregistrée : on applique seulement la différence.
+                            const before = previousShift[ingredient.id];
+                            const beforeStock = inventoryCountToStock({
+                                countedQuantity: before.quantity,
+                                yieldPercent: before.yieldPercent
+                            });
+                            const delta = roundStockQty(nextStock - beforeStock);
+                            if (delta !== 0) batch.update(doc(ingredientsCol, ingredient.id), { quantity: increment(delta) });
+                        } else {
+                            batch.update(doc(ingredientsCol, ingredient.id), { quantity: nextStock });
+                        }
+                    });
+                }
+                await batch.commit();
                 logActivity('Inventaire', existed ? 'Modification' : 'Création', `Quotidien ${shift === 'opening' ? 'ouverture' : 'fermeture'} · ${date.split('-').reverse().join('/')}`);
-                showToast(shift === 'opening' ? 'Ouverture enregistrée.' : 'Fermeture enregistrée.');
+                showToast(shift === 'opening' ? 'Ouverture enregistrée, stock système mis à jour.' : 'Fermeture enregistrée.');
             } catch (error) {
                 console.error('Inventaire quotidien:', error);
                 showToast('Erreur lors de l\'enregistrement.');
