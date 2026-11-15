@@ -627,6 +627,18 @@
             100% { transform: rotate(360deg); }
         }
 
+        #app-loader { transition: opacity 0.25s ease; }
+        #app-loader.is-leaving { opacity: 0; pointer-events: none; }
+        .loader-pizza { animation: loader-pizza-spin 4.5s linear infinite; transform-origin: 50% 50%; }
+        .loader-pizza-shadow { animation: loader-pizza-shadow 1.2s ease-in-out infinite alternate; }
+        .loader-veil path { transition: opacity 0.35s ease; }
+        .loader-bar-fill { transition: width 0.3s ease; }
+        @keyframes loader-pizza-spin { to { transform: rotate(360deg); } }
+        @keyframes loader-pizza-shadow { from { transform: scaleX(0.9); opacity: 0.18; } to { transform: scaleX(1); opacity: 0.3; } }
+        @media (prefers-reduced-motion: reduce) {
+            .loader-pizza, .loader-pizza-shadow { animation: none; }
+        }
+
         .hidden { display: none !important; }
         .kpi-value {
             font-size: 1.05rem;
@@ -693,6 +705,49 @@
     </style>
 </head>
 <body class="text-gray-800">
+
+    <!-- Chargement : bloque l'utilisation tant que les données nécessaires ne sont pas là -->
+    <div id="app-loader" class="fixed inset-0 z-[100] bg-gray-100 flex items-center justify-center p-4" role="status" aria-live="polite" aria-busy="true">
+        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-xs text-center">
+            <svg class="loader-pizza mx-auto" width="96" height="96" viewBox="0 0 100 100" aria-hidden="true">
+                <circle cx="50" cy="50" r="47" fill="#e8b26a" stroke="#c4833a" stroke-width="2"/>
+                <circle cx="50" cy="50" r="39" fill="#d6402b"/>
+                <circle cx="50" cy="50" r="35" fill="#f7d98b"/>
+                <g fill="#a31d1d">
+                    <circle cx="38" cy="36" r="5.5"/><circle cx="62" cy="40" r="5.5"/><circle cx="46" cy="62" r="5.5"/>
+                    <circle cx="67" cy="62" r="4.5"/><circle cx="31" cy="56" r="4.5"/><circle cx="54" cy="29" r="4"/>
+                </g>
+                <g fill="#fff" opacity="0.25">
+                    <circle cx="36.5" cy="34.5" r="1.6"/><circle cx="60.5" cy="38.5" r="1.6"/><circle cx="44.5" cy="60.5" r="1.6"/>
+                </g>
+                <g fill="#3f8f3f">
+                    <ellipse cx="50" cy="47" rx="4" ry="2.2" transform="rotate(-30 50 47)"/>
+                    <ellipse cx="29" cy="45" rx="3.4" ry="1.9" transform="rotate(25 29 45)"/>
+                    <ellipse cx="68" cy="50" rx="3.4" ry="1.9" transform="rotate(-50 68 50)"/>
+                    <ellipse cx="55" cy="70" rx="3.4" ry="1.9" transform="rotate(35 55 70)"/>
+                </g>
+                <g stroke="#ffffff" stroke-width="1.2" opacity="0.6">
+                    <line x1="3" y1="50" x2="97" y2="50"/>
+                    <line x1="3" y1="50" x2="97" y2="50" transform="rotate(45 50 50)"/>
+                    <line x1="3" y1="50" x2="97" y2="50" transform="rotate(90 50 50)"/>
+                    <line x1="3" y1="50" x2="97" y2="50" transform="rotate(135 50 50)"/>
+                </g>
+                <g id="app-loader-veil" class="loader-veil" fill="#ffffff"></g>
+            </svg>
+            <div class="loader-pizza-shadow mx-auto mt-2 h-1.5 w-16 rounded-full bg-gray-900"></div>
+            <h1 class="header-font text-4xl font-extrabold text-gray-900 mt-5 mb-1">solo</h1>
+            <p class="text-gray-500 uppercase tracking-widest text-xs mb-5">Pizzeria Napoletana</p>
+            <p id="app-loader-text" class="text-sm font-medium text-gray-700">Connexion…</p>
+            <div class="mt-3 h-1.5 w-full rounded-full bg-gray-200 overflow-hidden">
+                <div id="app-loader-bar" class="loader-bar-fill h-full w-0 rounded-full bg-gray-800"></div>
+            </div>
+            <p id="app-loader-count" class="text-xs text-gray-400 mt-2"></p>
+            <div id="app-loader-slow" class="hidden mt-4">
+                <p class="text-xs text-amber-700">Le chargement prend plus de temps que prévu. Vérifiez votre connexion.</p>
+                <button id="app-loader-continue" type="button" class="btn-secondary mt-3 text-sm">Continuer quand même</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Écran de connexion -->
     <div id="login-screen" class="fixed inset-0 bg-gray-100 flex items-center justify-center z-50 p-4">
@@ -2594,6 +2649,128 @@ let allDailyPayments = [];
             document.getElementById('login-screen')?.classList.remove('hidden');
         };
 
+        // --- ÉCRAN DE CHARGEMENT ---
+        const appLoader = { pending: new Set(), total: 0, startupDone: false, hidden: false, slowTimer: null };
+        const LOADER_SLICES = 8;
+        const LOADER_SLOW_MS = 25000;
+
+        const buildLoaderVeil = () => {
+            const veil = document.getElementById('app-loader-veil');
+            if (!veil || veil.childElementCount) return;
+            const point = (angle) => {
+                const radians = (angle - 90) * Math.PI / 180;
+                return `${(50 + 47 * Math.cos(radians)).toFixed(2)} ${(50 + 47 * Math.sin(radians)).toFixed(2)}`;
+            };
+            const step = 360 / LOADER_SLICES;
+            const slices = [];
+            for (let index = 0; index < LOADER_SLICES; index += 1) {
+                slices.push(`<path d="M50 50 L${point(index * step)} A47 47 0 0 1 ${point((index + 1) * step)} Z" opacity="0.8"/>`);
+            }
+            veil.innerHTML = slices.join('');
+        };
+
+        const setLoaderBlocked = (blocked) => {
+            ['app-shell', 'login-screen'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) el.inert = blocked;
+            });
+        };
+
+        const paintAppLoader = () => {
+            const total = appLoader.total;
+            const done = total - appLoader.pending.size;
+            const ratio = total > 0 ? done / total : 0;
+            const lit = appLoader.startupDone && appLoader.pending.size === 0 ? LOADER_SLICES : Math.floor(ratio * LOADER_SLICES);
+            document.querySelectorAll('#app-loader-veil path').forEach((slice, index) => {
+                slice.setAttribute('opacity', index < lit ? '0' : '0.8');
+            });
+            const bar = document.getElementById('app-loader-bar');
+            if (bar) bar.style.width = `${Math.round(ratio * 100)}%`;
+            const count = document.getElementById('app-loader-count');
+            if (count) count.textContent = total > 0 ? `${done} / ${total}` : '';
+        };
+
+        const setLoaderText = (text) => {
+            const el = document.getElementById('app-loader-text');
+            if (el) el.textContent = text;
+        };
+
+        const startLoaderSlowTimer = () => {
+            clearTimeout(appLoader.slowTimer);
+            document.getElementById('app-loader-slow')?.classList.add('hidden');
+            appLoader.slowTimer = setTimeout(() => {
+                document.getElementById('app-loader-slow')?.classList.remove('hidden');
+            }, LOADER_SLOW_MS);
+        };
+
+        const showAppLoader = (text) => {
+            const loader = document.getElementById('app-loader');
+            if (!loader) return;
+            appLoader.hidden = false;
+            loader.classList.remove('hidden', 'is-leaving');
+            loader.setAttribute('aria-busy', 'true');
+            setLoaderText(text);
+            setLoaderBlocked(true);
+            paintAppLoader();
+            startLoaderSlowTimer();
+        };
+
+        const hideAppLoader = () => {
+            const loader = document.getElementById('app-loader');
+            if (!loader || appLoader.hidden) return;
+            appLoader.hidden = true;
+            clearTimeout(appLoader.slowTimer);
+            loader.setAttribute('aria-busy', 'false');
+            setLoaderBlocked(false);
+            loader.classList.add('is-leaving');
+            setTimeout(() => {
+                if (appLoader.hidden) loader.classList.add('hidden');
+            }, 260);
+        };
+
+        const checkAppLoader = () => {
+            if (appLoader.hidden || !appLoader.startupDone || appLoader.pending.size > 0) return;
+            paintAppLoader();
+            flushAppRefresh();
+            requestAnimationFrame(() => requestAnimationFrame(hideAppLoader));
+        };
+
+        const finishAppStartup = () => {
+            appLoader.startupDone = true;
+            paintAppLoader();
+            checkAppLoader();
+        };
+
+        const registerLoad = (name) => {
+            appLoader.pending.add(name);
+            appLoader.total += 1;
+            paintAppLoader();
+        };
+
+        const markLoaded = (name) => {
+            if (!appLoader.pending.delete(name)) return;
+            paintAppLoader();
+            checkAppLoader();
+        };
+
+        // onSnapshot qui signale au chargement que la première réponse est arrivée (même en cas d'erreur).
+        const trackedSnapshot = (name, target, onNext, onError) => {
+            registerLoad(name);
+            return onSnapshot(target, (snapshot) => {
+                try { onNext(snapshot); } finally { markLoaded(name); }
+            }, (error) => {
+                try {
+                    if (onError) onError(error);
+                    else console.error(`Chargement ${name}:`, error);
+                } finally { markLoaded(name); }
+            });
+        };
+
+        buildLoaderVeil();
+        setLoaderBlocked(true);
+        startLoaderSlowTimer();
+        document.getElementById('app-loader-continue')?.addEventListener('click', hideAppLoader);
+
         const applyPermissions = () => {
             APP_MODULES.forEach(m => {
                 const navBtn = document.querySelector(`.tab-link[data-tab="${m.id}"]`);
@@ -2680,6 +2857,7 @@ let allDailyPayments = [];
             document.getElementById('export-end-date').value = `${lastDayOfMonth.getFullYear()}-${String(lastDayOfMonth.getMonth() + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`;
             refreshGoogleReviews();
             loadLatestAiAnalysis();
+            finishAppStartup();
         };
 
         const createUserAccount = async (username, password, role, usePrimaryAuth = false) => {
@@ -2810,7 +2988,7 @@ let allDailyPayments = [];
 
         const listenToUsers = () => {
             if (!usersCol || !isSuperadmin()) return;
-            onSnapshot(usersCol, snapshot => {
+            trackedSnapshot('users', usersCol, snapshot => {
                 allAppUsers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 allAppUsers.sort((a, b) => (a.username || '').localeCompare(b.username || ''));
                 renderUsersList();
@@ -2911,88 +3089,93 @@ let allDailyPayments = [];
         // --- AUTHENTIFICATION ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                showAppLoader('Chargement de vos données…');
+                appLoader.startupDone = false;
                 try {
                     await startAppForUser(user);
                 } catch (error) {
                     console.error(error);
                     showLoginError(error.message);
+                    hideAppLoader();
                     await signOut(auth);
                 }
             } else {
                 currentUserProfile = null;
                 selectedPermissionsUserId = null;
+                appLoader.startupDone = false;
                 showLoginScreen();
                 clearLoginError();
+                hideAppLoader();
             }
         });
         
         function listenToAllCollections() {
             if (dataListenersStarted) return;
             dataListenersStarted = true;
-            onSnapshot(suppliersCol, snapshot => {
+            trackedSnapshot('suppliers', suppliersCol, snapshot => {
                 allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 markDirty('suppliers');
             });
-            onSnapshot(purchaseOrdersCol, snapshot => {
+            trackedSnapshot('purchaseOrders', purchaseOrdersCol, snapshot => {
                 allPurchaseOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allPurchaseOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
                 markDirty('purchaseOrders', 'kpis', 'inventaire');
             });
-            onSnapshot(ingredientsCol, snapshot => {
+            trackedSnapshot('ingredients', ingredientsCol, snapshot => {
                 allIngredients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allIngredients.sort((a,b) => a.name.localeCompare(b.name));
                 invalidateLookupCaches();
                 markDirty('ingredients', 'kpis', 'products', 'inventaire');
             });
-            onSnapshot(productsCol, snapshot => {
+            trackedSnapshot('products', productsCol, snapshot => {
                 allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allProducts.sort((a,b) => a.name.localeCompare(b.name));
                 invalidateLookupCaches();
                 markDirty('products', 'kpis', 'ingredients');
             });
-            onSnapshot(ordersCol, snapshot => {
+            trackedSnapshot('orders', ordersCol, snapshot => {
                 orderHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 orderHistory.sort((a, b) => (b.saleDate?.seconds || b.createdAt?.seconds || 0) - (a.saleDate?.seconds || a.createdAt?.seconds || 0));
                 invalidateConsumptionStatsCache();
                 markDirty('orders', 'kpis', 'ingredients', 'marketing', 'inventaire');
             });
-            onSnapshot(lossesCol, snapshot => {
+            trackedSnapshot('losses', lossesCol, snapshot => {
                 allLosses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allLosses.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
                 markDirty('losses', 'kpis', 'inventaire');
             });
-            onSnapshot(chargesCol, snapshot => {
+            trackedSnapshot('charges', chargesCol, snapshot => {
                 allCharges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allCharges.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
                 autoTagLegacyCharges(allCharges);
                 markDirty('charges', 'kpis');
             });
-            onSnapshot(employeesCol, snapshot => {
+            trackedSnapshot('employees', employeesCol, snapshot => {
                 allEmployees = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allEmployees.sort((a, b) => a.name.localeCompare(b.name));
                 markDirty('employees', 'planning');
             });
-            onSnapshot(absencesCol, snapshot => {
+            trackedSnapshot('absences', absencesCol, snapshot => {
                 allAbsences = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             });
-            onSnapshot(salaryAdvancesCol, snapshot => {
+            trackedSnapshot('salaryAdvances', salaryAdvancesCol, snapshot => {
                 allSalaryAdvances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 markDirty('employees');
                 const modal = document.getElementById('advances-modal');
                 const employeeId = document.getElementById('advance-employee-id')?.value;
                 if (employeeId && modal?.classList.contains('flex')) renderAdvancesForEmployee(employeeId);
             });
-            onSnapshot(salaryPaymentsCol, snapshot => {
+            trackedSnapshot('salaryPayments', salaryPaymentsCol, snapshot => {
                 allSalaryPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allSalaryPayments.sort((a, b) => (toDate(b.paymentDate)?.getTime() || 0) - (toDate(a.paymentDate)?.getTime() || 0));
                 markDirty('salaryPayments');
             });
-            onSnapshot(dailyPaymentsCol, snapshot => {
+            trackedSnapshot('dailyPayments', dailyPaymentsCol, snapshot => {
                 allDailyPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allDailyPayments.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
                 markDirty('dailyPayments');
             });
-            onSnapshot(checklistSubmissionsCol, snapshot => {
+            trackedSnapshot('checklistSubmissions', checklistSubmissionsCol, snapshot => {
                 const nextSubmissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const nextKey = nextSubmissions.map(s => s.id).join('|');
                 if (nextKey === tasklistSubmissionsKey && nextSubmissions.length === allChecklistSubmissions.length) return;
@@ -3006,7 +3189,7 @@ let allDailyPayments = [];
                 rebuildTodayChecklistCache();
                 scheduleTasklistDataSync();
             });
-            onSnapshot(inventorySubmissionsCol, snapshot => {
+            trackedSnapshot('inventorySubmissions', inventorySubmissionsCol, snapshot => {
                 const nextSubmissions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 const nextKey = nextSubmissions.map(s => {
                     const items = s.items || [];
@@ -3022,13 +3205,13 @@ let allDailyPayments = [];
                 });
                 markDirty('ingredients', 'inventaire');
             });
-            onSnapshot(dailyInventoryCol, snapshot => {
+            trackedSnapshot('dailyInventory', dailyInventoryCol, snapshot => {
                 allDailyInventory = snapshot.docs.map(entry => ({ id: entry.id, ...entry.data() }));
                 allDailyInventory.sort((a, b) => (b.date || b.id || '').localeCompare(a.date || a.id || ''));
                 markDirty('inventaire');
                 pruneOldDailyInventory();
             }, (error) => console.error('Inventaire quotidien:', error));
-            onSnapshot(marketingOpsCol, snapshot => {
+            trackedSnapshot('marketingOps', marketingOpsCol, snapshot => {
                 allMarketingOps = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 allMarketingOps.sort((a, b) => marketingSortKey(b).localeCompare(marketingSortKey(a)));
                 try {
@@ -3038,7 +3221,7 @@ let allDailyPayments = [];
                 }
                 markDirty('kpis');
             });
-            onSnapshot(planningWeeksCol, snapshot => {
+            trackedSnapshot('planningWeeks', planningWeeksCol, snapshot => {
                 const next = {};
                 snapshot.docs.forEach((entry) => { next[entry.id] = entry.data(); });
                 planningByWeek = next;
@@ -3046,7 +3229,7 @@ let allDailyPayments = [];
                     try { renderPlanning(); } catch (error) { console.error(error); }
                 }
             });
-            onSnapshot(checklistConfigRef, snapshot => {
+            trackedSnapshot('checklistConfig', checklistConfigRef, snapshot => {
                 if (!snapshot.exists()) return;
                 const opening = snapshot.data().opening || [];
                 const closing = snapshot.data().closing || [];
@@ -3059,7 +3242,7 @@ let allDailyPayments = [];
                 if (itemsContainer) itemsContainer.dataset.domKey = '';
                 scheduleTasklistDataSync();
             });
-            onSnapshot(googleReviewsRef, snapshot => {
+            trackedSnapshot('googleReviews', googleReviewsRef, snapshot => {
                 if (!snapshot.exists()) return;
                 const data = snapshot.data() || {};
                 googleReviewsState.snapshots = Array.isArray(data.snapshots) ? data.snapshots : [];
@@ -3070,7 +3253,7 @@ let allDailyPayments = [];
                 renderGoogleReviewsKpi();
             });
             if (aiAnalysisLatestRef) {
-                onSnapshot(aiAnalysisLatestRef, snapshot => {
+                trackedSnapshot('aiAnalysis', aiAnalysisLatestRef, snapshot => {
                     if (!snapshot.exists()) return;
                     applyStoredAiAnalysis(snapshot.data());
                 });
@@ -3399,7 +3582,7 @@ let allDailyPayments = [];
         const listenToActivityLogs = () => {
             if (activityLogsListenerStarted || !activityLogsCol || !canRead('logs')) return;
             activityLogsListenerStarted = true;
-            onSnapshot(query(activityLogsCol, orderBy('createdAt', 'desc'), limit(400)), (snapshot) => {
+            trackedSnapshot('logs', query(activityLogsCol, orderBy('createdAt', 'desc'), limit(400)), (snapshot) => {
                 allActivityLogs = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
                 markDirty('logs');
             }, (error) => console.error('Logs illisibles', error));
