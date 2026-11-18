@@ -1535,6 +1535,7 @@
                             <div>
                                 <label for="tpe-amount" class="block text-sm font-medium text-gray-700">TPE (Mad)</label>
                                 <input type="number" id="tpe-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                                <p class="text-xs text-gray-500 mt-1">La commission TPE (1,61 % TTC) est ajoutée automatiquement aux charges.</p>
                             </div>
                             <div>
                                 <label for="glovo-amount" class="block text-sm font-medium text-gray-700">Glovo Card (Mad)</label>
@@ -3154,6 +3155,8 @@ let allDailyPayments = [];
                 allCharges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allCharges.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
                 autoTagLegacyCharges(allCharges);
+                if (!snapshot.metadata?.fromCache) tpeSyncState.charges = true;
+                scheduleTpeCommissionSync();
                 markDirty('charges', 'kpis');
             });
             trackedSnapshot('employees', employeesCol, snapshot => {
@@ -3179,6 +3182,8 @@ let allDailyPayments = [];
             trackedSnapshot('dailyPayments', dailyPaymentsCol, snapshot => {
                 allDailyPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allDailyPayments.sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
+                if (!snapshot.metadata?.fromCache) tpeSyncState.payments = true;
+                scheduleTpeCommissionSync();
                 markDirty('dailyPayments');
             });
             trackedSnapshot('checklistSubmissions', checklistSubmissionsCol, snapshot => {
@@ -5460,6 +5465,123 @@ let allDailyPayments = [];
                 console.error('Erreur auto-etiquetage des anciennes charges:', error);
             } finally {
                 legacyChargesMigrationRunning = false;
+            }
+        };
+
+        // Commission TPE : 1,61 % TTC des encaissements TPE de chaque déclaration Finance.
+        // Une charge par déclaration (id fixe), créée / mise à jour / supprimée automatiquement.
+        const TPE_COMMISSION_RATE = 0.0161;
+        const TPE_COMMISSION_TYPE = 'tpe-commission';
+        const tpeCommissionChargeId = (paymentId) => `tpe-commission-${paymentId}`;
+        const tpeCommissionAmount = (payment) => Math.round((Number(payment?.tpeAmount) || 0) * TPE_COMMISSION_RATE * 100) / 100;
+        const isAutoTpeCharge = (charge) => charge?.type === TPE_COMMISSION_TYPE;
+        const tpeSyncState = { payments: false, charges: false, running: false, again: false, timer: null };
+
+        const scheduleTpeCommissionSync = () => {
+            clearTimeout(tpeSyncState.timer);
+            tpeSyncState.timer = setTimeout(() => syncTpeCommissionCharges(), 1500);
+        };
+
+        const syncTpeCommissionCharges = async () => {
+            if (!tpeSyncState.payments || !tpeSyncState.charges || !chargesCol) return;
+            if (!(canWrite('finance') || canWrite('charges'))) return;
+            if (tpeSyncState.running) {
+                tpeSyncState.again = true;
+                return;
+            }
+            tpeSyncState.running = true;
+            try {
+                const desired = new Map();
+                allDailyPayments.forEach((payment) => {
+                    const amount = tpeCommissionAmount(payment);
+                    const rawDate = toDate(payment.date);
+                    if (amount > 0 && rawDate) {
+                        const date = new Date(rawDate);
+                        date.setHours(12, 0, 0, 0);
+                        desired.set(tpeCommissionChargeId(payment.id), { paymentId: payment.id, amount, date, base: Number(payment.tpeAmount) || 0 });
+                    }
+                });
+
+                const autoCharges = allCharges.filter(isAutoTpeCharge);
+                const autoById = new Map(autoCharges.map((charge) => [charge.id, charge]));
+                const ops = [];
+                let legacyCount = 0;
+                let created = 0;
+                let updated = 0;
+                let removed = 0;
+
+                // Première mise en place : les anciennes lignes « Commission TPE » saisies à la main sont remplacées.
+                if (autoCharges.length === 0 && desired.size > 0) {
+                    allCharges
+                        .filter((charge) => charge.type !== 'salary'
+                            && (charge.category === 'Commission TPE' || /commission\s+tpe/i.test(charge.name || '')))
+                        .forEach((charge) => {
+                            ops.push({ kind: 'delete', id: charge.id });
+                            legacyCount += 1;
+                        });
+                }
+
+                desired.forEach((entry, chargeId) => {
+                    const existing = autoById.get(chargeId);
+                    const payload = {
+                        name: 'Commission TPE',
+                        category: 'Commission TPE',
+                        tagged: true,
+                        type: TPE_COMMISSION_TYPE,
+                        auto: true,
+                        paymentId: entry.paymentId,
+                        rate: TPE_COMMISSION_RATE,
+                        tpeBase: entry.base,
+                        amount: entry.amount,
+                        date: entry.date
+                    };
+                    if (!existing) {
+                        ops.push({ kind: 'set', id: chargeId, data: { ...payload, createdAt: serverTimestamp() } });
+                        created += 1;
+                        return;
+                    }
+                    const existingDate = toDate(existing.date);
+                    const sameDay = existingDate && existingDate.toDateString() === entry.date.toDateString();
+                    if (Math.abs((Number(existing.amount) || 0) - entry.amount) > 0.004 || !sameDay) {
+                        ops.push({ kind: 'set', id: chargeId, data: payload });
+                        updated += 1;
+                    }
+                });
+
+                autoCharges.forEach((charge) => {
+                    if (!desired.has(charge.id)) {
+                        ops.push({ kind: 'delete', id: charge.id });
+                        removed += 1;
+                    }
+                });
+
+                if (ops.length === 0) return;
+
+                const chunkSize = 400;
+                for (let i = 0; i < ops.length; i += chunkSize) {
+                    const batch = writeBatch(db);
+                    ops.slice(i, i + chunkSize).forEach((op) => {
+                        const ref = doc(chargesCol, op.id);
+                        if (op.kind === 'delete') batch.delete(ref);
+                        else batch.set(ref, op.data, { merge: true });
+                    });
+                    await batch.commit();
+                }
+
+                const parts = [];
+                if (created) parts.push(`${created} créée(s)`);
+                if (updated) parts.push(`${updated} mise(s) à jour`);
+                if (removed) parts.push(`${removed} supprimée(s)`);
+                if (legacyCount) parts.push(`${legacyCount} ancienne(s) ligne(s) manuelle(s) remplacée(s)`);
+                logActivity('Charges', 'Synchronisation', `Commission TPE automatique (1,61 %) · ${parts.join(', ')}`);
+            } catch (error) {
+                console.error('Synchronisation Commission TPE:', error);
+            } finally {
+                tpeSyncState.running = false;
+                if (tpeSyncState.again) {
+                    tpeSyncState.again = false;
+                    scheduleTpeCommissionSync();
+                }
             }
         };
 
@@ -9431,7 +9553,9 @@ const renderOrderHistory = (history) => {
             const d = toDate(charge.date);
             const displayDate = d ? formatDateToDDMMYYYY(d) : 'Date inconnue';
             const displayCategory = getChargeDisplayCategory(charge);
-            const categoryBadge = `<span class="inline-block mt-1 text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">${displayCategory}</span>`;
+            const isAuto = isAutoTpeCharge(charge);
+            const categoryBadge = `<span class="inline-block mt-1 text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">${displayCategory}</span>`
+                + (isAuto ? ` <span class="inline-block mt-1 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full" title="Calculée automatiquement : 1,61 % des encaissements TPE de la déclaration Finance (${Number(charge.tpeBase || 0).toFixed(2)} Mad)">Auto · 1,61 % de ${Number(charge.tpeBase || 0).toFixed(2)} Mad</span>` : '');
 
             card.innerHTML = `
                 <div class="min-w-0">
@@ -9441,12 +9565,12 @@ const renderOrderHistory = (history) => {
                 </div>
                 <div class="flex items-center gap-3 shrink-0">
                     <p class="font-bold text-lg text-red-600">${charge.amount.toFixed(2)} Mad</p>
-                    <button type="button" data-id="${charge.id}" class="edit-charge-tag-btn text-gray-500 hover:text-gray-800 transition-colors" title="Étiqueter la charge">
+                    ${isAuto ? '' : `<button type="button" data-id="${charge.id}" class="edit-charge-tag-btn text-gray-500 hover:text-gray-800 transition-colors" title="Étiqueter la charge">
                         <i class="fas fa-tag"></i>
                     </button>
                     <button type="button" data-id="${charge.id}" class="delete-charge-btn text-gray-400 hover:text-red-600 transition-colors" title="Supprimer">
                         <i class="fas fa-trash-alt"></i>
-                    </button>
+                    </button>`}
                 </div>
             `;
             container.appendChild(card);
