@@ -9348,6 +9348,32 @@ const renderOrderHistory = (history) => {
             return filtered;
         };
 
+        // Filtres actifs sur les commandes fournisseurs (utilisés par le bouton et le nom du fichier exporté)
+        const getPurchaseOrderFilterParts = () => {
+            const supplierId = document.getElementById('filter-po-supplier')?.value || '';
+            const status = document.getElementById('filter-po-status')?.value || '';
+            const payment = document.getElementById('filter-po-payment')?.value || '';
+            const month = document.getElementById('filter-po-month')?.value || '';
+            const parts = [];
+            if (supplierId) parts.push(allSuppliers.find(s => s.id === supplierId)?.name || 'fournisseur');
+            if (month) parts.push(month);
+            if (status === 'received') parts.push('recues');
+            else if (status === 'pending') parts.push('en-attente');
+            if (payment === 'paid') parts.push('payees');
+            else if (payment === 'unpaid') parts.push('non-payees');
+            return parts;
+        };
+
+        const updatePurchaseOrderExportButton = (count) => {
+            const button = document.getElementById('export-purchase-orders-btn');
+            if (!button) return;
+            const filtered = getPurchaseOrderFilterParts().length > 0;
+            button.innerHTML = `<i class="fas fa-download mr-2"></i>${filtered ? 'Exporter la sélection' : 'Exporter CSV'} (${count})`;
+            button.title = filtered
+                ? 'Télécharge uniquement les commandes affichées avec les filtres actuels'
+                : 'Télécharge toutes les commandes';
+        };
+
         const applyPurchaseOrderFilters = () => {
             resetListPaginationPage('purchases');
             renderPurchaseOrders(getFilteredPurchaseOrders());
@@ -9402,6 +9428,7 @@ const renderOrderHistory = (history) => {
             const container = document.getElementById('purchase-orders-list'); 
             const placeholder = document.getElementById('purchase-orders-placeholder');
             lastRenderedPurchaseOrders = Array.isArray(purchaseOrders) ? purchaseOrders : [];
+            updatePurchaseOrderExportButton(lastRenderedPurchaseOrders.length);
             container.innerHTML = '';
             const page = getPaginatedSlice('purchases', lastRenderedPurchaseOrders);
             if (page.total === 0) { 
@@ -12148,7 +12175,7 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
             });
             
             // Générer le CSV avec séparateur point-virgule
-            let csv = "Date;Fournisseur;Produit;Quantité;Prix Unitaire;Total\n";
+            let csv = "Date;Fournisseur;Produit;Quantité;Prix Unitaire;Total;N° facture;Statut réception;Statut paiement\n";
             
             filtered.forEach(po => {
                 const date = toDate(po.createdAt);
@@ -12167,7 +12194,10 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                     
                     // Première ligne : date et fournisseur, lignes suivantes : vides
                     if (index === 0) {
-                        csv += `${formattedDate};${supplierName};${item.name};${quantity};${priceUnit.toFixed(4)};${totalItem.toFixed(2)}\n`;
+                        const invoice = String(po.orderNumber || '').replace(/;/g, ',');
+                        const receptionLabel = po.status === 'received' ? 'Reçue' : 'En attente';
+                        const paymentLabel = po.paymentStatus === 'paid' ? 'Payée' : 'Non payée';
+                        csv += `${formattedDate};${supplierName};${item.name};${quantity};${priceUnit.toFixed(4)};${totalItem.toFixed(2)};${invoice};${receptionLabel};${paymentLabel}\n`;
                     } else {
                         csv += `;;${item.name};${quantity};${priceUnit.toFixed(4)};${totalItem.toFixed(2)}\n`;
                     }
@@ -12177,10 +12207,17 @@ document.getElementById('charges-list').addEventListener('click', async (e) => {
                 csv += `;;TOTAL COMMANDE;;;${(po.totalCost || 0).toFixed(2)}\n`;
                 csv += `\n`; // Ligne vide entre les commandes
             });
-            
-            const filename = `commandes_fournisseurs_${new Date().toISOString().split('T')[0]}.csv`;
-            downloadCSV(csv, filename);
-            showToast(`Fichier CSV téléchargé : ${filtered.length} commande(s)`);
+
+            const grandTotal = filtered.reduce((sum, po) => sum + (Number(po.totalCost) || 0), 0);
+            csv += `;;TOTAL SÉLECTION (${filtered.length} commande${filtered.length > 1 ? 's' : ''});;;${grandTotal.toFixed(2)}\n`;
+
+            const filterSlug = getPurchaseOrderFilterParts()
+                .map(part => String(part).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9-]+/g, '_').replace(/^_+|_+$/g, ''))
+                .filter(Boolean)
+                .join('_');
+            const filename = `commandes_fournisseurs${filterSlug ? `_${filterSlug}` : ''}_${new Date().toISOString().split('T')[0]}.csv`;
+            downloadCSV('\uFEFF' + csv, filename);
+            showToast(`Fichier CSV téléchargé : ${filtered.length} commande(s)${filterSlug ? ' (sélection filtrée)' : ''}`);
         });
         
        // --- IMPORT API SALES (Using Proxy for Auth) ---
