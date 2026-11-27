@@ -1549,6 +1549,10 @@
                                 <label for="lacaisse-pay-amount" class="block text-sm font-medium text-gray-700">Lacaisse Pay (Mad)</label>
                                 <input type="number" id="lacaisse-pay-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
                             </div>
+                            <div>
+                                <label for="kool-amount" class="block text-sm font-medium text-gray-700">Koool Card (Mad)</label>
+                                <input type="number" id="kool-amount" min="0" step="0.01" value="0" required class="mt-1 w-full input-style">
+                            </div>
                             <div class="sm:col-span-2">
                                 <label for="espece-amount" class="block text-sm font-medium text-gray-700">Espèces (Mad)</label>
                                 <input type="number" id="espece-amount" min="0" step="0.01" value="0" readonly class="mt-1 w-full input-style bg-gray-50">
@@ -1602,6 +1606,10 @@
                             <div class="bg-white p-2 rounded">
                                 <p class="text-xs text-indigo-600">Lacaisse Pay</p>
                                 <p id="day-lacaisse-pay" class="font-semibold text-gray-900">0.00 Mad</p>
+                            </div>
+                            <div class="bg-white p-2 rounded">
+                                <p class="text-xs text-pink-600">Koool Card</p>
+                                <p id="day-kool" class="font-semibold text-gray-900">0.00 Mad</p>
                             </div>
                             <div class="bg-white p-2 rounded col-span-2">
                                 <p class="text-xs text-green-600">Espèces (dont Glovo Espèces)</p>
@@ -10389,7 +10397,8 @@ const setFinanceFieldValue = (id, value) => {
 const getFinanceAllocatedPayments = (payment = {}) =>
     (Number(payment.tpeAmount) || 0)
     + (Number(payment.glovoAmount) || 0)
-    + (Number(payment.lacaissePayAmount) || 0);
+    + (Number(payment.lacaissePayAmount) || 0)
+    + (Number(payment.koolAmount) || 0);
 
 const getFinanceCashRemainder = (payment = {}) =>
     Math.max(0, (Number(payment.totalSales) || 0) - getFinanceAllocatedPayments(payment));
@@ -10409,6 +10418,7 @@ const applyJournalSummaryToForm = (summary, dateValue) => {
     setFinanceFieldValue('glovo-amount', summary.glovoTpeAmount);
     setFinanceFieldValue('glovo-cash-amount', summary.glovoCashAmount);
     setFinanceFieldValue('lacaisse-pay-amount', summary.lacaissePayAmount);
+    setFinanceFieldValue('kool-amount', summary.koolAmount);
     setFinanceFieldValue('notes-sur-place', summary.notesSurPlace);
     setFinanceFieldValue('notes-emporter', summary.notesEmporter);
 
@@ -10500,6 +10510,7 @@ const updateDailyPaymentCalculations = () => {
     const glovoAmount = parseFloat(document.getElementById('glovo-amount').value) || 0;
     const glovoCashAmount = parseFloat(document.getElementById('glovo-cash-amount').value) || 0;
     const lacaissePayAmount = parseFloat(document.getElementById('lacaisse-pay-amount').value) || 0;
+    const koolAmount = parseFloat(document.getElementById('kool-amount').value) || 0;
     const totalSalesInput = document.getElementById('total-sales-amount');
     const totalSales = parseFloat(totalSalesInput?.value);
     
@@ -10516,7 +10527,8 @@ const updateDailyPaymentCalculations = () => {
         totalSales: resolvedTotalSales,
         tpeAmount,
         glovoAmount,
-        lacaissePayAmount
+        lacaissePayAmount,
+        koolAmount
     });
     setFinanceFieldValue('espece-amount', expectedCash);
 
@@ -10528,6 +10540,8 @@ const updateDailyPaymentCalculations = () => {
     if (dayGlovoCard) dayGlovoCard.textContent = formatKpiMoney(glovoAmount);
     if (dayGlovoCash) dayGlovoCash.textContent = formatKpiMoney(glovoCashAmount);
     if (dayLacaissePay) dayLacaissePay.textContent = formatKpiMoney(lacaissePayAmount);
+    const dayKool = document.getElementById('day-kool');
+    if (dayKool) dayKool.textContent = formatKpiMoney(koolAmount);
     document.getElementById('day-expected-cash').textContent = formatKpiMoney(expectedCash);
     document.getElementById('day-expected-cash').className = 
         expectedCash < 0 ? 'font-bold text-red-600 text-lg' : 'font-bold text-green-600 text-lg';
@@ -10553,6 +10567,7 @@ const renderDailyPayments = () => {
             
             const glovoCash = payment.glovoCashAmount || 0;
             const lacaissePay = payment.lacaissePayAmount || 0;
+            const koolPay = payment.koolAmount || 0;
             const expectedCash = getFinanceCashRemainder(payment);
             const notesSurPlace = payment.notesSurPlace || 0;
             const notesEmporter = payment.notesEmporter || 0;
@@ -10587,6 +10602,10 @@ const renderDailyPayments = () => {
                         <p class="text-xs text-indigo-600">Lacaisse Pay</p>
                         <p class="font-semibold">${formatKpiMoney(lacaissePay)}</p>
                     </div>
+                    ${koolPay > 0 ? `<div class="bg-pink-50 p-2 rounded">
+                        <p class="text-xs text-pink-600">Koool Card</p>
+                        <p class="font-semibold">${formatKpiMoney(koolPay)}</p>
+                    </div>` : ''}
                     <div class="bg-green-50 p-2 rounded col-span-2">
                         <p class="text-xs text-green-600">Espèces (dont Glovo Espèces)</p>
                         <p class="font-semibold">${formatKpiMoney(expectedCash)}</p>
@@ -10636,6 +10655,7 @@ document.getElementById('tpe-amount').addEventListener('input', debounce(updateD
 document.getElementById('glovo-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
 document.getElementById('glovo-cash-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
 document.getElementById('lacaisse-pay-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
+document.getElementById('kool-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
 document.getElementById('total-sales-amount').addEventListener('input', debounce(updateDailyPaymentCalculations, 150));
 
 // Event Listeners Task List
@@ -10832,6 +10852,7 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
    try {
         const glovoCashAmount = parseFloat(document.getElementById('glovo-cash-amount').value) || 0;
         const lacaissePayAmount = parseFloat(document.getElementById('lacaisse-pay-amount').value) || 0;
+        const koolAmount = parseFloat(document.getElementById('kool-amount').value) || 0;
         const notesSurPlace = parseFloat(document.getElementById('notes-sur-place').value) || 0;
         const notesEmporter = parseFloat(document.getElementById('notes-emporter').value) || 0;
         const notesLivraisonGlovo = parseFloat(document.getElementById('notes-livraison-glovo').value) || 0;
@@ -10846,6 +10867,7 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
             glovoAmount,
             glovoCashAmount,
             lacaissePayAmount,
+            koolAmount,
             notesSurPlace,
             notesEmporter,
             notesLivraison,
@@ -10859,7 +10881,8 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
                 tpeAmount,
                 glovoAmount,
                 glovoCashAmount,
-                lacaissePayAmount
+                lacaissePayAmount,
+                koolAmount
             }),
             createdAt: serverTimestamp()
         };
@@ -10880,6 +10903,7 @@ document.getElementById('daily-payment-form').addEventListener('submit', async (
         document.getElementById('glovo-amount').value = '0';
         document.getElementById('glovo-cash-amount').value = '0';
         document.getElementById('lacaisse-pay-amount').value = '0';
+        document.getElementById('kool-amount').value = '0';
         document.getElementById('espece-amount').value = '0';
         document.getElementById('notes-sur-place').value = '0';
         document.getElementById('notes-emporter').value = '0';
@@ -10953,7 +10977,7 @@ document.getElementById('export-declarations-form').addEventListener('submit', (
     });
     
     // Générer le CSV avec séparateur point-virgule
-    let csv = "Date;Total Vente;TPE;Espèce;Glovo Card;Glovo Cash;Lacaisse Pay;Livraison Glovo;Livraison Foodwebsite\n";
+    let csv = "Date;Total Vente;TPE;Espèce;Glovo Card;Glovo Cash;Lacaisse Pay;Livraison Glovo;Livraison Foodwebsite;Koool Card\n";
     
     filteredPayments.forEach(payment => {
         const date = toDate(payment.date);
@@ -10966,10 +10990,11 @@ document.getElementById('export-declarations-form').addEventListener('submit', (
         const glovoOnline = payment.glovoAmount || 0;
         const glovoCash = payment.glovoCashAmount || 0;
         const lacaissePay = payment.lacaissePayAmount || 0;
+        const koolPay = payment.koolAmount || 0;
         const espece = getFinanceCashRemainder(payment);
         const livraisonSplit = getLivraisonNotesSplit(payment);
         
-        csv += `${formattedDate};${formatKpiDecimal(totalSales)};${formatKpiDecimal(tpe)};${formatKpiDecimal(espece)};${formatKpiDecimal(glovoOnline)};${formatKpiDecimal(glovoCash)};${formatKpiDecimal(lacaissePay)};${formatKpiDecimal(livraisonSplit.glovo)};${formatKpiDecimal(livraisonSplit.foodwebsite)}\n`;
+        csv += `${formattedDate};${formatKpiDecimal(totalSales)};${formatKpiDecimal(tpe)};${formatKpiDecimal(espece)};${formatKpiDecimal(glovoOnline)};${formatKpiDecimal(glovoCash)};${formatKpiDecimal(lacaissePay)};${formatKpiDecimal(livraisonSplit.glovo)};${formatKpiDecimal(livraisonSplit.foodwebsite)};${formatKpiDecimal(koolPay)}\n`;
     });
     
     // Générer le nom de fichier avec la période

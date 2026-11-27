@@ -79,13 +79,18 @@ function mapJournalToFinanceSummary(payload = {}) {
         payments,
         (label) => label.includes('lacaisse') && label.includes('pay')
     );
+    // Koool Card (« KOOUL CARD (1) » dans le journal) : variantes d'écriture tolérées.
+    const koolAmount = findPaymentAmount(
+        payments,
+        (label) => /\bko+u?l\b/.test(label) && !label.includes('glovo')
+    );
     const totalNotesPayee = findStatAmount(
         stats,
         (label) => label.includes('total notes payee') || label.includes('total notes payees')
     ) || findPaymentAmount(payments, (label) => label === 'total ttc');
     const especeAmount = Math.max(
         0,
-        Number((totalNotesPayee - tpeAmount - glovoTpeAmount - lacaissePayAmount).toFixed(2))
+        Number((totalNotesPayee - tpeAmount - glovoTpeAmount - lacaissePayAmount - koolAmount).toFixed(2))
     );
 
     return {
@@ -93,6 +98,7 @@ function mapJournalToFinanceSummary(payload = {}) {
         glovoTpeAmount,
         glovoCashAmount,
         lacaissePayAmount,
+        koolAmount,
         especeAmount,
         notesSurPlace: findStatAmount(stats, (label) => label.includes('total notes sur place')),
         notesEmporter: findStatAmount(
