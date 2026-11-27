@@ -1196,7 +1196,6 @@
                         <div class="flex gap-2">
                             <button id="import-products-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer</button>
                             <button id="export-products-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter</button>
-                            <button id="seed-frozen-btn" class="btn-secondary hidden" title="Crée les pizzas surgelées pronto_ (type Surgelé, prix TTC, recettes ÷ 2)"><i class="fas fa-snowflake mr-2"></i>Charger les surgelés</button>
                             <button id="add-product-btn" class="btn-primary"><i class="fas fa-plus mr-2"></i>Créer un Produit</button>
                         </div>
                     </div>
@@ -2810,8 +2809,6 @@ let allDailyPayments = [];
 
             const adminNav = document.getElementById('admin-tab-link');
             if (adminNav) adminNav.classList.toggle('hidden', !isSuperadmin());
-            document.getElementById('seed-frozen-btn')?.classList.toggle('hidden', !isSuperadmin());
-
             const activeTab = document.querySelector('.tab-link.active');
             if (activeTab?.classList.contains('hidden')) {
                 document.querySelector('.tab-link:not(.hidden)')?.click();
@@ -9979,8 +9976,6 @@ const renderOrderHistory = (history) => {
                 showToast('Erreur lors du chargement des surgelés.');
             }
         };
-        document.getElementById('seed-frozen-btn')?.addEventListener('click', () => seedFrozenProducts());
-
         // Chargement automatique, une seule fois : tant qu'aucun produit Surgelé n'existe, le super admin les crée à l'ouverture.
         let frozenAutoSeedTimer = null;
         let frozenAutoSeedTried = false;
