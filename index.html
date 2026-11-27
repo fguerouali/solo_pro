@@ -1062,6 +1062,17 @@
             <p class="text-center text-gray-500 py-4">Aucune donnée disponible</p>
         </div>
     </div>
+
+    <!-- Top 10 Surgelés -->
+    <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <i class="fas fa-snowflake text-sky-500 mr-2"></i>
+            Top 10 Surgelés
+        </h3>
+        <div id="top-frozen-list" class="space-y-3">
+            <p class="text-center text-gray-500 py-4">Aucune donnée disponible</p>
+        </div>
+    </div>
 </div>
 
                 <!-- Analyse IA -->
@@ -1166,7 +1177,7 @@
                                 <option value="Pizza">Pizza</option>
                                 <option value="Panuozzo">Panuozzo</option>
                                 <option value="Dessert">Dessert</option>
-                                <option value="Boisson">Boisson</option>
+                                <option value="Boisson">Boisson</option><option value="Surgelé">Surgelé</option>
                                 <option value="Autre">Autre</option>
                             </select>
                         </div>
@@ -1185,6 +1196,7 @@
                         <div class="flex gap-2">
                             <button id="import-products-btn" class="btn-secondary"><i class="fas fa-upload mr-2"></i>Importer</button>
                             <button id="export-products-btn" class="btn-secondary"><i class="fas fa-download mr-2"></i>Exporter</button>
+                            <button id="seed-frozen-btn" class="btn-secondary hidden" title="Crée les pizzas surgelées pronto_ (type Surgelé, prix TTC, recettes ÷ 2)"><i class="fas fa-snowflake mr-2"></i>Charger les surgelés</button>
                             <button id="add-product-btn" class="btn-primary"><i class="fas fa-plus mr-2"></i>Créer un Produit</button>
                         </div>
                     </div>
@@ -2099,7 +2111,7 @@
                         <option value="Pizza">Pizza</option>
                         <option value="Panuozzo">Panuozzo</option>
                         <option value="Dessert">Dessert</option>
-                        <option value="Boisson">Boisson</option>
+                        <option value="Boisson">Boisson</option><option value="Surgelé">Surgelé</option>
                         <option value="Autre">Autre</option>
                     </select>
                 </div>
@@ -2139,7 +2151,7 @@
                         <input type="number" id="product-labor-cost" min="0" step="0.01" placeholder="0.00" class="mt-1 w-full input-style">
                     </div>
                 </div>
-                <p class="text-xs text-gray-500 mt-2">La TVA est de 10 % du prix TTC. Laisse vide si ce produit n'a pas d'emballage ou de main-d'œuvre.</p>
+                <p class="text-xs text-gray-500 mt-2">La TVA est de 10 % du prix TTC (20 % pour le type Surgelé). Laisse vide si ce produit n'a pas d'emballage ou de main-d'œuvre.</p>
                 <div id="product-price-preview" class="mt-4"></div>
 
                 <div class="mt-6 flex justify-end space-x-3"><button type="button" class="btn-secondary" id="cancel-product">Annuler</button><button type="submit" class="btn-primary">Sauvegarder Produit</button></div>
@@ -2798,6 +2810,7 @@ let allDailyPayments = [];
 
             const adminNav = document.getElementById('admin-tab-link');
             if (adminNav) adminNav.classList.toggle('hidden', !isSuperadmin());
+            document.getElementById('seed-frozen-btn')?.classList.toggle('hidden', !isSuperadmin());
 
             const activeTab = document.querySelector('.tab-link.active');
             if (activeTab?.classList.contains('hidden')) {
@@ -5964,7 +5977,7 @@ let allDailyPayments = [];
             let totalCogs = 0;
             let totalPizzasSold = 0;
             let totalPanuozzoSold = 0;
-            const topBuckets = { Pizza: {}, Boisson: {}, Panuozzo: {}, Dessert: {} };
+            const topBuckets = { Pizza: {}, Boisson: {}, Panuozzo: {}, Dessert: {}, 'Surgelé': {} };
             const casablancaHour = (value) => {
                 const date = toDate(value);
                 if (!date) return null;
@@ -5991,7 +6004,7 @@ let allDailyPayments = [];
                     const product = productById.get(item.id);
                     if (!product) return;
                     totalCogs += getCachedProductCost(product, ingredientById) * item.quantity;
-                    if (product.type === 'Pizza') totalPizzasSold += item.quantity;
+                    if (product.type === 'Pizza' || product.type === 'Surgelé') totalPizzasSold += item.quantity;
                     if (product.type === 'Panuozzo') totalPanuozzoSold += item.quantity;
                     if (topBuckets[product.type]) {
                         if (!topBuckets[product.type][item.id]) {
@@ -6079,7 +6092,9 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const topDrinks = getTopFromBucket(topBuckets.Boisson, 15);
             const topPanuozzo = getTopFromBucket(topBuckets.Panuozzo, 10);
             const topDesserts = getTopFromBucket(topBuckets.Dessert, 10);
+            const topFrozen = getTopFromBucket(topBuckets['Surgelé'], 10);
 
+            renderTopProducts(topFrozen, 'top-frozen-list', 'Aucun surgelé vendu dans cette période');
             renderTopProducts(topPizzas, 'top-pizzas-list', 'Aucune pizza vendue dans cette période');
             renderTopProducts(topDrinks, 'top-drinks-list', 'Aucune boisson vendue dans cette période');
             renderTopProducts(topPanuozzo, 'top-panuozzo-list', 'Aucun panuozzo vendu dans cette période');
@@ -6479,6 +6494,23 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             return `${fmt(startDate, false)} – ${fmt(endDate, true)}`;
         };
 
+        // Le montant d'une opération marketing est déduit automatiquement dans Charges (catégorie Marketing, libellé = nom).
+        const MARKETING_CHARGE_TYPE = 'marketing-auto';
+        const marketingChargeId = (opId) => `marketing-${opId}`;
+        const buildMarketingChargeData = (opId, fields) => {
+            const iso = fields.type === 'collab' ? fields.publishDate : fields.startDate;
+            return {
+                name: fields.name,
+                category: 'Marketing',
+                tagged: true,
+                type: MARKETING_CHARGE_TYPE,
+                auto: true,
+                marketingOpId: opId,
+                amount: fields.amount,
+                date: new Date(`${iso}T12:00:00`)
+            };
+        };
+
         const marketingSortKey = (op) => {
             if (op?.type === 'collab') return op.shootDate || op.publishDate || op.startDate || '';
             return op?.startDate || '';
@@ -6811,13 +6843,37 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                         payload.shootDate = deleteField();
                         payload.publishDate = deleteField();
                     }
-                    await updateDoc(doc(marketingOpsCol, marketingEditingId), payload);
+                    const editedId = marketingEditingId;
+                    const chargeRef = doc(chargesCol, marketingChargeId(editedId));
+                    const existingCharge = allCharges.find((charge) => charge.id === chargeRef.id);
+                    const previousOp = allMarketingOps.find((item) => item.id === editedId);
+                    const amountChanged = Math.abs((Number(previousOp?.amount) || 0) - roundedAmount) > 0.004;
+                    const batch = writeBatch(db);
+                    batch.update(doc(marketingOpsCol, editedId), payload);
+                    // Ancienne opération sans charge automatique : on n'en crée une que si le montant change.
+                    if (roundedAmount > 0 && (existingCharge || amountChanged)) {
+                        const chargeData = buildMarketingChargeData(editedId, fields);
+                        if (!existingCharge) chargeData.createdAt = serverTimestamp();
+                        batch.set(chargeRef, chargeData, { merge: true });
+                    } else if (roundedAmount <= 0 && existingCharge) {
+                        batch.delete(chargeRef);
+                    }
+                    await batch.commit();
                     logActivity('Marketing', 'Modification', `${name} · ${roundedAmount.toFixed(2)} Mad`);
-                    showToast('Opération modifiée.');
+                    showToast(roundedAmount > 0 ? 'Opération modifiée, charge Marketing mise à jour.' : 'Opération modifiée.');
                 } else {
-                    await addDoc(marketingOpsCol, { ...fields, createdAt: serverTimestamp() });
+                    const newOpRef = doc(marketingOpsCol);
+                    const batch = writeBatch(db);
+                    batch.set(newOpRef, { ...fields, createdAt: serverTimestamp() });
+                    if (roundedAmount > 0) {
+                        batch.set(doc(chargesCol, marketingChargeId(newOpRef.id)), {
+                            ...buildMarketingChargeData(newOpRef.id, fields),
+                            createdAt: serverTimestamp()
+                        });
+                    }
+                    await batch.commit();
                     logActivity('Marketing', 'Création', `${name} · ${roundedAmount.toFixed(2)} Mad`);
-                    showToast('Opération ajoutée au planning.');
+                    showToast(roundedAmount > 0 ? 'Opération ajoutée, montant déduit dans les charges Marketing.' : 'Opération ajoutée au planning.');
                 }
                 upsertLocalMarketingOp(fields);
                 revealMarketingOp(fields);
@@ -6863,7 +6919,10 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             try {
                 if (marketingEditingId === button.dataset.id) resetMarketingForm();
                 const removedOp = allMarketingOps.find((op) => op.id === button.dataset.id);
-                await deleteDoc(doc(marketingOpsCol, button.dataset.id));
+                const deleteBatch = writeBatch(db);
+                deleteBatch.delete(doc(marketingOpsCol, button.dataset.id));
+                deleteBatch.delete(doc(chargesCol, marketingChargeId(button.dataset.id)));
+                await deleteBatch.commit();
                 logActivity('Marketing', 'Suppression', removedOp ? `${removedOp.name} · ${Number(removedOp.amount || 0).toFixed(2)} Mad` : 'Opération');
                 showToast('Opération supprimée.');
             } catch (error) {
@@ -9116,11 +9175,14 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
         };
 
         const PRODUCT_VAT_RATE = 0.10;
+        const FROZEN_PRODUCT_VAT_RATE = 0.20;
+        // Les produits surgelés revendus sont à 20 % de TVA, les autres produits à 10 %.
+        const productVatRate = (type) => (type === 'Surgelé' ? FROZEN_PRODUCT_VAT_RATE : PRODUCT_VAT_RATE);
         const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
-        const productPriceBreakdown = (priceTtc, materials, packaging, labor) => {
+        const productPriceBreakdown = (priceTtc, materials, packaging, labor, vatRate = PRODUCT_VAT_RATE) => {
             const ttc = roundMoney(priceTtc);
-            const ht = ttc > 0 ? roundMoney(ttc / (1 + PRODUCT_VAT_RATE)) : 0;
+            const ht = ttc > 0 ? roundMoney(ttc / (1 + vatRate)) : 0;
             const vat = roundMoney(ttc - ht);
             const mat = Math.max(0, roundMoney(materials));
             const pack = Math.max(0, roundMoney(packaging));
@@ -9133,12 +9195,13 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 packagingPct: pctOfTtc(pack),
                 laborPct: pctOfTtc(work),
                 vatPct: pctOfTtc(vat),
-                marginPct: pctOfTtc(margin)
+                marginPct: pctOfTtc(margin),
+                vatRate
             };
         };
 
-        const renderPriceSplit = (priceTtc, materials, packaging, labor) => {
-            const split = productPriceBreakdown(priceTtc, materials, packaging, labor);
+        const renderPriceSplit = (priceTtc, materials, packaging, labor, vatRate = PRODUCT_VAT_RATE) => {
+            const split = productPriceBreakdown(priceTtc, materials, packaging, labor, vatRate);
             if (!(split.ttc > 0)) {
                 return '<div class="mt-4 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">La répartition s\'affiche dès qu\'un prix de vente est saisi.</div>';
             }
@@ -9148,7 +9211,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
                 { label: 'Matières', amount: split.materials, share: split.materialsPct, dot: '#e7a08c', text: '#3f2a24', show: true },
                 { label: 'Emballage', amount: split.packaging, share: split.packagingPct, dot: '#e8c547', text: '#3f3210', show: split.packaging > 0 },
                 { label: 'Main-d\'œuvre', amount: split.labor, share: split.laborPct, dot: '#8eaddb', text: '#1e2a44', show: split.labor > 0 },
-                { label: 'TVA collectée (10 %)', amount: split.vat, share: split.vatPct, dot: '#c5c8ce', text: '#1f2937', show: true },
+                { label: `TVA collectée (${Math.round(split.vatRate * 100)} %)`, amount: split.vat, share: split.vatPct, dot: '#c5c8ce', text: '#1f2937', show: true },
                 { label: 'Marge après coûts directs', amount: split.margin, share: split.marginPct, dot: '#0f9d78', text: '#ffffff', show: true, emphasis: true }
             ].filter((row) => row.show);
             const barRows = rows.filter((row) => row.amount > 0);
@@ -9189,7 +9252,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
 
         const previewProductMaterials = () => {
             const type = document.getElementById('product-type')?.value || '';
-            const hasRecipe = ['Pizza', 'Panuozzo', 'Dessert', 'Entrée'].includes(type);
+            const hasRecipe = ['Pizza', 'Panuozzo', 'Dessert', 'Entrée', 'Surgelé'].includes(type);
             if (hasRecipe) {
                 return currentRecipe.reduce((total, recipeItem) => {
                     const ingredient = allIngredients.find((item) => item.id === recipeItem.id);
@@ -9208,17 +9271,17 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
             const price = parseFloat(document.getElementById('product-price')?.value);
             const packaging = parseFloat(document.getElementById('product-packaging-cost')?.value);
             const labor = parseFloat(document.getElementById('product-labor-cost')?.value);
-            host.innerHTML = renderPriceSplit(price, previewProductMaterials(), packaging, labor);
+            host.innerHTML = renderPriceSplit(price, previewProductMaterials(), packaging, labor, productVatRate(document.getElementById('product-type')?.value));
         };
 
         const productSortValue = (product, metric) => {
             const salePrice = Number(product.price) || 0;
             if (metric === 'price') return salePrice;
-            const split = productPriceBreakdown(salePrice, calculateProductCost(product), product.packagingCost, product.laborCost);
+            const split = productPriceBreakdown(salePrice, calculateProductCost(product), product.packagingCost, product.laborCost, productVatRate(product.type));
             return metric === 'food' ? split.materialsPct : split.marginPct;
         };
 
-        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); const typeFilter = document.getElementById('product-type-filter')?.value || ''; const sortValue = document.getElementById('product-sort')?.value || ''; container.innerHTML = ''; let filteredProducts = typeFilter ? allProducts.filter(p => p.type === typeFilter) : allProducts.slice(); if (sortValue) { const [metric, direction] = sortValue.split('-'); const sign = direction === 'desc' ? -1 : 1; filteredProducts.sort((a, b) => { const diff = productSortValue(a, metric) - productSortValue(b, metric); return diff !== 0 ? diff * sign : String(a.name || '').localeCompare(String(b.name || ''), 'fr'); }); } if(filteredProducts.length === 0) { const pEl = placeholder?.querySelector('p'); if(pEl) pEl.textContent = typeFilter ? 'Aucun produit pour ce type.' : 'Aucun produit créé. Créez votre premier produit !'; container.appendChild(placeholder); } else { filteredProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Entrée: '<i class="fas fa-concierge-bell"></i>', Pizza: '<i class="fas fa-pizza-slice"></i>', Panuozzo: '<i class="fas fa-bread-slice"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Autre: '<i class="fas fa-box"></i>' }; 
+        const renderProducts = () => { const container = document.getElementById('products-list'); const placeholder = document.getElementById('products-placeholder'); const typeFilter = document.getElementById('product-type-filter')?.value || ''; const sortValue = document.getElementById('product-sort')?.value || ''; container.innerHTML = ''; let filteredProducts = typeFilter ? allProducts.filter(p => p.type === typeFilter) : allProducts.slice(); if (sortValue) { const [metric, direction] = sortValue.split('-'); const sign = direction === 'desc' ? -1 : 1; filteredProducts.sort((a, b) => { const diff = productSortValue(a, metric) - productSortValue(b, metric); return diff !== 0 ? diff * sign : String(a.name || '').localeCompare(String(b.name || ''), 'fr'); }); } if(filteredProducts.length === 0) { const pEl = placeholder?.querySelector('p'); if(pEl) pEl.textContent = typeFilter ? 'Aucun produit pour ce type.' : 'Aucun produit créé. Créez votre premier produit !'; container.appendChild(placeholder); } else { filteredProducts.forEach(product => { const card = document.createElement('div'); card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col justify-between'; const typeIcon = { Entrée: '<i class="fas fa-concierge-bell"></i>', Pizza: '<i class="fas fa-pizza-slice"></i>', Panuozzo: '<i class="fas fa-bread-slice"></i>', Dessert: '<i class="fas fa-ice-cream"></i>', Surgelé: '<i class="fas fa-snowflake"></i>', Boisson: '<i class="fas fa-wine-bottle"></i>', Autre: '<i class="fas fa-box"></i>' }; 
         
         let contentHtml = '';
         if (product.recipe && product.recipe.length > 0) {
@@ -9247,7 +9310,7 @@ const netProfit = totalSales - (totalCharges + totalPurchases);
         
         const productCost = calculateProductCost(product);
         const salePrice = Number(product.price) || 0;
-        const priceSplitHtml = renderPriceSplit(salePrice, productCost, product.packagingCost, product.laborCost);
+        const priceSplitHtml = renderPriceSplit(salePrice, productCost, product.packagingCost, product.laborCost, productVatRate(product.type));
         card.innerHTML = `<div class="p-4 sm:p-6"><div class="flex justify-between items-start gap-3"><div class="min-w-0"><h3 class="text-xl font-bold text-gray-900">${product.name}</h3><p class="text-gray-500 text-xs">Coût de revient: ${productCost.toFixed(2)} Mad</p></div><span class="text-gray-400 text-xl shrink-0">${typeIcon[product.type]}</span></div><div class="flex-grow">${contentHtml}</div>${priceSplitHtml}</div><div class="bg-gray-50 px-4 sm:px-6 py-3 flex justify-end gap-3"><button data-id="${product.id}" class="edit-product-btn text-gray-600 hover:text-gray-900 font-medium">Modifier</button><button data-id="${product.id}" class="delete-product-btn text-red-600 hover:text-red-900 font-medium">Supprimer</button></div>`; container.appendChild(card); }); } };
 let lastRenderedOrderHistory = [];
 let lastRenderedPurchaseOrders = [];
@@ -9588,9 +9651,11 @@ const renderOrderHistory = (history) => {
             const d = toDate(charge.date);
             const displayDate = d ? formatDateToDDMMYYYY(d) : 'Date inconnue';
             const displayCategory = getChargeDisplayCategory(charge);
-            const isAuto = isAutoTpeCharge(charge);
+            const isAuto = isAutoTpeCharge(charge) || charge.type === MARKETING_CHARGE_TYPE;
+            const isAutoMarketing = charge.type === MARKETING_CHARGE_TYPE;
             const categoryBadge = `<span class="inline-block mt-1 text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">${displayCategory}</span>`
-                + (isAuto ? ` <span class="inline-block mt-1 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full" title="Calculée automatiquement : 1,61 % des encaissements TPE de la déclaration Finance (${Number(charge.tpeBase || 0).toFixed(2)} Mad)">Auto · 1,61 % de ${Number(charge.tpeBase || 0).toFixed(2)} Mad</span>` : '');
+                + (isAutoMarketing ? ` <span class="inline-block mt-1 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full" title="Ajoutée automatiquement depuis l'onglet Marketing. Modifie ou supprime l'opération pour la changer.">Auto · Marketing</span>` : '')
+                + (isAuto && !isAutoMarketing ? ` <span class="inline-block mt-1 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full" title="Calculée automatiquement : 1,61 % des encaissements TPE de la déclaration Finance (${Number(charge.tpeBase || 0).toFixed(2)} Mad)">Auto · 1,61 % de ${Number(charge.tpeBase || 0).toFixed(2)} Mad</span>` : '');
 
             card.innerHTML = `
                 <div class="min-w-0">
@@ -9799,7 +9864,7 @@ const renderOrderHistory = (history) => {
         // --- PRODUITS ---
         const populateIngredientSelects = () => {  const recipeSelect = document.getElementById('recipe-ingredient-select');  const linkedSelect = document.getElementById('linked-ingredient-select');  const poSelect = document.getElementById('po-ingredient-select'); const lossIngredientSelect = document.getElementById('loss-ingredient-select'); const options = allIngredients.map(ing => `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`).join('');  recipeSelect.innerHTML = `<option value="">Choisir...</option>${options}`;  linkedSelect.innerHTML = `<option value="">Choisir...</option>${options}`; poSelect.innerHTML = `<option value="">Choisir...</option>${options}`; lossIngredientSelect.innerHTML = `<option value="">Choisir...</option>${options}`};
         const syncProductTypeSections = (productType) => {
-            const hasRecipe = ['Pizza', 'Panuozzo', 'Dessert', 'Entrée'].includes(productType);
+            const hasRecipe = ['Pizza', 'Panuozzo', 'Dessert', 'Entrée', 'Surgelé'].includes(productType);
             document.getElementById('recipe-section').classList.toggle('hidden', !hasRecipe);
             document.getElementById('linked-ingredient-section').classList.toggle('hidden', hasRecipe);
         };
@@ -9825,6 +9890,88 @@ const renderOrderHistory = (history) => {
             syncProductTypeSections(e.target.value);
             refreshProductPricePreview();
         });
+
+        // --- Pizzas surgelées (type Surgelé) : prix B2B HT du fournisseur → prix de vente TTC 20 %, recette = moitié de la pizza équivalente ---
+        const FROZEN_NAME_SUFFIX = ' pronto_';
+        const FROZEN_CATALOG = [
+            { label: 'Pizza Margherita', ht: 26.25 },
+            { label: 'Pizza Diavola', ht: 40.50 },
+            { label: 'Pizza Cinque Formaggi', ht: 42.50 },
+            { label: 'Pizza Regina', ht: 37.50 },
+            { label: 'Pizza Al Tonno Oignons Caramélisés', ht: 29.17 },
+            { label: 'Pizza Capricciosa', ht: 39.00 }
+        ];
+        const frozenNameKey = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        const frozenTokens = (value) => new Set(
+            frozenNameKey(value).split(' ')
+                .filter((token) => token && !['pizza', 'al', 'alla', 'di', 'e', 'et', 'aux', 'au', 'de', 'la', 'le', 'les'].includes(token))
+                .map((token) => token.replace(/s$/, ''))
+        );
+        const findFrozenSourceProduct = (label) => {
+            const wanted = frozenTokens(label);
+            let best = null;
+            allProducts
+                .filter((product) => product.type === 'Pizza' && Array.isArray(product.recipe) && product.recipe.length > 0)
+                .forEach((product) => {
+                    const tokens = frozenTokens(product.name);
+                    const common = [...wanted].filter((token) => tokens.has(token)).length;
+                    if (common === 0 || common < Math.min(wanted.size, tokens.size)) return;
+                    const score = common / new Set([...wanted, ...tokens]).size;
+                    if (!best || score > best.score) best = { product, score };
+                });
+            return best?.product || null;
+        };
+        const seedFrozenProducts = async () => {
+            if (!isSuperadmin()) return showToast('Accès refusé.');
+            if (!productsCol) return;
+            const existingKeys = new Set(allProducts.map((product) => frozenNameKey(product.name)));
+            const plan = [];
+            const missing = [];
+            const already = [];
+            FROZEN_CATALOG.forEach((entry) => {
+                const name = `${entry.label}${FROZEN_NAME_SUFFIX}`;
+                if (existingKeys.has(frozenNameKey(name))) { already.push(name); return; }
+                const source = findFrozenSourceProduct(entry.label);
+                if (!source) { missing.push(entry.label); return; }
+                plan.push({
+                    name,
+                    source,
+                    price: roundMoney(entry.ht * (1 + FROZEN_PRODUCT_VAT_RATE)),
+                    recipe: source.recipe.map((item) => ({ ...item, quantity: Math.round((Number(item.quantity) || 0) * 0.5 * 10000) / 10000 }))
+                });
+            });
+            if (plan.length === 0) {
+                showToast(already.length ? 'Les surgelés sont déjà chargés.' : `Aucune pizza équivalente trouvée (${missing.join(', ')}).`);
+                return;
+            }
+            const summary = plan.map((item) => `• ${item.name} — ${item.price.toFixed(2)} Mad TTC (recette de « ${item.source.name} » ÷ 2)`).join('\n');
+            const notes = [
+                already.length ? `Déjà présents : ${already.length}` : '',
+                missing.length ? `Pizza équivalente introuvable (ignorées) : ${missing.join(', ')}` : ''
+            ].filter(Boolean).join('\n');
+            if (!confirm(`Créer ${plan.length} produit(s) de type Surgelé ?\n\n${summary}${notes ? `\n\n${notes}` : ''}`)) return;
+            try {
+                const batch = writeBatch(db);
+                plan.forEach((item) => {
+                    batch.set(doc(productsCol), {
+                        name: item.name,
+                        price: item.price,
+                        type: 'Surgelé',
+                        recipe: item.recipe,
+                        packagingCost: 0,
+                        laborCost: 0,
+                        createdAt: serverTimestamp()
+                    });
+                });
+                await batch.commit();
+                logActivity('Produits', 'Création', `Surgelés chargés · ${plan.length} produit(s)`);
+                showToast(`${plan.length} produit(s) surgelé(s) créé(s).`);
+            } catch (error) {
+                console.error(error);
+                showToast('Erreur lors du chargement des surgelés.');
+            }
+        };
+        document.getElementById('seed-frozen-btn')?.addEventListener('click', seedFrozenProducts);
         ['product-price', 'product-packaging-cost', 'product-labor-cost', 'linked-ingredient-select', 'linked-ingredient-quantity'].forEach((id) => {
             document.getElementById(id)?.addEventListener('input', refreshProductPricePreview);
             document.getElementById(id)?.addEventListener('change', refreshProductPricePreview);
@@ -9898,7 +10045,7 @@ const renderOrderHistory = (history) => {
                 laborCost: Number.isFinite(laborRaw) && laborRaw > 0 ? roundMoney(laborRaw) : 0
             }; 
             
-            const hasRecipe = ['Pizza', 'Panuozzo', 'Dessert', 'Entrée'].includes(type);
+            const hasRecipe = ['Pizza', 'Panuozzo', 'Dessert', 'Entrée', 'Surgelé'].includes(type);
 
             if (hasRecipe) {
                 if (currentRecipe.length === 0) return showToast("La recette ne peut pas être vide pour ce type de produit.");
@@ -12587,7 +12734,7 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
                     }; 
                     const data = { name: name.trim(), price: parseFloat(price), type: type.trim(), createdAt: serverTimestamp() }; 
                     
-                    if (['Pizza', 'Entrée', 'Dessert'].includes(data.type)) { // Recipe product
+                    if (['Pizza', 'Entrée', 'Dessert', 'Surgelé'].includes(data.type)) { // Recipe product
                          data.recipe = details.trim().replace(/"/g, '').split(';').map(part => { 
                              const [ingName, ingQty, ingUnit] = part.split(':'); 
                              if(!ingName || !ingQty || !ingUnit) throw new Error(`Format de recette incorrect pour ${name}`);
@@ -12699,7 +12846,7 @@ document.getElementById('api-import-form').addEventListener('submit', async (e) 
             let csv = "nom,prix,type,details\n"; 
             allProducts.forEach(p => { 
                 let d = ''; 
-                if (p.type === 'Pizza' || p.type === 'Panuozzo' || p.type === 'Entrée' || p.type === 'Dessert') { 
+                if (p.type === 'Pizza' || p.type === 'Panuozzo' || p.type === 'Entrée' || p.type === 'Dessert' || p.type === 'Surgelé') { 
                     if(p.recipe) d = `"${p.recipe.map(r => `${r.name}:${r.quantity}:${r.unit}`).join(';')}"`; 
                 } else { // Linked product
                     // *** MODIFIED: Export in new format "Article:Qty" ***
