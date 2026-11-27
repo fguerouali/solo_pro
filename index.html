@@ -3159,6 +3159,7 @@ let allDailyPayments = [];
                 allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allProducts.sort((a,b) => a.name.localeCompare(b.name));
                 invalidateLookupCaches();
+                if (!snapshot.metadata?.fromCache) window.__scheduleFrozenAutoSeed?.();
                 markDirty('products', 'kpis', 'ingredients');
             });
             trackedSnapshot('orders', ordersCol, snapshot => {
@@ -9892,7 +9893,7 @@ const renderOrderHistory = (history) => {
         });
 
         // --- Pizzas surgelées (type Surgelé) : prix B2B HT du fournisseur → prix de vente TTC 20 %, recette = moitié de la pizza équivalente ---
-        const FROZEN_NAME_SUFFIX = ' pronto_';
+        const FROZEN_NAME_PREFIX = 'pronto_';
         const FROZEN_CATALOG = [
             { label: 'Pizza Margherita', ht: 26.25 },
             { label: 'Pizza Diavola', ht: 40.50 },
@@ -9921,19 +9922,23 @@ const renderOrderHistory = (history) => {
                 });
             return best?.product || null;
         };
-        const seedFrozenProducts = async () => {
-            if (!isSuperadmin()) return showToast('Accès refusé.');
+        const frozenProductId = (label) => `frozen-${frozenNameKey(label).replace(/ /g, '-')}`;
+        const seedFrozenProducts = async (options = {}) => {
+            const auto = options.auto === true;
+            if (!isSuperadmin()) return auto ? undefined : showToast('Accès refusé.');
             if (!productsCol) return;
-            const existingKeys = new Set(allProducts.map((product) => frozenNameKey(product.name)));
+            const frozenKeys = allProducts.filter((product) => product.type === 'Surgelé').map((product) => frozenNameKey(product.name));
             const plan = [];
             const missing = [];
             const already = [];
             FROZEN_CATALOG.forEach((entry) => {
-                const name = `${entry.label}${FROZEN_NAME_SUFFIX}`;
-                if (existingKeys.has(frozenNameKey(name))) { already.push(name); return; }
+                const name = `${FROZEN_NAME_PREFIX}${entry.label}`;
+                const labelKey = frozenNameKey(entry.label);
+                if (frozenKeys.some((key) => key.includes(labelKey))) { already.push(name); return; }
                 const source = findFrozenSourceProduct(entry.label);
                 if (!source) { missing.push(entry.label); return; }
                 plan.push({
+                    id: frozenProductId(entry.label),
                     name,
                     source,
                     price: roundMoney(entry.ht * (1 + FROZEN_PRODUCT_VAT_RATE)),
@@ -9941,7 +9946,8 @@ const renderOrderHistory = (history) => {
                 });
             });
             if (plan.length === 0) {
-                showToast(already.length ? 'Les surgelés sont déjà chargés.' : `Aucune pizza équivalente trouvée (${missing.join(', ')}).`);
+                if (!auto) showToast(already.length ? 'Les surgelés sont déjà chargés.' : `Aucune pizza équivalente trouvée (${missing.join(', ')}).`);
+                else if (!already.length && missing.length) showToast(`Surgelés non chargés : pizza équivalente introuvable (${missing.join(', ')}).`);
                 return;
             }
             const summary = plan.map((item) => `• ${item.name} — ${item.price.toFixed(2)} Mad TTC (recette de « ${item.source.name} » ÷ 2)`).join('\n');
@@ -9949,11 +9955,12 @@ const renderOrderHistory = (history) => {
                 already.length ? `Déjà présents : ${already.length}` : '',
                 missing.length ? `Pizza équivalente introuvable (ignorées) : ${missing.join(', ')}` : ''
             ].filter(Boolean).join('\n');
-            if (!confirm(`Créer ${plan.length} produit(s) de type Surgelé ?\n\n${summary}${notes ? `\n\n${notes}` : ''}`)) return;
+            if (!auto && !confirm(`Créer ${plan.length} produit(s) de type Surgelé ?\n\n${summary}${notes ? `\n\n${notes}` : ''}`)) return;
             try {
                 const batch = writeBatch(db);
                 plan.forEach((item) => {
-                    batch.set(doc(productsCol), {
+                    // Identifiant fixe : jamais de doublon, même si deux appareils chargent en même temps.
+                    batch.set(doc(productsCol, item.id), {
                         name: item.name,
                         price: item.price,
                         type: 'Surgelé',
@@ -9964,6 +9971,7 @@ const renderOrderHistory = (history) => {
                     });
                 });
                 await batch.commit();
+                if (auto) localStorage.setItem('solo.frozenSeeded', '1');
                 logActivity('Produits', 'Création', `Surgelés chargés · ${plan.length} produit(s)`);
                 showToast(`${plan.length} produit(s) surgelé(s) créé(s).`);
             } catch (error) {
@@ -9971,7 +9979,22 @@ const renderOrderHistory = (history) => {
                 showToast('Erreur lors du chargement des surgelés.');
             }
         };
-        document.getElementById('seed-frozen-btn')?.addEventListener('click', seedFrozenProducts);
+        document.getElementById('seed-frozen-btn')?.addEventListener('click', () => seedFrozenProducts());
+
+        // Chargement automatique, une seule fois : tant qu'aucun produit Surgelé n'existe, le super admin les crée à l'ouverture.
+        let frozenAutoSeedTimer = null;
+        let frozenAutoSeedTried = false;
+        const scheduleFrozenAutoSeed = () => {
+            clearTimeout(frozenAutoSeedTimer);
+            frozenAutoSeedTimer = setTimeout(() => {
+                if (frozenAutoSeedTried || !isSuperadmin() || !allProducts.length || !allIngredients.length) return;
+                if (allProducts.some((product) => product.type === 'Surgelé')) return;
+                if (localStorage.getItem('solo.frozenSeeded') === '1') return;
+                frozenAutoSeedTried = true;
+                seedFrozenProducts({ auto: true });
+            }, 2500);
+        };
+        window.__scheduleFrozenAutoSeed = scheduleFrozenAutoSeed;
         ['product-price', 'product-packaging-cost', 'product-labor-cost', 'linked-ingredient-select', 'linked-ingredient-quantity'].forEach((id) => {
             document.getElementById(id)?.addEventListener('input', refreshProductPricePreview);
             document.getElementById(id)?.addEventListener('change', refreshProductPricePreview);
